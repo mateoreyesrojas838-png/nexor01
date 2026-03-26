@@ -4,12 +4,6 @@ import { getAdminUser, unauthorizedAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import webpush from 'web-push'
 
-webpush.setVapidDetails(
-  'mailto:admin@nexor.app',
-  process.env.VAPID_PUBLIC_KEY ?? '',
-  process.env.VAPID_PRIVATE_KEY ?? '',
-)
-
 /**
  * POST /api/admin/send-push
  * Body: { title, body, link?, userId? }
@@ -28,6 +22,12 @@ export async function POST(req: NextRequest) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
     return NextResponse.json({ error: 'VAPID keys no configuradas' }, { status: 500 })
   }
+
+  webpush.setVapidDetails(
+    'mailto:admin@nexor.app',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY,
+  )
 
   // Get subscriptions
   const subscriptions = await prisma.pushSubscription.findMany({
