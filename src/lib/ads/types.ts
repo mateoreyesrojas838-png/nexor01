@@ -1,0 +1,100 @@
+import { AdPlatform, BudgetType, DraftStatus, RemoteStatus } from '@prisma/client'
+
+export interface AdAccount {
+    providerAccountId: string
+    displayName: string
+    currency: string
+    timezone: string
+}
+
+export interface MetricRow {
+    date: Date
+    providerCampaignId: string
+    spend: number
+    impressions: number
+    clicks: number
+    conversions: number
+    ctr?: number
+    cpc?: number
+    cpa?: number
+    roas?: number
+}
+
+export interface CampaignDraftPayload {
+    name: string
+    objective?: string
+    budgetType: BudgetType
+    budgetAmount: number
+    geoLocations?: {
+        countries?: string[]
+        regions?: Array<{ key: string; name: string }>
+        cities?: Array<{ key: string; name: string; radius?: number; distance_unit?: string }>
+        custom_locations?: Array<{ lat: number; lng: number; radius: number; distance_unit: string; name?: string }>
+    }
+    ageMin?: number
+    ageMax?: number
+    gender?: string
+    placementsJson?: any
+    destinationUrl?: string
+    messengerDestination?: 'WHATSAPP' | 'MESSENGER' | 'INSTAGRAM'
+    utmJson?: any
+    primaryText?: string
+    headline?: string
+    description?: string
+    cta?: string
+    providerPageId?: string
+    providerWhatsAppNumber?: string
+    pixelId?: string
+    welcomeMessage?: string
+    providerPostId?: string
+    assets?: Array<{
+        type: 'IMAGE' | 'VIDEO'
+        storageUrl: string
+    }>
+    copies?: Array<{
+        primaryText?: string
+        headline?: string
+        description?: string
+        imageUrl?: string
+    }>
+    // AI-generated audience interests resolved to Meta IDs
+    audienceInterests?: Array<{ id: string; name: string }>
+}
+
+export interface PublishResult {
+    providerCampaignId: string
+    providerGroupId?: string
+    providerAdId?: string
+}
+
+export interface IAdsAdapter {
+    platform: AdPlatform
+
+    getAuthUrl(state?: string): string
+    exchangeCodeForToken(code: string): Promise<{
+        accessToken: string
+        refreshToken?: string
+        expiresAt?: Date
+        tokenType?: string
+        scopes?: string[]
+    }>
+
+    refreshToken(refreshToken: string): Promise<{
+        accessToken: string
+        refreshToken?: string
+        expiresAt?: Date
+    }>
+
+    listAdAccounts(accessToken: string): Promise<AdAccount[]>
+    listPages(accessToken: string): Promise<any[]>
+    listPixels(accessToken: string, adAccountId: string): Promise<any[]>
+    listPagePosts(accessToken: string, pageId: string): Promise<any[]>
+    searchLocations(accessToken: string, query: string, type?: string): Promise<any[]>
+
+    publishFromDraft(accessToken: string, adAccountId: string, draft: CampaignDraftPayload): Promise<PublishResult>
+
+    pauseCampaign(accessToken: string, adAccountId: string, providerCampaignId: string): Promise<boolean>
+    resumeCampaign(accessToken: string, adAccountId: string, providerCampaignId: string): Promise<boolean>
+
+    fetchDailyMetrics(accessToken: string, adAccountId: string, from: Date, to: Date): Promise<MetricRow[]>
+}

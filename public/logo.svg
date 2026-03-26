@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" fill="none">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#f5d060"/>
+      <stop offset="40%"  stop-color="#d4af37"/>
+      <stop offset="70%"  stop-color="#c49a28"/>
+      <stop offset="100%" stop-color="#a0762a"/>
+    </linearGradient>
+    <linearGradient id="goldShine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#f5e070"/>
+      <stop offset="50%"  stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#8a6010"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Corona - forma principal -->
+  <!-- Base horizontal -->
+  <polygon
+    points="38,105  162,105  155,95  45,95"
+    fill="url(#gold)"
+    filter="url(#glow)"
+  />
+
+  <!-- Punta izquierda -->
+  <polygon
+    points="45,95  38,105  55,40  68,75"
+    fill="url(#goldShine)"
+    filter="url(#glow)"
+  />
+
+  <!-- Valle izquierdo -->
+  <polygon
+    points="68,75  55,40  80,65  90,55"
+    fill="url(#gold)"
+    filter="url(#glow)"
+  />
+
+  <!-- Punta central (la más alta) -->
+  <polygon
+    points="80,65  90,55  100,20  110,55  120,65"
+    fill="url(#goldShine)"
+    filter="url(#glow)"
+  />
+
+  <!-- Valle derecho -->
+  <polygon
+    points="110,55  120,65  132,40  145,75"
+    fill="url(#gold)"
+    filter="url(#glow)"
+  />
+
+  <!-- Punta derecha -->
+  <polygon
+    points="132,40  145,75  155,95  162,105"
+    fill="url(#goldShine)"
+    filter="url(#glow)"
+  />
+
+  <!-- Línea de brillo superior -->
+  <polyline
+    points="55,40  68,75  90,55  100,20  110,55  132,40  145,75"
+    stroke="#f5e070"
+    stroke-width="1.2"
+    fill="none"
+    opacity="0.6"
+  />
+</svg>

@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #0B0C14;
+    color: #FAFAFA;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  ::selection {
+    background-color: rgba(255, 215, 0, 0.25);
+    color: #7a5600;
+  }
+}
+
+@layer components {
+
+  /* Efecto Agua / Liquid Glass 2026 */
+  .water-glass {
+    @apply bg-white/5 backdrop-blur-[45px] border border-white/20 rounded-[1.5rem] shadow-water-shadow relative overflow-hidden;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.06) 0%, rgba(212, 160, 0, 0.02) 100%);
+  }
+
+  /* Brillo líquido superficial (Efecto Dorado) */
+  .water-glass::before {
+    content: "";
+    @apply absolute top-0 left-0 w-full h-[60%] pointer-events-none;
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.08) 0%, transparent 100%);
+    border-top: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 1.5rem 1.5rem 0 0;
+    z-index: 1;
+  }
+
+  /* Reflejo de profundidad radial */
+  .water-glass-glow {
+    @apply water-glass transition-all duration-700 hover:border-white/40 shadow-water-glow;
+  }
+
+  /* Efecto cristal / vidrio líquido para el gráfico */
+  .crystal-glass {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(40px) saturate(180%);
+    background:
+      linear-gradient(135deg, rgba(255, 215, 0, 0.06) 0%, rgba(212, 160, 0, 0.04) 50%, rgba(255, 184, 0, 0.03) 100%);
+  }
+
+  /* Reflejo superior tipo cristal */
+  .crystal-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.06) 0%,
+        rgba(255, 215, 0, 0.04) 30%,
+        transparent 60%);
+    border-top: 1px solid rgba(255, 215, 0, 0.15);
+    border-radius: 1.5rem 1.5rem 0 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Ola decorativa en la base */
+  .crystal-glass::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: -10%;
+    width: 120%;
+    height: 45%;
+    background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(212, 160, 0, 0.04) 40%,
+        rgba(180, 83, 9, 0.08) 100%);
+    border-radius: 60% 60% 0 0 / 40% 40% 0 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .btn-liquid {
+    @apply relative overflow-hidden bg-gradient-to-r from-[#B45309] via-[#D97706] to-[#FFD700] text-white font-black px-12 py-5 rounded-[2.5rem] transition-all duration-500 hover:scale-[1.08] hover:shadow-btn-liquid active:scale-[0.98] border-t border-white/30 uppercase tracking-[0.2em] not-italic;
+    background-size: 200% auto;
+  }
+
+  .btn-liquid:hover {
+    background-position: right center;
+  }
+
+  .btn-outline-water {
+    @apply bg-transparent border-2 border-[#FBBF24]/40 text-[#FBBF24] font-black px-10 py-4 rounded-[2.5rem] transition-all duration-300 hover:bg-[#FBBF24]/10 hover:border-[#FBBF24] hover:shadow-btn-outline uppercase tracking-[0.2em] not-italic;
+  }
+
+  /* Clases heredadas necesarias para el resto de la app */
+  .btn-primary {
+    @apply btn-liquid;
+  }
+
+  .btn-secondary {
+    @apply btn-outline-water;
+  }
+
+  .card {
+    @apply water-glass p-8 border-white/5;
+  }
+
+  .glass-panel {
+    @apply water-glass;
+  }
+
+  .input-field {
+    @apply w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-white/30 focus:outline-none focus:border-[#FBBF24]/50 focus:ring-1 focus:ring-[#FBBF24]/20;
+  }
+}
