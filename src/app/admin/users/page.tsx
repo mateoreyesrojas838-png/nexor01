@@ -17,11 +17,8 @@ import {
   Smartphone,
   X,
   Unlink,
-  MapPin,
   Monitor,
-  Globe,
   Clock,
-  AlertOctagon,
   ExternalLink,
   RefreshCw,
 } from 'lucide-react'
@@ -39,7 +36,6 @@ interface UserRow {
   createdAt: string
   totalCommissions: number
   _count: { referrals: number }
-  locationChanged?: boolean
 }
 
 const PLAN_BADGE: Record<string, string> = {
@@ -62,10 +58,7 @@ export default function AdminUsersPage() {
   const [devicesModal, setDevicesModal] = useState<{ id: string; username: string; fullName: string } | null>(null)
   const [devices, setDevices] = useState<{
     id: string; deviceId: string; label: string | null; lastSeen: string; createdAt: string
-    ip: string | null; city: string | null; country: string | null
-    lat: number | null; lng: number | null; address: string | null
     browser: string | null; os: string | null; deviceType: string | null
-    prevIp: string | null; prevCity: string | null; locationChanged: boolean
   }[]>([])
   const [devicesLoading, setDevicesLoading] = useState(false)
   const [unlinking, setUnlinking] = useState<string | null>(null)
@@ -220,11 +213,6 @@ export default function AdminUsersPage() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-xs font-bold truncate max-w-[120px]">{u.fullName}</p>
                             {u.isAdmin && <Crown size={10} className="text-yellow-400 shrink-0" />}
-                            {u.locationChanged && (
-                              <span className="flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 animate-pulse">
-                                <AlertOctagon size={8} /> Ubicación
-                              </span>
-                            )}
                           </div>
                           <p className="text-[10px] text-white/30 truncate max-w-[120px]">@{u.username}</p>
                         </div>
@@ -398,17 +386,6 @@ export default function AdminUsersPage() {
                 {devices.map(d => (
                   <div key={d.id} className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
 
-                    {/* Location changed banner */}
-                    {d.locationChanged && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border-b border-orange-500/20">
-                        <AlertOctagon size={12} className="text-orange-400 shrink-0" />
-                        <p className="text-[10px] font-bold text-orange-400">Cambio de ubicación detectado</p>
-                        {d.prevCity && d.prevIp && (
-                          <p className="text-[10px] text-orange-400/60 ml-auto">Antes: {d.prevCity} · {d.prevIp}</p>
-                        )}
-                      </div>
-                    )}
-
                     <div className="p-3 space-y-2.5">
                       {/* Header row */}
                       <div className="flex items-center justify-between">
@@ -436,24 +413,6 @@ export default function AdminUsersPage() {
 
                       {/* Info grid */}
                       <div className="grid grid-cols-2 gap-1.5">
-                        {/* IP */}
-                        <div className="flex items-start gap-1.5 bg-white/[0.025] rounded-lg px-2 py-1.5">
-                          <Globe size={10} className="text-amber-400 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-[9px] text-white/25 uppercase font-bold">IP</p>
-                            <p className="text-[10px] text-amber-300 font-mono">{d.ip ?? '—'}</p>
-                          </div>
-                        </div>
-
-                        {/* Location */}
-                        <div className="flex items-start gap-1.5 bg-white/[0.025] rounded-lg px-2 py-1.5">
-                          <MapPin size={10} className="text-green-400 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-[9px] text-white/25 uppercase font-bold">Ubicación</p>
-                            <p className="text-[10px] text-white/70">{d.city ?? '—'}{d.country ? `, ${d.country}` : ''}</p>
-                          </div>
-                        </div>
-
                         {/* Device */}
                         <div className="flex items-start gap-1.5 bg-white/[0.025] rounded-lg px-2 py-1.5">
                           <Monitor size={10} className="text-amber-400 mt-0.5 shrink-0" />
@@ -484,30 +443,6 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
 
-                      {/* GPS address + Ver en mapa */}
-                      {(d.address || (d.lat && d.lng)) && (
-                        <div className="space-y-1.5">
-                          {d.address && (
-                            <div className="flex items-start gap-1.5 bg-green-500/5 border border-green-500/15 rounded-lg px-2 py-1.5">
-                              <MapPin size={10} className="text-green-400 mt-0.5 shrink-0" />
-                              <p className="text-[10px] text-green-400/80 leading-snug">{d.address}</p>
-                            </div>
-                          )}
-                          {d.lat && d.lng && (
-                            <a
-                              href={`https://www.google.com/maps?q=${d.lat},${d.lng}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-[10px] font-bold transition-all hover:opacity-90 active:scale-[0.98]"
-                              style={{ background: 'linear-gradient(135deg, #166534, #14532d)', border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80' }}
-                            >
-                              <MapPin size={11} />
-                              Ver ubicación en Google Maps
-                              <ExternalLink size={9} />
-                            </a>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
