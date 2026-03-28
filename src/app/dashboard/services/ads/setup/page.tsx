@@ -16,6 +16,8 @@ export default function SetupPage() {
     const [saving, setSaving] = useState(false)
     const [config, setConfig] = useState<any>(null)
     const [integrations, setIntegrations] = useState<any[]>([])
+    const [waNumbers, setWaNumbers] = useState<any[]>([])
+    const [waLoading, setWaLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
@@ -30,6 +32,17 @@ export default function SetupPage() {
         setConfig(oaiData.config)
         if (oaiData.config?.model) setModel(oaiData.config.model)
         setIntegrations(intData.integrations || [])
+    }
+
+    async function loadWaNumbers() {
+        setWaLoading(true)
+        try {
+            const res = await fetch('/api/ads/integrations/meta/whatsapp-numbers')
+            const data = await res.json()
+            setWaNumbers(data.phoneNumbers || [])
+            if (!data.phoneNumbers?.length) setError('No se encontraron números de WhatsApp asociados a esta cuenta de Meta.')
+        } catch { setError('Error al cargar números de WhatsApp') }
+        finally { setWaLoading(false) }
     }
 
     async function handleSaveOpenAI(e: React.FormEvent) {
@@ -241,6 +254,41 @@ export default function SetupPage() {
                             </div>
                         )
                     })}
+
+                    {/* WhatsApp Numbers */}
+                    {integrations.find(i => i.platform === 'META' && i.status === 'CONNECTED') && (
+                        <div className="mt-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 className="font-bold text-sm">Números de WhatsApp</h3>
+                                    <p className="text-[11px] text-white/30">Números asociados a tu cuenta de Meta</p>
+                                </div>
+                                <button onClick={loadWaNumbers} disabled={waLoading}
+                                    className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-40">
+                                    {waLoading ? <><Loader2 size={12} className="animate-spin" /> Cargando...</> : 'Ver números'}
+                                </button>
+                            </div>
+
+                            {waNumbers.length > 0 && (
+                                <div className="space-y-2">
+                                    {waNumbers.map(n => (
+                                        <div key={n.id} className="flex items-center gap-3 bg-white/3 border border-white/8 rounded-xl px-4 py-3">
+                                            <div className="w-8 h-8 rounded-xl bg-green-500/15 border border-green-500/20 flex items-center justify-center shrink-0">
+                                                <span className="text-green-400 font-black text-sm">W</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-sm">{n.displayPhone}</p>
+                                                <p className="text-[11px] text-white/30">{n.name}</p>
+                                            </div>
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${n.status === 'CONNECTED' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
+                                                {n.status}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
