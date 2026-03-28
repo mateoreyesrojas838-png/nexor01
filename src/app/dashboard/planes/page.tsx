@@ -7,7 +7,7 @@ import {
   Check, X, Zap, Sparkles, Crown, Layers,
   MessageCircle, Megaphone, Radio,
   Users, CheckCircle2, Clock, Timer,
-  RefreshCw, ArrowLeft,
+  RefreshCw, ArrowLeft, ChevronRight, MessageSquare,
 } from 'lucide-react'
 
 // ─── Defaults (admin los puede cambiar desde /admin/settings) ─────────────────
@@ -496,7 +496,7 @@ export default function PlanesPage() {
               className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-[0.98] text-black"
               style={{ background: 'linear-gradient(135deg, #D97706, #FFD700)' }}
             >
-              <Phone size={14} />
+              <MessageSquare size={14} />
               Contactar por WhatsApp
             </a>
           </div>
