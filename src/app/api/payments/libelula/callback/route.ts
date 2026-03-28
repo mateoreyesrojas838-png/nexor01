@@ -9,8 +9,10 @@ import { prisma } from '@/lib/prisma'
 export async function GET(req: NextRequest) {
   const transactionId = req.nextUrl.searchParams.get('transaction_id')
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://nexor-itt9.onrender.com'
+
   if (!transactionId) {
-    return NextResponse.json({ error: 'transaction_id requerido' }, { status: 400 })
+    return NextResponse.redirect(`${appUrl}/dashboard/planes?payment=error`)
   }
 
   // Find pending pack request — notes starts with LIBELULA:{transactionId}
@@ -22,9 +24,9 @@ export async function GET(req: NextRequest) {
   })
 
   if (!packRequest) {
-    // Already processed or not found — return 200 so Libélula doesn't retry
+    // Already processed or not found — redirect to dashboard
     console.log(`[Libélula callback] Transaction ${transactionId} not found or already processed`)
-    return NextResponse.json({ ok: true, msg: 'already_processed' })
+    return NextResponse.redirect(`${appUrl}/dashboard?payment=already_processed`)
   }
 
   const isRenewal = packRequest.notes?.includes(':RENEWAL') ?? false
@@ -65,9 +67,9 @@ export async function GET(req: NextRequest) {
     })
 
     console.log(`[Libélula callback] Plan ${packRequest.plan} ${isRenewal ? 'renewed' : 'activated'} for user ${packRequest.userId} until ${expiresAt.toISOString()}`)
-    return NextResponse.json({ ok: true })
+    return NextResponse.redirect(`${appUrl}/dashboard?payment=success`)
   } catch (err) {
     console.error('[Libélula callback] Error activating plan:', err)
-    return NextResponse.json({ error: 'Error al activar el plan' }, { status: 500 })
+    return NextResponse.redirect(`${appUrl}/dashboard/planes?payment=error`)
   }
 }
