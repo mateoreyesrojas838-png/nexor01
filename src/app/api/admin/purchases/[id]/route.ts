@@ -25,7 +25,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Solicitud no encontrada' }, { status: 404 })
   }
 
-  if (purchaseRequest.status !== 'PENDING') {
+  if (purchaseRequest.status !== 'PENDING' && purchaseRequest.status !== 'PENDING_VERIFICATION') {
     return NextResponse.json({ error: 'Esta solicitud ya fue procesada' }, { status: 400 })
   }
 
@@ -38,7 +38,7 @@ export async function PATCH(
           WHERE id = ${params.id}::uuid
           FOR UPDATE
         `
-        if (lockedRequest[0]?.status !== 'PENDING') {
+        if (lockedRequest[0]?.status !== 'PENDING' && lockedRequest[0]?.status !== 'PENDING_VERIFICATION') {
           throw new Error('ALREADY_PROCESSED')
         }
 

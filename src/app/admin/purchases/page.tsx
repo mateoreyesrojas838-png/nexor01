@@ -14,16 +14,18 @@ interface PurchaseRequest {
   user: { username: string; fullName: string; email: string; country: string }
 }
 
-const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED']
+const STATUS_TABS = ['ALL', 'PENDING', 'PENDING_VERIFICATION', 'APPROVED', 'REJECTED']
 
 const STATUS_BADGE: Record<string, string> = {
   PENDING: 'text-orange-400 bg-orange-500/10 border-orange-500/25',
+  PENDING_VERIFICATION: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
   APPROVED: 'text-green-400 bg-green-500/10 border-green-500/25',
   REJECTED: 'text-red-400 bg-red-500/10 border-red-500/25',
 }
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendiente',
+  PENDING_VERIFICATION: 'Libélula',
   APPROVED: 'Aprobada',
   REJECTED: 'Rechazada',
   ALL: 'Todas',
@@ -177,7 +179,7 @@ export default function AdminPurchasesPage() {
                   </div>
 
                   {/* Actions */}
-                  {r.status === 'PENDING' && (
+                  {(r.status === 'PENDING' || r.status === 'PENDING_VERIFICATION') && (
                     <div className="flex items-center gap-2 shrink-0">
                       {processing === r.id ? (
                         <Loader2 size={16} className="animate-spin text-white/40" />
