@@ -23,9 +23,12 @@ export class MetaAdapter implements IAdsAdapter {
             'pages_read_engagement',
             'pages_manage_ads',
             'pages_manage_metadata',
-            'public_profile',
+            'pages_manage_posts',
             'whatsapp_business_management',
-            'instagram_basic'
+            'whatsapp_business_messaging',
+            'instagram_basic',
+            'instagram_manage_insights',
+            'public_profile'
         ]
         const params = new URLSearchParams({
             client_id: this.appId!,
