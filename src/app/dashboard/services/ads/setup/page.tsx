@@ -81,15 +81,15 @@ function SetupPageInner() {
     }
 
     async function selectAdAccount(a: any) {
-        setAdAccountSelecting(a.id)
+        setAdAccountSelecting(a.providerAccountId || a.id)
         try {
             const res = await fetch('/api/ads/integrations/meta/accounts/select', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ providerAccountId: a.id, displayName: a.name, currency: a.currency, timezone: a.timezone })
+                body: JSON.stringify({ providerAccountId: a.providerAccountId || a.id, displayName: a.displayName || a.name, currency: a.currency, timezone: a.timezone })
             })
             if (!res.ok) throw new Error('Error al guardar')
-            setSuccess(`✓ Cuenta publicitaria "${a.name}" seleccionada`)
+            setSuccess(`✓ Cuenta publicitaria "${a.displayName || a.name}" seleccionada`)
             setShowAdSelector(false)
             fetchData()
         } catch { setError('Error al seleccionar cuenta') }
@@ -384,15 +384,15 @@ function SetupPageInner() {
                                 <div className="space-y-2">
                                     <p className="text-[11px] text-amber-400 font-bold mb-2">Selecciona la cuenta publicitaria:</p>
                                     {adAccounts.map((a: any) => (
-                                        <div key={a.id} className="flex items-center gap-3 bg-white/3 border border-white/8 rounded-xl px-4 py-3">
+                                        <div key={a.providerAccountId || a.id} className="flex items-center gap-3 bg-white/3 border border-white/8 rounded-xl px-4 py-3">
                                             <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
                                                 <span className="text-blue-400 font-black text-sm">A</span>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-sm">{a.name}</p>
-                                                <p className="text-[11px] text-white/30">{a.id} · {a.currency}</p>
+                                                <p className="font-bold text-sm">{a.displayName || a.name}</p>
+                                                <p className="text-[11px] text-white/30">{a.providerAccountId || a.id} · {a.currency}</p>
                                             </div>
-                                            <button onClick={() => selectAdAccount(a)} disabled={adAccountSelecting === a.id}
+                                            <button onClick={() => selectAdAccount(a)} disabled={adAccountSelecting === (a.providerAccountId || a.id)}
                                                 className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-all disabled:opacity-40 flex items-center gap-1">
                                                 {adAccountSelecting === a.id ? <Loader2 size={11} className="animate-spin" /> : null}
                                                 Seleccionar
