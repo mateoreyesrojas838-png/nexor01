@@ -22,6 +22,10 @@ export default function SetupPage() {
     const [waLoading, setWaLoading] = useState(false)
     const [waSelecting, setWaSelecting] = useState<string | null>(null)
     const [showWaSelector, setShowWaSelector] = useState(false)
+    const [adAccounts, setAdAccounts] = useState<any[]>([])
+    const [adAccountsLoading, setAdAccountsLoading] = useState(false)
+    const [adAccountSelecting, setAdAccountSelecting] = useState<string | null>(null)
+    const [showAdSelector, setShowAdSelector] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
@@ -29,8 +33,8 @@ export default function SetupPage() {
         fetchData()
         if (searchParams.get('connected') === 'meta') {
             setTab('platforms')
-            setShowWaSelector(true)
             loadWaNumbers()
+            loadAdAccounts()
         }
     }, [])
 
@@ -43,6 +47,34 @@ export default function SetupPage() {
         setConfig(oaiData.config)
         if (oaiData.config?.model) setModel(oaiData.config.model)
         setIntegrations(intData.integrations || [])
+    }
+
+    async function loadAdAccounts() {
+        setAdAccountsLoading(true)
+        try {
+            const res = await fetch('/api/ads/integrations/meta/accounts')
+            const data = await res.json()
+            setAdAccounts(data.accounts || [])
+            setShowAdSelector(true)
+            if (!data.accounts?.length) setError('No se encontraron cuentas publicitarias en esta cuenta de Meta.')
+        } catch { setError('Error al cargar cuentas publicitarias') }
+        finally { setAdAccountsLoading(false) }
+    }
+
+    async function selectAdAccount(a: any) {
+        setAdAccountSelecting(a.id)
+        try {
+            const res = await fetch('/api/ads/integrations/meta/accounts/select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ providerAccountId: a.id, displayName: a.name, currency: a.currency, timezone: a.timezone })
+            })
+            if (!res.ok) throw new Error('Error al guardar')
+            setSuccess(`✓ Cuenta publicitaria "${a.name}" seleccionada`)
+            setShowAdSelector(false)
+            fetchData()
+        } catch { setError('Error al seleccionar cuenta') }
+        finally { setAdAccountSelecting(null) }
     }
 
     async function loadWaNumbers() {
@@ -282,6 +314,48 @@ export default function SetupPage() {
                             </div>
                         )
                     })}
+
+                    {/* Ad Accounts */}
+                    {integrations.find(i => i.platform === 'META' && i.status === 'CONNECTED') && (
+                        <div className="mt-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 className="font-bold text-sm">Cuenta Publicitaria</h3>
+                                    <p className="text-[11px] text-white/30">
+                                        {integrations.find(i => i.platform === 'META')?.connectedAccount?.displayName
+                                            ? `Activa: ${integrations.find(i => i.platform === 'META')?.connectedAccount?.displayName}`
+                                            : 'Selecciona la cuenta para publicar anuncios'}
+                                    </p>
+                                </div>
+                                <button onClick={loadAdAccounts} disabled={adAccountsLoading}
+                                    className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-40">
+                                    {adAccountsLoading ? <><Loader2 size={12} className="animate-spin" /> Cargando...</> : 'Cambiar cuenta'}
+                                </button>
+                            </div>
+
+                            {showAdSelector && adAccounts.length > 0 && (
+                                <div className="space-y-2">
+                                    <p className="text-[11px] text-amber-400 font-bold mb-2">Selecciona la cuenta publicitaria:</p>
+                                    {adAccounts.map((a: any) => (
+                                        <div key={a.id} className="flex items-center gap-3 bg-white/3 border border-white/8 rounded-xl px-4 py-3">
+                                            <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
+                                                <span className="text-blue-400 font-black text-sm">A</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-sm">{a.name}</p>
+                                                <p className="text-[11px] text-white/30">{a.id} · {a.currency}</p>
+                                            </div>
+                                            <button onClick={() => selectAdAccount(a)} disabled={adAccountSelecting === a.id}
+                                                className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-all disabled:opacity-40 flex items-center gap-1">
+                                                {adAccountSelecting === a.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                                                Seleccionar
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* WhatsApp Numbers */}
                     {integrations.find(i => i.platform === 'META' && i.status === 'CONNECTED') && (
