@@ -70,14 +70,17 @@ export async function POST(req: NextRequest) {
   const callbackUrl = `${appUrl}/api/payments/libelula/callback`
   const identificadorDeuda = randomUUID()
 
+  const descripcion = `${isRenewal ? 'Renovación' : PLAN_LABELS[plan]} — Nexor`
+
   const body = {
     appkey,
+    descripcion_deuda: descripcion,
     email_cliente: user.email,
     identificador_deuda: identificadorDeuda,
     callback_url: callbackUrl,
     lineas_detalle_deuda: [
       {
-        desc_linea: `${isRenewal ? 'Renovación' : PLAN_LABELS[plan]} — Nexor`,
+        desc_linea: descripcion,
         importe_linea: price,
       },
     ],
