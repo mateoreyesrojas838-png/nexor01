@@ -768,38 +768,30 @@ function ConnectionsPanel({ connections, onRefresh }: { connections: any[]; onRe
             </div>
 
             {/* TikTok */}
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 opacity-60">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                         <span className="text-2xl flex-shrink-0">🎵</span>
                         <div className="min-w-0">
                             <p className="text-white font-medium">TikTok</p>
-                            {connectedMap.TIKTOK
-                                ? <p className="text-amber-400 text-xs truncate">✓ {connectedMap.TIKTOK.accountName}</p>
-                                : <p className="text-white/35 text-xs">No conectado</p>}
+                            <p className="text-white/35 text-xs">Próximamente</p>
                         </div>
                     </div>
-                    {connectedMap.TIKTOK
-                        ? <button onClick={() => disconnect('TIKTOK')} className="flex-shrink-0 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-500/20 hover:bg-red-500/10">Desconectar</button>
-                        : <a href="/api/social/oauth/tiktok" className="flex-shrink-0 text-xs bg-black/40 text-white border border-white/20 px-3 py-1.5 rounded-lg hover:bg-white/10 flex items-center gap-1"><ExternalLink size={11} /> Conectar</a>}
+                    <span className="flex-shrink-0 text-xs text-white/40 border border-white/10 px-3 py-1.5 rounded-lg">Próximamente</span>
                 </div>
             </div>
 
             {/* YouTube */}
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 opacity-60">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                         <span className="text-2xl flex-shrink-0">▶️</span>
                         <div className="min-w-0">
                             <p className="text-white font-medium">YouTube</p>
-                            {connectedMap.YOUTUBE
-                                ? <p className="text-amber-400 text-xs truncate">✓ {connectedMap.YOUTUBE.accountName}</p>
-                                : <p className="text-white/35 text-xs">No conectado</p>}
+                            <p className="text-white/35 text-xs">Próximamente</p>
                         </div>
                     </div>
-                    {connectedMap.YOUTUBE
-                        ? <button onClick={() => disconnect('YOUTUBE')} className="flex-shrink-0 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-500/20 hover:bg-red-500/10">Desconectar</button>
-                        : <a href="/api/social/oauth/youtube" className="flex-shrink-0 text-xs bg-red-500/20 text-red-300 border border-red-500/30 px-3 py-1.5 rounded-lg hover:bg-red-500/30 flex items-center gap-1"><ExternalLink size={11} /> Conectar</a>}
+                    <span className="flex-shrink-0 text-xs text-white/40 border border-white/10 px-3 py-1.5 rounded-lg">Próximamente</span>
                 </div>
             </div>
         </div>
