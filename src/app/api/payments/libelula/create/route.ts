@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
       {
         desc_linea: descripcion,
         descripcion: descripcion,
+        cantidad: 1,
         importe_linea: price,
       },
     ],
