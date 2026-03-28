@@ -14,11 +14,7 @@ import {
   Loader2,
   Trash2,
   AlertTriangle,
-  Smartphone,
   X,
-  Unlink,
-  Monitor,
-  Clock,
   ExternalLink,
   RefreshCw,
 } from 'lucide-react'
@@ -55,14 +51,6 @@ export default function AdminUsersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [deleteModal, setDeleteModal] = useState<{ id: string; username: string; fullName: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [devicesModal, setDevicesModal] = useState<{ id: string; username: string; fullName: string } | null>(null)
-  const [devices, setDevices] = useState<{
-    id: string; deviceId: string; label: string | null; lastSeen: string; createdAt: string
-    browser: string | null; os: string | null; deviceType: string | null
-  }[]>([])
-  const [devicesLoading, setDevicesLoading] = useState(false)
-  const [unlinking, setUnlinking] = useState<string | null>(null)
-  const devicesRequestIdRef = useRef(0) // tracks latest request to avoid stale state
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -85,12 +73,6 @@ export default function AdminUsersPage() {
     return () => clearTimeout(t)
   }, [fetchUsers])
 
-  // Auto-refresh devices every 30s while modal is open (picks up GPS updates)
-  useEffect(() => {
-    if (!devicesModal) return
-    const interval = setInterval(() => loadDevices(devicesModal.id), 30000)
-    return () => clearInterval(interval)
-  }, [devicesModal])
 
   async function updateUser(id: string, patch: Record<string, unknown>) {
     setUpdating(id)
@@ -117,42 +99,6 @@ export default function AdminUsersPage() {
     fetchUsers()
   }
 
-  async function loadDevices(userId: string) {
-    const requestId = ++devicesRequestIdRef.current
-    const res = await fetch(`/api/admin/users/${userId}/devices`)
-    // Ignore stale responses if a newer request was made
-    if (requestId !== devicesRequestIdRef.current) return
-    if (res.ok) {
-      const data = await res.json()
-      setDevices(data.devices ?? [])
-    }
-  }
-
-  async function openDevicesModal(user: { id: string; username: string; fullName: string }) {
-    setDevicesModal(user)
-    setDevices([])
-    setDevicesLoading(true)
-    try {
-      await loadDevices(user.id)
-    } finally {
-      setDevicesLoading(false)
-    }
-  }
-
-  async function unlinkDevice(userId: string, deviceId: string) {
-    setUnlinking(deviceId)
-    const res = await fetch(`/api/admin/users/${userId}/devices`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId }),
-    })
-    if (res.ok) {
-      setDevices(prev => prev.filter(d => d.deviceId !== deviceId))
-      // Refresh user list to clear location badge
-      fetchUsers()
-    }
-    setUnlinking(null)
-  }
 
   return (
     <div className="space-y-5">
@@ -281,13 +227,6 @@ export default function AdminUsersPage() {
                                 className="w-5 h-5 rounded bg-white/5 hover:bg-[#00FF88]/20 text-white/50 hover:text-[#00FF88] transition-colors flex items-center justify-center text-xs font-black leading-none"
                               >+</button>
                             </div>
-                            <button
-                              onClick={() => openDevicesModal({ id: u.id, username: u.username, fullName: u.fullName })}
-                              title="Ver dispositivos"
-                              className="p-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
-                            >
-                              <Smartphone size={13} className="text-amber-400" />
-                            </button>
                             {!u.isAdmin && (
                               <button
                                 onClick={() => setDeleteModal({ id: u.id, username: u.username, fullName: u.fullName })}
@@ -332,129 +271,6 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Devices modal */}
-      {devicesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setDevicesModal(null)} />
-          <div className="relative bg-[#13131f] border border-amber-500/20 rounded-2xl p-6 w-full max-w-sm z-10 shadow-2xl shadow-black/60">
-
-            <div className="absolute top-0 left-0 right-0 h-px rounded-t-2xl"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.7), transparent)' }} />
-
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <Smartphone size={15} className="text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-white">{devicesModal.fullName}</p>
-                  <p className="text-[10px] text-white/30">@{devicesModal.username}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                  En vivo
-                </span>
-                <button
-                  onClick={() => loadDevices(devicesModal.id)}
-                  title="Actualizar ahora"
-                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                >
-                  <RefreshCw size={13} className="text-white/30 hover:text-white/60" />
-                </button>
-                <button onClick={() => setDevicesModal(null)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                  <X size={14} className="text-white/40" />
-                </button>
-              </div>
-            </div>
-
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/25 mb-3">Dispositivos de confianza</p>
-
-            {devicesLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 size={18} className="animate-spin text-amber-400" />
-              </div>
-            ) : devices.length === 0 ? (
-              <div className="text-center py-8">
-                <Smartphone size={28} className="text-white/10 mx-auto mb-2" />
-                <p className="text-xs text-white/25">Sin dispositivos registrados</p>
-                <p className="text-[10px] text-white/15 mt-1">El usuario deberá verificar en su próximo inicio de sesión</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {devices.map(d => (
-                  <div key={d.id} className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
-
-                    <div className="p-3 space-y-2.5">
-                      {/* Header row */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                            <Smartphone size={13} className="text-amber-400" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-white/80">{d.label ?? 'Dispositivo'}</p>
-                            <p className="text-[10px] text-white/25 font-mono">{d.deviceId.slice(0, 14)}…</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => unlinkDevice(devicesModal.id, d.deviceId)}
-                          disabled={unlinking === d.deviceId}
-                          title="Desvincular"
-                          className="p-1.5 rounded-lg bg-red-500/8 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-40"
-                        >
-                          {unlinking === d.deviceId
-                            ? <Loader2 size={12} className="animate-spin text-red-400" />
-                            : <Unlink size={12} className="text-red-400" />
-                          }
-                        </button>
-                      </div>
-
-                      {/* Info grid */}
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {/* Device */}
-                        <div className="flex items-start gap-1.5 bg-white/[0.025] rounded-lg px-2 py-1.5">
-                          <Monitor size={10} className="text-amber-400 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-[9px] text-white/25 uppercase font-bold">Dispositivo</p>
-                            <p className="text-[10px] text-white/70">{d.deviceType ?? '—'} · {d.os ?? '—'}</p>
-                          </div>
-                        </div>
-
-                        {/* Browser */}
-                        <div className="flex items-start gap-1.5 bg-white/[0.025] rounded-lg px-2 py-1.5">
-                          <Smartphone size={10} className="text-amber-400 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-[9px] text-white/25 uppercase font-bold">Navegador</p>
-                            <p className="text-[10px] text-white/70">{d.browser ?? '—'}</p>
-                          </div>
-                        </div>
-
-                        {/* Last seen */}
-                        <div className="col-span-2 flex items-start gap-1.5 bg-white/[0.025] rounded-lg px-2 py-1.5">
-                          <Clock size={10} className="text-amber-400 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-[9px] text-white/25 uppercase font-bold">Último acceso</p>
-                            <p className="text-[10px] text-white/70">
-                              {new Date(d.lastSeen).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <p className="text-[10px] text-white/20 text-center mt-4">
-              Al desvincular, el usuario tendrá que verificar de nuevo su dispositivo
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Delete confirmation modal */}
       {deleteModal && (
