@@ -137,8 +137,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No se pudo conectar con la pasarela de pago' }, { status: 502 })
   }
 
-  // Store: LIBELULA:{id_transaccion}:RENEWAL or LIBELULA:{id_transaccion}
-  const notes = `LIBELULA:${libelulaData.id_transaccion}${isRenewal ? ':RENEWAL' : ''}`
+  // Store identificadorDeuda (our UUID) — this is what Libélula sends back as transaction_id in the callback
+  const notes = `LIBELULA:${identificadorDeuda}${isRenewal ? ':RENEWAL' : ''}`
 
   // Use PENDING_VERIFICATION for Libélula — won't block user if they don't pay
   await prisma.packPurchaseRequest.create({
