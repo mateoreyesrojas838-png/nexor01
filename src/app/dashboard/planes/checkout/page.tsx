@@ -38,6 +38,8 @@ function CheckoutContent() {
     qrUrl: string
     paymentUrl: string
     transactionId: string
+    priceBob?: number
+    usdToBob?: number
   } | null>(null)
   const [libelulaError, setLibelulaError] = useState('')
   const [libelulaPolling, setLibelulaPolling] = useState(false)
@@ -212,6 +214,11 @@ function CheckoutContent() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Plan seleccionado</p>
                     <p className="text-sm font-black text-white">{PLAN_LABELS[planId] ?? planId}</p>
+                    {libelulaData?.priceBob && (
+                      <p className="text-[10px] text-white/35 mt-0.5">
+                        ≈ Bs. {libelulaData.priceBob.toFixed(2)} · tasa {libelulaData.usdToBob}
+                      </p>
+                    )}
                   </div>
                   <p className="text-2xl font-black text-white">
                     ${price} <span className="text-xs text-white/40">USD</span>

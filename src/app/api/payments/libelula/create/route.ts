@@ -45,11 +45,18 @@ export async function POST(req: NextRequest) {
 
   // ── Fetch real price from DB (never trust frontend) ──────────────────────────
   const priceKey = isRenewal ? 'PRICE_RENEWAL' : `PRICE_${plan}`
-  const priceSetting = await prisma.appSetting.findUnique({ where: { key: priceKey } })
-  const price = priceSetting?.value ? parseFloat(priceSetting.value) : PRICE_DEFAULTS[isRenewal ? 'RENEWAL' : plan]
-  if (!price || price <= 0) {
+  const [priceSetting, rateSetting] = await Promise.all([
+    prisma.appSetting.findUnique({ where: { key: priceKey } }),
+    prisma.appSetting.findUnique({ where: { key: 'USD_TO_BOB_RATE' } }),
+  ])
+  const priceUsd = priceSetting?.value ? parseFloat(priceSetting.value) : PRICE_DEFAULTS[isRenewal ? 'RENEWAL' : plan]
+  if (!priceUsd || priceUsd <= 0) {
     return NextResponse.json({ error: 'Precio no configurado. Contacta al administrador.' }, { status: 503 })
   }
+
+  // Convert USD → BOB for Libélula (admin sets the market rate, default 6.96 official)
+  const usdToBob = rateSetting?.value ? parseFloat(rateSetting.value) : 6.96
+  const priceBob = Math.round(priceUsd * usdToBob * 100) / 100
 
   // Validate renewal — user must have this plan active
   if (isRenewal) {
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
       {
         concepto: descripcion,
         cantidad: 1,
-        costo_unitario: price,
+        costo_unitario: priceBob,
         descuento_unitario: 0,
       },
     ],
@@ -133,7 +140,7 @@ export async function POST(req: NextRequest) {
     data: {
       userId: user.id,
       plan: plan as 'BASIC' | 'PRO' | 'ELITE',
-      price,
+      price: priceUsd,
       status: 'PENDING_VERIFICATION',
       notes,
     },
@@ -143,6 +150,8 @@ export async function POST(req: NextRequest) {
     transactionId: libelulaData.id_transaccion,
     paymentUrl: libelulaData.url_pasarela_pagos,
     qrUrl: libelulaData.qr_simple_url,
-    price, // return real price so UI can display correctly
+    price: priceUsd,
+    priceBob,
+    usdToBob,
   })
 }

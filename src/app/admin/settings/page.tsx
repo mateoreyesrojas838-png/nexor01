@@ -25,6 +25,8 @@ export default function AdminSettingsPage() {
   const [savingLibelula, setSavingLibelula] = useState(false)
   const [libelulaEnabled, setLibelulaEnabled] = useState(false)
   const [libelulaTestMode, setLibelulaTestMode] = useState(false)
+  const [usdToBob, setUsdToBob] = useState('6.96')
+  const [savingRate, setSavingRate] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/settings')
@@ -43,6 +45,7 @@ export default function AdminSettingsPage() {
         setLibelulaKey(map['LIBELULA_APPKEY'] ?? '')
         setLibelulaEnabled(map['LIBELULA_ENABLED'] === 'true')
         setLibelulaTestMode(map['LIBELULA_TEST_MODE'] === 'true')
+        setUsdToBob(map['USD_TO_BOB_RATE'] ?? '6.96')
         setLoading(false)
       })
   }, [])
@@ -392,6 +395,48 @@ export default function AdminSettingsPage() {
                     <Check size={9} /> Pasarela Libélula configurada
                   </p>
                 )}
+              </div>
+
+              {/* USD → BOB rate */}
+              <div className="pt-2 border-t border-white/6 space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-white/30">
+                  Tasa de cambio USD → BOB
+                </label>
+                <div className="flex gap-2 items-center">
+                  <div className="flex items-center gap-2 bg-black/30 border border-white/15 rounded-xl px-3 py-2 flex-1">
+                    <span className="text-white/40 text-xs font-bold">$1 USD =</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={usdToBob}
+                      onChange={e => setUsdToBob(e.target.value)}
+                      className="flex-1 bg-transparent text-sm font-bold text-white outline-none"
+                      placeholder="6.96"
+                    />
+                    <span className="text-white/40 text-xs font-bold">Bs.</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setSavingRate(true)
+                      await fetch('/api/admin/settings', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: 'USD_TO_BOB_RATE', value: usdToBob }),
+                      })
+                      setSavingRate(false)
+                      setSaved('USD_TO_BOB_RATE')
+                      setTimeout(() => setSaved(null), 2000)
+                    }}
+                    disabled={savingRate}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    {savingRate ? <Loader2 size={12} className="animate-spin" /> : saved === 'USD_TO_BOB_RATE' ? <><Check size={12} className="text-green-400" /> Guardado</> : <><Save size={12} /> Guardar</>}
+                  </button>
+                </div>
+                <p className="text-[10px] text-white/25">
+                  Ejemplo: $99 USD × {usdToBob} = Bs. {(parseFloat(usdToBob || '0') * 99).toFixed(2)} para Pack Pro
+                </p>
               </div>
 
               {/* Test mode toggle */}
