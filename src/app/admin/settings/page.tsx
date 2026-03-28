@@ -24,6 +24,7 @@ export default function AdminSettingsPage() {
   const [showLibelulaKey, setShowLibelulaKey] = useState(false)
   const [savingLibelula, setSavingLibelula] = useState(false)
   const [libelulaEnabled, setLibelulaEnabled] = useState(false)
+  const [libelulaTestMode, setLibelulaTestMode] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/settings')
@@ -41,6 +42,7 @@ export default function AdminSettingsPage() {
         setStorePaymentManual(map['STORE_PAYMENT_MANUAL'] === 'true')
         setLibelulaKey(map['LIBELULA_APPKEY'] ?? '')
         setLibelulaEnabled(map['LIBELULA_ENABLED'] === 'true')
+        setLibelulaTestMode(map['LIBELULA_TEST_MODE'] === 'true')
         setLoading(false)
       })
   }, [])
@@ -391,6 +393,45 @@ export default function AdminSettingsPage() {
                   </p>
                 )}
               </div>
+
+              {/* Test mode toggle */}
+              <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/6">
+                <div>
+                  <p className="text-sm font-bold text-white flex items-center gap-2">
+                    Modo Pruebas
+                    {libelulaTestMode && (
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/25 text-orange-400">
+                        Activo
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-white/35 mt-0.5">
+                    Usa el servidor de pruebas de Libélula. Actívalo si el appkey es de test.
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !libelulaTestMode
+                    setLibelulaTestMode(next)
+                    await saveToggle('LIBELULA_TEST_MODE', next)
+                  }}
+                  disabled={savingToggle === 'LIBELULA_TEST_MODE'}
+                  style={{
+                    width: 44, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
+                    background: libelulaTestMode ? '#F97316' : 'rgba(255,255,255,0.12)',
+                    position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 3, left: libelulaTestMode ? 23 : 3,
+                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                  }} />
+                </button>
+              </div>
+              {saved === 'LIBELULA_TEST_MODE' && (
+                <p className="text-[11px] text-green-400 flex items-center gap-1"><Check size={10} /> Guardado</p>
+              )}
             </div>
           </div>
 

@@ -4,7 +4,8 @@ import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 
-const LIBELULA_API = 'https://api.todotix.com/rest/deuda/registrar'
+const LIBELULA_API_PROD = 'https://api.todotix.com/rest/deuda/registrar'
+const LIBELULA_API_TEST = 'http://www.todotix.com:10888/rest/deuda/registrar'
 
 const PRICE_DEFAULTS: Record<string, number> = {
   BASIC: 49,
@@ -32,9 +33,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Check Libélula is configured AND enabled by admin
-  const [appkeySetting, enabledSetting] = await Promise.all([
+  const [appkeySetting, enabledSetting, testModeSetting] = await Promise.all([
     prisma.appSetting.findUnique({ where: { key: 'LIBELULA_APPKEY' } }),
     prisma.appSetting.findUnique({ where: { key: 'LIBELULA_ENABLED' } }),
+    prisma.appSetting.findUnique({ where: { key: 'LIBELULA_TEST_MODE' } }),
   ])
   const appkey = appkeySetting?.value?.trim()
   if (!appkey || enabledSetting?.value !== 'true') {
@@ -89,8 +91,11 @@ export async function POST(req: NextRequest) {
     message?: string
   }
 
+  const libelulaApi = testModeSetting?.value === 'true' ? LIBELULA_API_TEST : LIBELULA_API_PROD
+  console.log(`[Libélula] usando ${testModeSetting?.value === 'true' ? 'TEST' : 'PRODUCCIÓN'}: ${libelulaApi}`)
+
   try {
-    const libelulaRes = await fetch(LIBELULA_API, {
+    const libelulaRes = await fetch(libelulaApi, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
