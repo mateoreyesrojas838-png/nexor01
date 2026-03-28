@@ -94,7 +94,7 @@ function CheckoutContent() {
     }
   }, [libelulaData, done])
 
-  const handleLibelulaCreate = async () => {
+  const handleLibelulaCreate = async (openCard = false) => {
     if (!price) return
     setLibelulaLoading(true)
     setLibelulaError('')
@@ -102,14 +102,15 @@ function CheckoutContent() {
       const res = await fetch('/api/payments/libelula/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Send plan + isRenewal only — backend fetches real price from DB
         body: JSON.stringify({ plan: planId, isRenewal }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al crear el pago')
-      // Use server-confirmed price if returned
       if (data.price && data.price > 0) setPrice(data.price)
       setLibelulaData(data)
+      if (openCard && data.paymentUrl) {
+        window.open(data.paymentUrl, '_blank')
+      }
     } catch (err: unknown) {
       setLibelulaError(err instanceof Error ? err.message : 'Error al conectar con la pasarela de pago')
     } finally {
@@ -255,18 +256,32 @@ function CheckoutContent() {
                     )}
 
                     {!libelulaData ? (
-                      <button
-                        onClick={handleLibelulaCreate}
-                        disabled={libelulaLoading}
-                        className="w-full py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 text-black"
-                        style={{ background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)', boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}
-                      >
-                        {libelulaLoading ? (
-                          <><Loader2 size={15} className="animate-spin" /> Generando QR...</>
-                        ) : (
-                          <><QrCode size={15} /> Pagar con QR Libélula</>
-                        )}
-                      </button>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => handleLibelulaCreate(false)}
+                          disabled={libelulaLoading}
+                          className="w-full py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 text-black"
+                          style={{ background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)', boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}
+                        >
+                          {libelulaLoading ? (
+                            <><Loader2 size={15} className="animate-spin" /> Generando...</>
+                          ) : (
+                            <><QrCode size={15} /> Pagar con QR</>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleLibelulaCreate(true)}
+                          disabled={libelulaLoading}
+                          className="w-full py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
+                          style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.25)', color: '#FFD700' }}
+                        >
+                          {libelulaLoading ? (
+                            <><Loader2 size={15} className="animate-spin" /> Generando...</>
+                          ) : (
+                            <><ExternalLink size={15} /> Pagar con Tarjeta</>
+                          )}
+                        </button>
+                      </div>
                     ) : (
                       <div className="space-y-4">
                         <p className="text-[10px] font-black uppercase tracking-widest text-white/30 text-center">
