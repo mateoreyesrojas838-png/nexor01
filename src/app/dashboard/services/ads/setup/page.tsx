@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Brain, Zap, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, ArrowLeft, Settings2, Link2, Key, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 
@@ -9,6 +10,7 @@ const PLATFORMS = [
 ]
 
 export default function SetupPage() {
+    const searchParams = useSearchParams()
     const [tab, setTab] = useState<'openai' | 'platforms'>('openai')
     const [apiKey, setApiKey] = useState('')
     const [model, setModel] = useState('gpt-5.1')
@@ -18,10 +20,19 @@ export default function SetupPage() {
     const [integrations, setIntegrations] = useState<any[]>([])
     const [waNumbers, setWaNumbers] = useState<any[]>([])
     const [waLoading, setWaLoading] = useState(false)
+    const [waSelecting, setWaSelecting] = useState<string | null>(null)
+    const [showWaSelector, setShowWaSelector] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
-    useEffect(() => { fetchData() }, [])
+    useEffect(() => {
+        fetchData()
+        if (searchParams.get('connected') === 'meta') {
+            setTab('platforms')
+            setShowWaSelector(true)
+            loadWaNumbers()
+        }
+    }, [])
 
     async function fetchData() {
         const [oaiRes, intRes] = await Promise.all([
@@ -40,9 +51,26 @@ export default function SetupPage() {
             const res = await fetch('/api/ads/integrations/meta/whatsapp-numbers')
             const data = await res.json()
             setWaNumbers(data.phoneNumbers || [])
+            setShowWaSelector(true)
             if (!data.phoneNumbers?.length) setError('No se encontraron números de WhatsApp asociados a esta cuenta de Meta.')
         } catch { setError('Error al cargar números de WhatsApp') }
         finally { setWaLoading(false) }
+    }
+
+    async function selectWaNumber(n: any) {
+        setWaSelecting(n.id)
+        try {
+            const res = await fetch('/api/ads/integrations/meta/whatsapp-numbers/select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneId: n.id, displayPhone: n.displayPhone, name: n.name })
+            })
+            if (!res.ok) throw new Error('Error al guardar')
+            setSuccess(`✓ Número ${n.displayPhone} seleccionado correctamente`)
+            setShowWaSelector(false)
+            fetchData()
+        } catch { setError('Error al seleccionar número') }
+        finally { setWaSelecting(null) }
     }
 
     async function handleSaveOpenAI(e: React.FormEvent) {
@@ -260,17 +288,22 @@ export default function SetupPage() {
                         <div className="mt-6">
                             <div className="flex items-center justify-between mb-3">
                                 <div>
-                                    <h3 className="font-bold text-sm">Números de WhatsApp</h3>
-                                    <p className="text-[11px] text-white/30">Números asociados a tu cuenta de Meta</p>
+                                    <h3 className="font-bold text-sm">Número de WhatsApp</h3>
+                                    <p className="text-[11px] text-white/30">
+                                        {integrations.find(i => i.platform === 'META')?.connectedAccount?.displayName
+                                            ? `Activo: ${integrations.find(i => i.platform === 'META')?.connectedAccount?.displayName}`
+                                            : 'Selecciona el número a usar en tus anuncios'}
+                                    </p>
                                 </div>
                                 <button onClick={loadWaNumbers} disabled={waLoading}
                                     className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-40">
-                                    {waLoading ? <><Loader2 size={12} className="animate-spin" /> Cargando...</> : 'Ver números'}
+                                    {waLoading ? <><Loader2 size={12} className="animate-spin" /> Cargando...</> : 'Cambiar número'}
                                 </button>
                             </div>
 
-                            {waNumbers.length > 0 && (
+                            {showWaSelector && waNumbers.length > 0 && (
                                 <div className="space-y-2">
+                                    <p className="text-[11px] text-amber-400 font-bold mb-2">Selecciona el número a conectar:</p>
                                     {waNumbers.map(n => (
                                         <div key={n.id} className="flex items-center gap-3 bg-white/3 border border-white/8 rounded-xl px-4 py-3">
                                             <div className="w-8 h-8 rounded-xl bg-green-500/15 border border-green-500/20 flex items-center justify-center shrink-0">
@@ -280,9 +313,11 @@ export default function SetupPage() {
                                                 <p className="font-bold text-sm">{n.displayPhone}</p>
                                                 <p className="text-[11px] text-white/30">{n.name}</p>
                                             </div>
-                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${n.status === 'CONNECTED' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
-                                                {n.status}
-                                            </span>
+                                            <button onClick={() => selectWaNumber(n)} disabled={waSelecting === n.id}
+                                                className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-all disabled:opacity-40 flex items-center gap-1">
+                                                {waSelecting === n.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                                                Seleccionar
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
