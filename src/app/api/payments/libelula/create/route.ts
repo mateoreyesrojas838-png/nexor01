@@ -71,21 +71,23 @@ export async function POST(req: NextRequest) {
   const identificadorDeuda = randomUUID()
 
   const descripcion = `${isRenewal ? 'Renovación' : PLAN_LABELS[plan]} — Nexor`
+  const [firstName, ...rest] = (user.fullName || user.username || 'Cliente').split(' ')
+  const lastName = rest.join(' ') || firstName
 
   const body = {
     appkey,
-    descripcion_deuda: descripcion,
-    descripcion: descripcion,
-    nombre_deuda: descripcion,
+    descripcion,
     email_cliente: user.email,
+    nombre_cliente: firstName,
+    apellido_cliente: lastName,
     identificador_deuda: identificadorDeuda,
     callback_url: callbackUrl,
     lineas_detalle_deuda: [
       {
-        desc_linea: descripcion,
-        descripcion: descripcion,
+        concepto: descripcion,
         cantidad: 1,
-        importe_linea: price,
+        costo_unitario: price,
+        descuento_unitario: 0,
       },
     ],
   }
