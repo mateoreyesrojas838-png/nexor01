@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import NotificationBell from '@/components/NotificationBell'
 import PushPermission from '@/components/PushPermission'
@@ -57,11 +58,22 @@ const services = [
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [creditsData, setCreditsData] = useState<CreditsData | null>(null)
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      setShowPaymentSuccess(true)
+      setTimeout(() => setShowPaymentSuccess(false), 5000)
+      // Clean URL without reload
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetch('/api/user/credits').then(r => r.ok ? r.json() : null).then(d => { if (d) setCreditsData(d) }).catch(() => {})
@@ -98,6 +110,18 @@ export default function DashboardPage() {
     <div className="min-h-screen px-4 py-7 md:px-10 md:py-9" style={{ background: '#0B0B12' }}>
       <PushPermission />
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+
+      {/* Payment success toast */}
+      {showPaymentSuccess && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl"
+          style={{ background: 'rgba(20,20,30,0.97)', border: '1px solid rgba(255,215,0,0.4)' }}>
+          <CheckCircle2 size={18} style={{ color: '#FFD700' }} />
+          <div>
+            <p className="text-sm font-black text-white">¡Pago confirmado!</p>
+            <p className="text-[11px] text-white/40">Tu plan ya está activo.</p>
+          </div>
+        </div>
+      )}
 
       {/* ── HEADER ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8">

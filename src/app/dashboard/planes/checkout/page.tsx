@@ -58,6 +58,7 @@ function CheckoutContent() {
   } | null>(null)
   const [libelulaError, setLibelulaError] = useState('')
   const [libelulaPolling, setLibelulaPolling] = useState(false)
+  const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null)
 
   useEffect(() => {
     if (!['BASIC', 'PRO', 'ELITE'].includes(planId)) {
@@ -93,6 +94,19 @@ function CheckoutContent() {
         setPayMethod('manual')
       })
   }, [planId, isRenewal, router, autoStart])
+
+  // QR countdown — 5 minutes
+  useEffect(() => {
+    if (!libelulaData || done) return
+    setQrSecondsLeft(5 * 60)
+    const tick = setInterval(() => {
+      setQrSecondsLeft(prev => {
+        if (prev === null || prev <= 1) { clearInterval(tick); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [libelulaData, done])
 
   // Poll for payment confirmation
   useEffect(() => {
@@ -144,6 +158,8 @@ function CheckoutContent() {
 
   const handleLibelulaCreate = async () => {
     if (!price) return
+    setLibelulaData(null)
+    setQrSecondsLeft(null)
     await triggerLibelula(price)
   }
 
@@ -353,16 +369,29 @@ function CheckoutContent() {
                           <ExternalLink size={13} /> Pagar con Tarjeta
                         </a>
 
-                        {libelulaPolling && (
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 size={11} className="animate-spin text-white/25" />
-                            <p className="text-[10px] text-white/25">Esperando confirmación de pago...</p>
+                        {qrSecondsLeft !== null && qrSecondsLeft > 0 ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-2">
+                              <Loader2 size={11} className="animate-spin text-amber-400" />
+                              <p className="text-[11px] text-white/40">Esperando pago...</p>
+                              <p className="text-[11px] font-black tabular-nums" style={{ color: '#FFD700' }}>
+                                {Math.floor(qrSecondsLeft / 60)}:{String(qrSecondsLeft % 60).padStart(2, '0')}
+                              </p>
+                            </div>
+                            <p className="text-[10px] text-white/20">Tu plan se activa automáticamente al confirmar el pago</p>
                           </div>
-                        )}
-
-                        <p className="text-[10px] text-center text-white/20">
-                          Tu plan se activa automáticamente al confirmar el pago
-                        </p>
+                        ) : qrSecondsLeft === 0 ? (
+                          <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center">
+                            <p className="text-xs text-white/50 mb-2">El QR expiró. Generá uno nuevo.</p>
+                            <button
+                              onClick={handleLibelulaCreate}
+                              className="text-xs font-black px-4 py-2 rounded-xl text-black"
+                              style={{ background: 'linear-gradient(135deg, #D97706, #FFD700)' }}
+                            >
+                              Generar nuevo QR
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>
