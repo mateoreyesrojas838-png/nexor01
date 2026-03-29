@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, Clock, ShieldCheck, QrCode, ExternalLink, Loader2, AlertCircle, Zap, Sparkles, Crown } from 'lucide-react'
@@ -46,7 +46,6 @@ function CheckoutContent() {
   const [manualAvailable, setManualAvailable] = useState(true)
   const [payMethod, setPayMethod] = useState<'libelula' | 'manual'>('libelula')
 
-  // Libélula state
   const [libelulaLoading, setLibelulaLoading] = useState(false)
   const [libelulaData, setLibelulaData] = useState<{
     qrUrl?: string
@@ -57,87 +56,14 @@ function CheckoutContent() {
     usdToBob?: number
   } | null>(null)
   const [libelulaError, setLibelulaError] = useState('')
-  const [libelulaPolling, setLibelulaPolling] = useState(false)
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (!['BASIC', 'PRO', 'ELITE'].includes(planId)) {
-      router.replace('/dashboard/planes')
-      return
-    }
-
-    fetch('/api/settings')
-      .then(r => r.json())
-      .then(d => {
-        const map = d.settings ?? {}
-        const key = isRenewal ? 'PRICE_RENEWAL' : `PRICE_${planId}`
-        const val = parseFloat(map[key])
-        const usdPrice = val > 0 ? val : isRenewal ? PRICE_DEFAULTS.RENEWAL : PRICE_DEFAULTS[planId]
-        setPrice(usdPrice)
-
-        // Show BOB price before QR is generated
-        const rate = parseFloat(map['USD_TO_BOB_RATE'])
-        if (rate > 0) setPriceBobDisplay(Math.round(usdPrice * rate * 100) / 100)
-
-        const hasLibelula = map['LIBELULA_AVAILABLE'] === 'true'
-        const hasManual = map['STORE_PAYMENT_MANUAL'] !== 'false'
-        setLibelulaAvailable(hasLibelula)
-        setManualAvailable(hasManual)
-        if (!hasLibelula) setPayMethod('manual')
-
-        if (hasLibelula && autoStart) {
-          triggerLibelula(usdPrice)
-        }
-      })
-      .catch(() => {
-        setPrice(isRenewal ? PRICE_DEFAULTS.RENEWAL : PRICE_DEFAULTS[planId])
-        setPayMethod('manual')
-      })
-  }, [planId, isRenewal, router, autoStart])
-
-  // QR countdown — 5 minutes
-  useEffect(() => {
-    if (!libelulaData || done) return
-    setQrSecondsLeft(5 * 60)
-    const tick = setInterval(() => {
-      setQrSecondsLeft(prev => {
-        if (prev === null || prev <= 1) { clearInterval(tick); return 0 }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(tick)
-  }, [libelulaData, done])
-
-  // Poll for payment confirmation
-  useEffect(() => {
-    if (!libelulaData || done) return
-    setLibelulaPolling(true)
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/payments/libelula/status-check?transaction_id=${libelulaData.transactionId}`)
-        const data = await res.json()
-        if (data.paid) {
-          clearInterval(interval)
-          setLibelulaPolling(false)
-          setDone(true)
-          // Auto-redirect to dashboard after 2 seconds
-          setTimeout(() => router.push('/dashboard?payment=success'), 2000)
-        }
-      } catch {
-        // ignore polling errors
-      }
-    }, 5000)
-
-    return () => {
-      clearInterval(interval)
-      setLibelulaPolling(false)
-    }
-  }, [libelulaData, done, router])
-
-  const triggerLibelula = async (knownPrice?: number) => {
+  // triggerLibelula defined with useCallback so useEffect can depend on it safely
+  const triggerLibelula = useCallback(async (knownPrice?: number) => {
     setLibelulaLoading(true)
     setLibelulaError('')
+    setLibelulaData(null)
+    setQrSecondsLeft(null)
     try {
       const res = await fetch('/api/payments/libelula/create', {
         method: 'POST',
@@ -154,14 +80,85 @@ function CheckoutContent() {
     } finally {
       setLibelulaLoading(false)
     }
-  }
+  }, [planId, isRenewal])
 
-  const handleLibelulaCreate = async () => {
-    if (!price) return
-    setLibelulaData(null)
-    setQrSecondsLeft(null)
-    await triggerLibelula(price)
-  }
+  // Load settings + auto-start
+  useEffect(() => {
+    if (!['BASIC', 'PRO', 'ELITE'].includes(planId)) {
+      router.replace('/dashboard/planes')
+      return
+    }
+
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(d => {
+        const map = d.settings ?? {}
+        const key = isRenewal ? 'PRICE_RENEWAL' : `PRICE_${planId}`
+        const val = parseFloat(map[key])
+        const usdPrice = val > 0 ? val : isRenewal ? PRICE_DEFAULTS.RENEWAL : PRICE_DEFAULTS[planId]
+        setPrice(usdPrice)
+
+        const rate = parseFloat(map['USD_TO_BOB_RATE'])
+        if (rate > 0) setPriceBobDisplay(Math.round(usdPrice * rate * 100) / 100)
+
+        const hasLibelula = map['LIBELULA_AVAILABLE'] === 'true'
+        const hasManual = map['STORE_PAYMENT_MANUAL'] !== 'false'
+        setLibelulaAvailable(hasLibelula)
+        setManualAvailable(hasManual)
+        if (!hasLibelula) setPayMethod('manual')
+
+        if (hasLibelula && autoStart) triggerLibelula(usdPrice)
+      })
+      .catch(() => {
+        setPrice(isRenewal ? PRICE_DEFAULTS.RENEWAL : PRICE_DEFAULTS[planId])
+        setPayMethod('manual')
+      })
+  }, [planId, isRenewal, router, autoStart, triggerLibelula])
+
+  // QR countdown — 5 minutes; auto-reset on expiry
+  useEffect(() => {
+    if (!libelulaData || done) return
+    setQrSecondsLeft(5 * 60)
+    const tick = setInterval(() => {
+      setQrSecondsLeft(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(tick)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [libelulaData, done])
+
+  // When countdown hits 0 → reset QR so user sees "Generar QR" button again
+  useEffect(() => {
+    if (qrSecondsLeft === 0 && !done) {
+      setLibelulaData(null)
+      setQrSecondsLeft(null)
+    }
+  }, [qrSecondsLeft, done])
+
+  // Poll for payment confirmation — stop when QR expired or done
+  useEffect(() => {
+    if (!libelulaData || done) return
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payments/libelula/status-check?transaction_id=${libelulaData.transactionId}`)
+        const data = await res.json()
+        if (data.paid) {
+          clearInterval(interval)
+          setDone(true)
+          setTimeout(() => router.push('/dashboard?payment=success'), 2000)
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [libelulaData, done, router])
 
   const handleSubmitPayment = async (proofUrl: string): Promise<'approved' | 'pending_verification'> => {
     const res = await fetch('/api/pack-requests', {
@@ -185,7 +182,6 @@ function CheckoutContent() {
     <div className="min-h-screen px-4 py-8" style={{ background: '#0B0B12' }}>
       <div className="max-w-md mx-auto">
 
-        {/* Back */}
         <Link
           href="/dashboard/planes"
           className="inline-flex items-center gap-2 text-xs text-white/30 hover:text-white/60 transition-colors mb-8"
@@ -193,7 +189,6 @@ function CheckoutContent() {
           <ArrowLeft size={13} /> Volver a Planes
         </Link>
 
-        {/* Header */}
         <div className="mb-6">
           <p className="text-[10px] font-black uppercase tracking-widest text-white/25 mb-1">
             {isRenewal ? 'Renovación' : 'Adquirir plan'}
@@ -203,14 +198,12 @@ function CheckoutContent() {
           </h1>
         </div>
 
-        {/* Card */}
         <div className="rounded-3xl overflow-hidden"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,215,0,0.15)' }}>
           <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,215,0,0.5), transparent)' }} />
 
           <div className="p-6">
             {done ? (
-              /* Success screen */
               <div className="flex flex-col items-center gap-5 py-6 text-center">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
                   style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.25)' }}>
@@ -222,7 +215,7 @@ function CheckoutContent() {
                   </p>
                   <p className="text-xs text-white/40 leading-relaxed max-w-xs">
                     {libelulaData
-                      ? 'Tu pago fue verificado. Tu plan ya está activo.'
+                      ? 'Tu pago fue verificado. Tu plan ya está activo. Redirigiendo...'
                       : 'Tu comprobante fue recibido. El equipo lo revisará y activará tu plan en menos de 24 horas.'}
                   </p>
                 </div>
@@ -246,7 +239,6 @@ function CheckoutContent() {
                 </Link>
               </div>
             ) : price === null ? (
-              /* Loading */
               <div className="flex items-center justify-center py-12">
                 <div className="w-8 h-8 border-2 border-white/10 border-t-amber-400 rounded-full animate-spin" />
               </div>
@@ -276,7 +268,6 @@ function CheckoutContent() {
                       )}
                     </div>
                   </div>
-                  {/* What's included */}
                   <div className="border-t pt-3" style={{ borderColor: 'rgba(255,215,0,0.1)' }}>
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-2">Incluye</p>
                     <ul className="space-y-1">
@@ -291,7 +282,7 @@ function CheckoutContent() {
                   </div>
                 </div>
 
-                {/* Method tabs — only show if both methods are active */}
+                {/* Method tabs */}
                 {libelulaAvailable && manualAvailable && (
                   <div className="flex rounded-xl overflow-hidden border border-white/10 mb-5">
                     <button
@@ -327,7 +318,7 @@ function CheckoutContent() {
                       </div>
                     ) : !libelulaData ? (
                       <button
-                        onClick={handleLibelulaCreate}
+                        onClick={() => triggerLibelula(price ?? undefined)}
                         className="w-full py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-black"
                         style={{ background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)', boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}
                       >
@@ -335,7 +326,7 @@ function CheckoutContent() {
                       </button>
                     ) : (
                       <div className="space-y-4">
-                        {/* QR Code */}
+                        {/* QR */}
                         <div className="rounded-2xl border border-white/10 p-5 flex flex-col items-center gap-3">
                           <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
                             Escaneá con tu app bancaria
@@ -347,7 +338,7 @@ function CheckoutContent() {
                           ) : (
                             <div className="w-52 h-52 rounded-2xl flex flex-col items-center justify-center gap-2 border border-white/10">
                               <QrCode size={32} className="text-white/20" />
-                              <p className="text-[10px] text-white/30 text-center px-4">QR no disponible — usá el botón de abajo</p>
+                              <p className="text-[10px] text-white/30 text-center px-4">QR no disponible</p>
                             </div>
                           )}
                           <p className="text-[10px] text-white/25">Tigo Money · BNB · Banco Unión y más</p>
@@ -358,18 +349,17 @@ function CheckoutContent() {
                           )}
                         </div>
 
-                        {/* Card / gateway fallback */}
+                        {/* Tarjeta */}
                         <a
                           href={libelulaData.cardUrl || libelulaData.paymentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-black transition-all active:scale-[0.98]"
                           style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.2)', color: '#FFD700' }}
                         >
                           <ExternalLink size={13} /> Pagar con Tarjeta
                         </a>
 
-                        {qrSecondsLeft !== null && qrSecondsLeft > 0 ? (
+                        {/* Countdown */}
+                        {qrSecondsLeft !== null && qrSecondsLeft > 0 && (
                           <div className="flex flex-col items-center gap-1">
                             <div className="flex items-center gap-2">
                               <Loader2 size={11} className="animate-spin text-amber-400" />
@@ -380,18 +370,7 @@ function CheckoutContent() {
                             </div>
                             <p className="text-[10px] text-white/20">Tu plan se activa automáticamente al confirmar el pago</p>
                           </div>
-                        ) : qrSecondsLeft === 0 ? (
-                          <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center">
-                            <p className="text-xs text-white/50 mb-2">El QR expiró. Generá uno nuevo.</p>
-                            <button
-                              onClick={handleLibelulaCreate}
-                              className="text-xs font-black px-4 py-2 rounded-xl text-black"
-                              style={{ background: 'linear-gradient(135deg, #D97706, #FFD700)' }}
-                            >
-                              Generar nuevo QR
-                            </button>
-                          </div>
-                        ) : null}
+                        )}
                       </div>
                     )}
                   </div>
@@ -412,7 +391,6 @@ function CheckoutContent() {
           </div>
         </div>
 
-        {/* Trust badge */}
         {!done && (
           <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-white/20">
             <ShieldCheck size={11} />
