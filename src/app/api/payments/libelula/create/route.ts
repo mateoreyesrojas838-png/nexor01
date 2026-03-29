@@ -74,11 +74,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ya tienes una solicitud manual pendiente. Espera a que sea procesada.' }, { status: 409 })
   }
 
-  // Derive callback URL from the incoming request so it always matches the actual host
+  // Derive callback URL — prefer env var, then x-forwarded-host (set by Render/proxies), then req host
   const reqUrl = new URL(req.url)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || `${reqUrl.protocol}//${reqUrl.host}`
+  const forwardedHost = req.headers.get('x-forwarded-host')
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https'
+  const derivedBase = forwardedHost ? `${forwardedProto}://${forwardedHost}` : `${reqUrl.protocol}//${reqUrl.host}`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || derivedBase
   const callbackUrl = `${appUrl}/api/payments/libelula/callback`
-  console.log(`[Libélula] callback_url: ${callbackUrl}`)
+  console.log(`[Libélula] callback_url: ${callbackUrl} (env:${!!process.env.NEXT_PUBLIC_APP_URL} fwd:${forwardedHost})`)
   const identificadorDeuda = randomUUID()
 
   const descripcion = `${isRenewal ? 'Renovación' : PLAN_LABELS[plan]} — Nexor`
