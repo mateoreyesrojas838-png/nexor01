@@ -88,11 +88,11 @@ export async function POST(req: NextRequest) {
   const [firstName, ...rest] = (user.fullName || user.username || 'Cliente').split(' ')
   const lastName = rest.join(' ') || firstName
 
-  // Expiry: today's date in Bolivia (UTC-4) — Todotix API uses fecha_vencimiento: yyyy-MM-dd (date only)
+  // Expiry: tomorrow's date in Bolivia (UTC-4) — Libélula requires fecha_vencimiento > today (strictly greater)
   const pad = (n: number) => String(n).padStart(2, '0')
   const boliviaOffsetMs = -4 * 60 * 60 * 1000
-  const nowBolivia = new Date(Date.now() + boliviaOffsetMs)
-  const fechaVencimiento = `${nowBolivia.getUTCFullYear()}-${pad(nowBolivia.getUTCMonth() + 1)}-${pad(nowBolivia.getUTCDate())}`
+  const tomorrowBolivia = new Date(Date.now() + boliviaOffsetMs + 24 * 60 * 60 * 1000)
+  const fechaVencimiento = `${tomorrowBolivia.getUTCFullYear()}-${pad(tomorrowBolivia.getUTCMonth() + 1)}-${pad(tomorrowBolivia.getUTCDate())}`
   console.log(`[Libélula] fecha_vencimiento: ${fechaVencimiento}`)
 
   const body = {
