@@ -356,7 +356,7 @@ function CampaignPageInner() {
             if (!res.ok) { setError(data.error || 'Error al generar imagen'); return }
             setCreatives(prev => prev.map(c =>
                 c.slotIndex === slotIndex
-                    ? { ...c, mediaUrl: data.imageUrl, mediaType: 'image', aiGenerated: true }
+                    ? { ...c, id: data.creativeId || c.id, mediaUrl: data.imageUrl, mediaType: 'image', aiGenerated: true }
                     : c
             ))
         } catch { setError('Error al generar imagen con IA') }

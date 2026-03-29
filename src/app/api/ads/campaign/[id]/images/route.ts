@@ -112,15 +112,30 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             imageUrl = urlData.publicUrl
         }
 
-        // Persist to DB if creativeId given
+        // Persist to DB — update existing or create new
+        let savedCreativeId = creativeId
         if (creativeId) {
             await (prisma as any).adCreative.update({
                 where: { id: creativeId },
                 data: { mediaUrl: imageUrl, mediaType: 'image', aiGenerated: true }
             })
+        } else {
+            const created = await (prisma as any).adCreative.create({
+                data: {
+                    campaignId: params.id,
+                    slotIndex,
+                    mediaUrl: imageUrl,
+                    mediaType: 'image',
+                    aiGenerated: true,
+                    primaryText: '',
+                    headline: '',
+                    description: '',
+                }
+            })
+            savedCreativeId = created.id
         }
 
-        return NextResponse.json({ imageUrl })
+        return NextResponse.json({ imageUrl, creativeId: savedCreativeId })
     } catch (err: any) {
         console.error('[GenerateImage]', err)
         return NextResponse.json({ error: err.message || 'Error al generar la imagen' }, { status: 500 })
