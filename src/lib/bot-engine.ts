@@ -589,7 +589,7 @@ export function enforceCharLimits(
   const m2 = bot.maxCharsMensaje2 && bot.maxCharsMensaje2 > 0 ? bot.maxCharsMensaje2 : null
   const m3 = bot.maxCharsMensaje3 && bot.maxCharsMensaje3 > 0 ? bot.maxCharsMensaje3 : null
 
-  if (m1 && !isFirstInteraction && response.mensaje1 && response.mensaje1.length > m1) {
+  if (m1 && response.mensaje1 && response.mensaje1.length > m1) {
     response.mensaje1 = response.mensaje1.slice(0, m1)
   }
   if (m2 && response.mensaje2 && response.mensaje2.length > m2) {
