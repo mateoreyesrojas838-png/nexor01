@@ -210,15 +210,15 @@ export default function CrmCampaignDetailPage() {
                                 {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Pause size={14} />}
                                 Pausar envío
                             </button>
-                        ) : ['DRAFT', 'SCHEDULED', 'PAUSED'].includes(campaign.status) ? (
+                        ) : ['DRAFT', 'SCHEDULED', 'PAUSED', 'FAILED'].includes(campaign.status) ? (
                             <button
                                 onClick={execute}
                                 disabled={actionLoading}
                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-black text-sm transition-all disabled:opacity-50"
-                                style={{ background: 'linear-gradient(135deg, #15803d, #22c55e)' }}
+                                style={{ background: campaign.status === 'FAILED' ? 'linear-gradient(135deg, #7f1d1d, #dc2626)' : 'linear-gradient(135deg, #15803d, #22c55e)' }}
                             >
                                 {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                                {campaign.status === 'PAUSED' ? 'Reanudar envío' : 'Iniciar envío ahora'}
+                                {campaign.status === 'PAUSED' ? 'Reanudar envío' : campaign.status === 'FAILED' ? 'Reintentar envío' : 'Iniciar envío ahora'}
                             </button>
                         ) : null}
                     </div>

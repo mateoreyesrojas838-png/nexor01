@@ -27,6 +27,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!allowedTypes.includes(file.type)) {
         return NextResponse.json({ error: 'Solo se permiten imágenes JPG, PNG, WEBP o GIF' }, { status: 400 })
     }
+    if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'La imagen no puede superar 5 MB' }, { status: 400 })
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const ext = file.type.split('/')[1]

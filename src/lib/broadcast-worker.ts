@@ -10,15 +10,19 @@ import { decrypt } from '@/lib/crypto'
 const OPENAI_BASE = 'https://api.openai.com/v1'
 
 async function generateUniqueMessage(prompt: string, contactName: string, apiKey: string): Promise<string> {
-    const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-            model: 'gpt-4o',
-            messages: [
-                {
-                    role: 'system',
-                    content: `Eres un experto en ventas por WhatsApp Bolivia. Genera mensajes cortos, cálidos y únicos.
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
+    try {
+        const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            signal: controller.signal,
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Eres un experto en ventas por WhatsApp Bolivia. Genera mensajes cortos, cálidos y únicos.
 REGLAS:
 - Máximo 3 oraciones
 - Si hay nombre de contacto úsalo al inicio
@@ -26,20 +30,27 @@ REGLAS:
 - Incluir emojis estratégicamente
 - NUNCA generar el mismo mensaje dos veces
 - El mensaje debe ser completamente único y diferente cada vez`,
-                },
-                {
-                    role: 'user',
-                    content: `Genera un mensaje de WhatsApp único y personalizado basado en este tema: "${prompt}".
+                    },
+                    {
+                        role: 'user',
+                        content: `Genera un mensaje de WhatsApp único y personalizado basado en este tema: "${prompt}".
 ${contactName ? `El contacto se llama: ${contactName}.` : ''}
 Genera solo el mensaje, sin comillas, sin explicaciones.`,
-                },
-            ],
-            temperature: 1.0,
-            max_tokens: 200,
-        }),
-    })
-    const data = await res.json()
-    return data.choices?.[0]?.message?.content?.trim() || prompt
+                    },
+                ],
+                temperature: 1.0,
+                max_tokens: 200,
+            }),
+        })
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            throw new Error(`OpenAI error: ${errData?.error?.message || res.status}`)
+        }
+        const data = await res.json()
+        return data.choices?.[0]?.message?.content?.trim() || prompt
+    } finally {
+        clearTimeout(timeout)
+    }
 }
 
 function delayMs(value: number, unit: string): number {
@@ -64,13 +75,37 @@ export async function executeBroadcast(campaignId: string) {
         data: { status: 'RUNNING', startedAt: new Date() },
     })
 
-    // Get OpenAI key from bot secret
-    const botSecret = await prisma.botSecret.findUnique({ where: { botId: campaign.botId } })
+    // Get bot + secret
+    const bot = await prisma.bot.findUnique({
+        where: { id: campaign.botId },
+        include: { secret: true },
+    })
+    const botSecret = bot?.secret
     if (!botSecret?.openaiApiKeyEnc) {
         await (prisma as any).broadcastCampaign.update({ where: { id: campaignId }, data: { status: 'FAILED' } })
         return
     }
     const openaiKey = decrypt(botSecret.openaiApiKeyEnc)
+
+    // Auto-reconnect if session exists on disk but not in memory
+    const currentStatus = BaileysManager.getStatus(campaign.botId)
+    if (currentStatus.status !== 'connected' && bot && botSecret.reportPhone) {
+        await BaileysManager.connect(campaign.botId, bot.name, openaiKey, botSecret.reportPhone)
+        // Wait up to 20s for connection
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 1000))
+            if (BaileysManager.getStatus(campaign.botId).status === 'connected') break
+        }
+    }
+    // If still not connected after reconnect attempt, fail the campaign
+    if (BaileysManager.getStatus(campaign.botId).status !== 'connected') {
+        await (prisma as any).broadcastCampaign.update({
+            where: { id: campaignId },
+            data: { status: 'FAILED' },
+        })
+        console.error(`[BROADCAST] Bot ${campaign.botId} no conectado. Campaña ${campaignId} marcada como FAILED.`)
+        return
+    }
 
     const images: any[] = campaign.images || []
     let imageIndex: number = campaign.imageIndex || 0
@@ -108,13 +143,8 @@ export async function executeBroadcast(campaignId: string) {
 
             // Send image first if available
             if (imageUrl) {
-                const phone = contact.phone.replace(/^\+/, '').replace(/\s/g, '')
-                const jid = `${phone}@s.whatsapp.net`
-                const sock = (BaileysManager as any)['connections']?.get(campaign.botId)?.sock
-                if (sock) {
-                    await sock.sendMessage(jid, { image: { url: imageUrl } }).catch(() => {})
-                    await new Promise(r => setTimeout(r, 1500))
-                }
+                await BaileysManager.sendImage(campaign.botId, contact.phone, imageUrl).catch(() => {})
+                await new Promise(r => setTimeout(r, 1500))
             }
 
             // Send text message

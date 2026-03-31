@@ -186,12 +186,12 @@ export default function CrmPage() {
                                     >
                                         <Pause size={12} /> Pausar
                                     </button>
-                                ) : ['DRAFT', 'SCHEDULED', 'PAUSED'].includes(c.status) ? (
+                                ) : ['DRAFT', 'SCHEDULED', 'PAUSED', 'FAILED'].includes(c.status) ? (
                                     <button
                                         onClick={() => executeCampaign(c.id)}
-                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-bold transition-all"
+                                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${c.status === 'FAILED' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'}`}
                                     >
-                                        <Play size={12} /> {c.status === 'PAUSED' ? 'Reanudar' : 'Enviar'}
+                                        <Play size={12} /> {c.status === 'PAUSED' ? 'Reanudar' : c.status === 'FAILED' ? 'Reintentar' : 'Enviar'}
                                     </button>
                                 ) : null}
 

@@ -14,6 +14,7 @@ export default function NewCrmCampaignPage() {
     const excelInputRef = useRef<HTMLInputElement>(null)
 
     const [bots, setBots] = useState<any[]>([])
+    const [botStatuses, setBotStatuses] = useState<Record<string, string>>({})
     const [form, setForm] = useState({
         name: '',
         botId: '',
@@ -24,7 +25,8 @@ export default function NewCrmCampaignPage() {
     })
     const [images, setImages] = useState<{ file: File; preview: string }[]>([])
     const [excelFile, setExcelFile] = useState<File | null>(null)
-    const [contactsPreview, setContactsPreview] = useState<{ imported: number; errors: number } | null>(null)
+    const [contactsPreview, setContactsPreview] = useState<{ imported: number; errors: number; contacts: { name: string | null; phone: string }[] } | null>(null)
+    const [parsingExcel, setParsingExcel] = useState(false)
     const [loading, setLoading] = useState(false)
     const [uploadingImg, setUploadingImg] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -38,6 +40,18 @@ export default function NewCrmCampaignPage() {
         const baileysBots = (data.bots || []).filter((b: any) => b.type === 'BAILEYS')
         setBots(baileysBots)
         if (baileysBots.length === 1) setForm(f => ({ ...f, botId: baileysBots[0].id }))
+        // Fetch real-time connection status for each Baileys bot
+        const statuses: Record<string, string> = {}
+        await Promise.all(baileysBots.map(async (b: any) => {
+            try {
+                const sr = await fetch(`/api/bots/${b.id}/baileys/status`)
+                const sd = await sr.json()
+                statuses[b.id] = sd.status || 'disconnected'
+            } catch {
+                statuses[b.id] = 'disconnected'
+            }
+        }))
+        setBotStatuses(statuses)
     }
 
     function handleImageSelect(files: FileList | null) {
@@ -58,10 +72,47 @@ export default function NewCrmCampaignPage() {
         })
     }
 
-    function handleExcelSelect(files: FileList | null) {
+    async function handleExcelSelect(files: FileList | null) {
         if (!files?.[0]) return
-        setExcelFile(files[0])
+        const file = files[0]
+        setExcelFile(file)
         setContactsPreview(null)
+        setParsingExcel(true)
+        try {
+            const XLSX = await import('xlsx')
+            const buffer = await file.arrayBuffer()
+            const wb = XLSX.read(buffer, { type: 'array' })
+            const ws = wb.Sheets[wb.SheetNames[0]]
+            const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+            if (rows.length < 2) { setParsingExcel(false); return }
+
+            const headers = rows[0].map((h: any) => String(h).toLowerCase().trim())
+            const phoneIdx = headers.findIndex((h: string) => /tel[eé]f|phone|cel|m[oó]vil|n[uú]mero|numero|whatsapp/.test(h))
+            const nameIdx = headers.findIndex((h: string) => /nombre|name/.test(h))
+
+            const contacts: { name: string | null; phone: string }[] = []
+            let errors = 0
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i]
+                let phone = phoneIdx >= 0 ? String(row[phoneIdx] ?? '').replace(/\s+/g, '') : ''
+                if (!phone) {
+                    // fallback: first cell that looks like a phone
+                    for (const cell of row) {
+                        const s = String(cell ?? '').replace(/\s+/g, '')
+                        if (/^\+?\d{7,15}$/.test(s)) { phone = s; break }
+                    }
+                }
+                if (!phone) { errors++; continue }
+                // Bolivia normalization
+                if (/^[67]\d{7}$/.test(phone)) phone = '+591' + phone
+                else if (/^\d{8}$/.test(phone) && /^[67]/.test(phone)) phone = '+591' + phone
+                if (!/^\+/.test(phone)) phone = '+' + phone
+                const name = nameIdx >= 0 ? (String(row[nameIdx] ?? '').trim() || null) : null
+                contacts.push({ name, phone })
+            }
+            setContactsPreview({ imported: contacts.length, errors, contacts })
+        } catch { /* silent parse error */ }
+        finally { setParsingExcel(false) }
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -87,6 +138,7 @@ export default function NewCrmCampaignPage() {
 
             // 2. Upload images
             setUploadingImg(true)
+            const failedImgs: string[] = []
             for (const img of images) {
                 const fd = new FormData()
                 fd.append('file', img.file)
@@ -96,10 +148,14 @@ export default function NewCrmCampaignPage() {
                 })
                 if (!imgRes.ok) {
                     const imgData = await imgRes.json()
-                    console.warn('Image upload error:', imgData.error)
+                    failedImgs.push(imgData.error || img.file.name)
                 }
             }
             setUploadingImg(false)
+            if (failedImgs.length > 0) {
+                setError(`Error subiendo imágenes: ${failedImgs.join(', ')}`)
+                return
+            }
 
             // 3. Upload contacts Excel
             const excelFd = new FormData()
@@ -110,7 +166,7 @@ export default function NewCrmCampaignPage() {
             })
             const excelData = await excelRes.json()
             if (!excelRes.ok) { setError(excelData.error); return }
-            setContactsPreview({ imported: excelData.imported, errors: excelData.errors })
+            setContactsPreview(prev => ({ ...(prev ?? { contacts: [] }), imported: excelData.imported, errors: excelData.errors }))
 
             // Done — redirect to campaign detail
             router.push(`/dashboard/crm/${campaignId}`)
@@ -169,10 +225,20 @@ export default function NewCrmCampaignPage() {
                                     onClick={() => setForm(f => ({ ...f, botId: b.id }))}
                                     className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${form.botId === b.id ? 'border-amber-500/60 bg-amber-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}
                                 >
-                                    <div className={`w-2 h-2 rounded-full ${b.baileysPhone ? 'bg-green-400' : 'bg-red-400'}`} />
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${
+                                        botStatuses[b.id] === 'connected' ? 'bg-green-400' :
+                                        botStatuses[b.id] === 'connecting' || botStatuses[b.id] === 'qr_ready' ? 'bg-amber-400 animate-pulse' :
+                                        'bg-red-400'
+                                    }`} />
                                     <div>
                                         <p className="text-sm font-bold text-white">{b.name}</p>
-                                        <p className="text-[10px] text-white/30">{b.baileysPhone || 'Sin conectar'}</p>
+                                        <p className="text-[10px] text-white/30">
+                                            {botStatuses[b.id] === 'connected'
+                                                ? (b.baileysPhone || 'Conectado')
+                                                : botStatuses[b.id] === 'connecting' || botStatuses[b.id] === 'qr_ready'
+                                                ? 'Conectando...'
+                                                : 'Desconectado'}
+                                        </p>
                                     </div>
                                 </button>
                             ))}
@@ -309,6 +375,31 @@ export default function NewCrmCampaignPage() {
                         )}
                     </button>
                     <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => handleExcelSelect(e.target.files)} />
+
+                    {/* Contacts preview */}
+                    {parsingExcel && (
+                        <div className="mt-3 flex items-center gap-2 text-xs text-white/40">
+                            <Loader2 size={12} className="animate-spin" /> Leyendo contactos...
+                        </div>
+                    )}
+                    {contactsPreview && contactsPreview.contacts.length > 0 && (
+                        <div className="mt-3">
+                            <p className="text-[11px] text-white/30 mb-2">
+                                <span className="text-green-400 font-bold">{contactsPreview.imported} contactos</span> cargados
+                                {contactsPreview.errors > 0 && <span className="text-red-400 ml-1">· {contactsPreview.errors} errores</span>}
+                            </p>
+                            <div className="max-h-48 overflow-y-auto rounded-xl border border-white/8 divide-y divide-white/5">
+                                {contactsPreview.contacts.map((c, i) => (
+                                    <div key={i} className="flex items-center gap-3 px-3 py-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-400/60 shrink-0" />
+                                        <p className="text-xs text-white/70 truncate">
+                                            {c.name ? <><span className="font-bold">{c.name}</span> <span className="text-white/30">{c.phone}</span></> : c.phone}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Submit */}

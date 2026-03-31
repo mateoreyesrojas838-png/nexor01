@@ -21,14 +21,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!campaign) return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
     if (campaign.status === 'RUNNING') return NextResponse.json({ error: 'La campaña ya está en ejecución' }, { status: 400 })
     if (campaign.status === 'COMPLETED') return NextResponse.json({ error: 'La campaña ya fue completada' }, { status: 400 })
+    if (!['DRAFT', 'SCHEDULED', 'PAUSED', 'FAILED'].includes(campaign.status)) {
+        return NextResponse.json({ error: 'No se puede iniciar esta campaña' }, { status: 400 })
+    }
     if (campaign._count.contacts === 0) return NextResponse.json({ error: 'Carga contactos antes de ejecutar' }, { status: 400 })
     if (campaign.images.length === 0) return NextResponse.json({ error: 'Agrega al menos 1 imagen antes de ejecutar' }, { status: 400 })
 
-    // Reset pending contacts if restarting
-    if (campaign.status === 'PAUSED') {
+    // If FAILED, reset status to allow re-execution
+    if (campaign.status === 'FAILED') {
+        await (prisma as any).broadcastCampaign.update({
+            where: { id: params.id },
+            data: { status: 'DRAFT', failedCount: 0 },
+        })
+        // Reset failed contacts to PENDING so they get retried
         await (prisma as any).broadcastContact.updateMany({
-            where: { campaignId: params.id, status: 'PENDING' },
-            data: { status: 'PENDING' },
+            where: { campaignId: params.id, status: 'FAILED' },
+            data: { status: 'PENDING', error: null, sentAt: null },
         })
     }
 

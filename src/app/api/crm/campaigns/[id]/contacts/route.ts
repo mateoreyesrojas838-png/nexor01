@@ -33,12 +33,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const firstRow = rows[0]
     const keys = Object.keys(firstRow)
 
-    const phoneKey = keys.find(k =>
-        /tel[eé]?fono|phone|cel|celular|whatsapp|número|numero|nro|contact/i.test(k)
-    ) || keys[0]
+    // Prioritize exact matches first, then partial
+    const phoneKey = keys.find(k => /^(tel[eé]?fono|phone|cel|celular|whatsapp|n[uú]mero|nro)$/i.test(k))
+        || keys.find(k => /tel[eé]?fono|phone|celular|whatsapp|n[uú]mero/i.test(k))
+        || keys[0]
 
     const nameKey = keys.find(k =>
-        /nombre|name|cliente|contact/i.test(k) && k !== phoneKey
+        /^(nombre|name|cliente)$/i.test(k) && k !== phoneKey
+    ) || keys.find(k =>
+        /nombre|name|cliente/i.test(k) && k !== phoneKey
     )
 
     // Parse and validate contacts
@@ -76,20 +79,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }, { status: 400 })
     }
 
+    // Deduplicate by phone
+    const seen = new Set<string>()
+    const uniqueContacts = contacts.filter(c => {
+        if (seen.has(c.phone)) return false
+        seen.add(c.phone)
+        return true
+    })
+
     // Delete existing pending contacts and re-upload
     await (prisma as any).broadcastContact.deleteMany({
         where: { campaignId: params.id, status: 'PENDING' },
     })
 
-    // Batch insert
-    await (prisma as any).broadcastContact.createMany({
-        data: contacts.map(c => ({
-            campaignId: params.id,
-            phone: c.phone,
-            name: c.name,
-            status: 'PENDING',
-        })),
-    })
+    // Batch insert in chunks of 500 to avoid query size limits
+    const CHUNK = 500
+    for (let i = 0; i < uniqueContacts.length; i += CHUNK) {
+        await (prisma as any).broadcastContact.createMany({
+            data: uniqueContacts.slice(i, i + CHUNK).map(c => ({
+                campaignId: params.id,
+                phone: c.phone,
+                name: c.name,
+                status: 'PENDING',
+            })),
+            skipDuplicates: true,
+        })
+    }
 
     // Update total count
     const total = await (prisma as any).broadcastContact.count({ where: { campaignId: params.id } })
@@ -98,9 +113,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         data: { totalContacts: total },
     })
 
+    const duplicates = contacts.length - uniqueContacts.length
     return NextResponse.json({
-        imported: contacts.length,
+        imported: uniqueContacts.length,
         errors: errors.length,
+        duplicates,
         errorDetails: errors.slice(0, 5),
         total,
     })
