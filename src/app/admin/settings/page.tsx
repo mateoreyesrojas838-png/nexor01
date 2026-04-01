@@ -19,6 +19,7 @@ export default function AdminSettingsPage() {
   const [uploadingQr, setUploadingQr] = useState(false)
   const qrInputRef = useRef<HTMLInputElement>(null)
   const [storePaymentManual, setStorePaymentManual] = useState(false)
+  const [hgwEnabled, setHgwEnabled] = useState(false)
   const [savingToggle, setSavingToggle] = useState<string | null>(null)
   const [libelulaKey, setLibelulaKey] = useState('')
   const [showLibelulaKey, setShowLibelulaKey] = useState(false)
@@ -42,6 +43,7 @@ export default function AdminSettingsPage() {
         setPrices(withDefaults)
         setPaymentQr(map['PAYMENT_QR_URL'] ?? '')
         setStorePaymentManual(map['STORE_PAYMENT_MANUAL'] === 'true')
+        setHgwEnabled(map['HGW_ENABLED'] === 'true')
         setLibelulaKey(map['LIBELULA_APPKEY'] ?? '')
         setLibelulaEnabled(map['LIBELULA_ENABLED'] === 'true')
         setLibelulaTestMode(map['LIBELULA_TEST_MODE'] === 'true')
@@ -289,6 +291,38 @@ export default function AdminSettingsPage() {
                 </button>
               </div>
               {saved === 'STORE_PAYMENT_MANUAL' && (
+                <p className="text-[11px] text-green-400 flex items-center gap-1"><Check size={10} /> Guardado</p>
+              )}
+
+              <div className="h-px bg-white/6" />
+
+              {/* HGW toggle */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-white">🌿 Recompra HGW 10PV</p>
+                  <p className="text-[11px] text-white/35 mt-0.5">El usuario ingresa su código ID y sube foto de su recompra HGW. Tú revisas y apruebas manualmente.</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !hgwEnabled
+                    setHgwEnabled(next)
+                    await saveToggle('HGW_ENABLED', next)
+                  }}
+                  disabled={savingToggle === 'HGW_ENABLED'}
+                  style={{
+                    width: 44, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
+                    background: hgwEnabled ? '#22c55e' : 'rgba(255,255,255,0.12)',
+                    position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 3, left: hgwEnabled ? 23 : 3,
+                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                  }} />
+                </button>
+              </div>
+              {saved === 'HGW_ENABLED' && (
                 <p className="text-[11px] text-green-400 flex items-center gap-1"><Check size={10} /> Guardado</p>
               )}
 

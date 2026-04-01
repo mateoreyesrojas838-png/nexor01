@@ -44,6 +44,7 @@ function CheckoutContent() {
   const [done, setDone] = useState(false)
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const [manualAvailable, setManualAvailable] = useState(true)
+  const [hgwAvailable, setHgwAvailable] = useState(false)
   const [payMethod, setPayMethod] = useState<'libelula' | 'manual' | 'hgw'>('libelula')
 
   // HGW state
@@ -111,9 +112,12 @@ function CheckoutContent() {
 
         const hasLibelula = map['LIBELULA_AVAILABLE'] === 'true'
         const hasManual = map['STORE_PAYMENT_MANUAL'] !== 'false'
+        const hasHgw = map['HGW_ENABLED'] === 'true'
         setLibelulaAvailable(hasLibelula)
         setManualAvailable(hasManual)
-        if (!hasLibelula) setPayMethod('manual')
+        setHgwAvailable(hasHgw)
+        if (!hasLibelula && hasManual) setPayMethod('manual')
+        else if (!hasLibelula && !hasManual && hasHgw) setPayMethod('hgw')
 
         if (hasLibelula && autoStart) triggerLibelula(usdPrice)
       })
@@ -320,7 +324,8 @@ function CheckoutContent() {
                   </div>
                 </div>
 
-                {/* Method tabs */}
+                {/* Method tabs — only show if more than one method active */}
+                {[libelulaAvailable, manualAvailable, hgwAvailable].filter(Boolean).length > 1 && (
                 <div className="flex rounded-xl overflow-hidden border border-white/10 mb-5">
                   {libelulaAvailable && (
                     <button
@@ -339,14 +344,17 @@ function CheckoutContent() {
                       Comprobante
                     </button>
                   )}
-                  <button
-                    onClick={() => setPayMethod('hgw')}
-                    className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'hgw' ? 'text-black' : 'text-white/40 hover:text-white/60'}`}
-                    style={payMethod === 'hgw' ? { background: 'linear-gradient(135deg, #15803d, #22c55e)' } : { background: 'transparent' }}
-                  >
-                    HGW 10PV
-                  </button>
+                  {hgwAvailable && (
+                    <button
+                      onClick={() => setPayMethod('hgw')}
+                      className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'hgw' ? 'text-black' : 'text-white/40 hover:text-white/60'}`}
+                      style={payMethod === 'hgw' ? { background: 'linear-gradient(135deg, #15803d, #22c55e)' } : { background: 'transparent' }}
+                    >
+                      HGW 10PV
+                    </button>
+                  )}
                 </div>
+                )}
 
                 {/* Libélula flow */}
                 {payMethod === 'libelula' && (
@@ -435,7 +443,7 @@ function CheckoutContent() {
                 )}
 
                 {/* HGW flow */}
-                {payMethod === 'hgw' && (
+                {payMethod === 'hgw' && hgwAvailable && (
                   <div className="space-y-4">
                     {/* Info banner */}
                     <div className="rounded-2xl p-4 flex items-start gap-3" style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.15)' }}>
