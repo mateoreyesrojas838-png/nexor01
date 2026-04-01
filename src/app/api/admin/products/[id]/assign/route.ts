@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!identifier) return NextResponse.json({ error: 'username o email requerido' }, { status: 400 })
 
     const source = await prisma.product.findFirst({
-        where: { id: params.id, userId: (admin as any).userId },
+        where: { id: params.id, userId: (admin as any).id },
     })
     if (!source) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const adminUser = await prisma.user.findUnique({
-        where: { id: (admin as any).userId },
+        where: { id: (admin as any).id },
         select: { username: true },
     })
 

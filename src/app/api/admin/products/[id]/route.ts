@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!admin) return unauthorizedAdmin()
 
     const product = await prisma.product.findFirst({
-        where: { id: params.id, userId: (admin as any).userId },
+        where: { id: params.id, userId: (admin as any).id },
     })
     if (!product) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 
@@ -73,7 +73,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     if (!admin) return unauthorizedAdmin()
 
     const product = await prisma.product.findFirst({
-        where: { id: params.id, userId: (admin as any).userId },
+        where: { id: params.id, userId: (admin as any).id },
     })
     if (!product) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 

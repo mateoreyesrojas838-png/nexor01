@@ -23,7 +23,7 @@ export async function GET() {
     if (!admin) return unauthorizedAdmin()
 
     const products = await prisma.product.findMany({
-        where: { userId: (admin as any).userId },
+        where: { userId: (admin as any).id },
         orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json({ products })
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const product = await prisma.product.create({
         data: {
-            userId: (admin as any).userId,
+            userId: (admin as any).id,
             name,
             category: (body.category as string) || null,
             benefits: (body.benefits as string) || null,
