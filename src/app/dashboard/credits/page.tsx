@@ -36,18 +36,7 @@ function CreditsContent() {
   const [done, setDone] = useState(false)
   const [paidAmount, setPaidAmount] = useState<number | null>(null)
 
-  // Handle redirect params from callback
-  useEffect(() => {
-    const payment = searchParams.get('payment')
-    const amt = searchParams.get('amount')
-    if (payment === 'success' && amt) {
-      setPaidAmount(parseFloat(amt))
-      setDone(true)
-      fetchBalance()
-    }
-  }, [searchParams])
-
-  async function fetchBalance() {
+  const fetchBalance = useCallback(async () => {
     setLoadingBalance(true)
     try {
       const res = await fetch('/api/credits/balance')
@@ -58,7 +47,21 @@ function CreditsContent() {
     } finally {
       setLoadingBalance(false)
     }
-  }
+  }, [])
+
+  // Handle redirect params from callback
+  useEffect(() => {
+    const payment = searchParams.get('payment')
+    const amt = searchParams.get('amount')
+    if (payment === 'success' && amt) {
+      const parsed = parseFloat(amt)
+      if (parsed > 0) {
+        setPaidAmount(parsed)
+        setDone(true)
+        fetchBalance()
+      }
+    }
+  }, [searchParams, fetchBalance])
 
   useEffect(() => {
     fetchBalance()
@@ -69,7 +72,7 @@ function CreditsContent() {
         setLibelulaAvailable(map['LIBELULA_AVAILABLE'] === 'true')
       })
       .catch(() => {})
-  }, [])
+  }, [fetchBalance])
 
   // QR countdown — 5 minutes
   useEffect(() => {
@@ -107,7 +110,7 @@ function CreditsContent() {
       } catch { /* ignore */ }
     }, 5000)
     return () => clearInterval(interval)
-  }, [payData, done])
+  }, [payData, done, fetchBalance])
 
   const finalAmount = useCallback(() => {
     if (useCustom) return parseFloat(customAmount) || 0

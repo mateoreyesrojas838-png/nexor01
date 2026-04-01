@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { addCredits } from '@/lib/ai-credits'
 
 /**
  * GET /api/payments/libelula/credits/callback?transaction_id=UUID
@@ -30,9 +29,11 @@ export async function GET(req: NextRequest) {
   }
 
   // Parse the amount from notes: LIBELULA:{uuid}:CREDITS:{amount}
-  const parts = packRequest.notes?.split(':') ?? []
-  // parts[0]=LIBELULA, parts[1]=uuid-part1, ... last part = amount
-  const amountUsd = parseFloat(parts[parts.length - 1])
+  // Use the :CREDITS: marker for precise extraction — avoids any split fragility
+  const creditsMarker = ':CREDITS:'
+  const creditsIdx = (packRequest.notes ?? '').indexOf(creditsMarker)
+  const rawAmount = creditsIdx >= 0 ? packRequest.notes!.slice(creditsIdx + creditsMarker.length).split(':')[0] : ''
+  const amountUsd = parseFloat(rawAmount)
 
   if (!amountUsd || amountUsd <= 0) {
     console.error(`[credits/callback] Could not parse amount from notes: ${packRequest.notes}`)

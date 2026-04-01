@@ -54,14 +54,19 @@ export default function AdminSettingsPage() {
 
   async function saveToggle(key: string, value: boolean) {
     setSavingToggle(key)
-    await fetch('/api/admin/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value: value ? 'true' : 'false' }),
-    })
-    setSavingToggle(null)
-    setSaved(key)
-    setTimeout(() => setSaved(null), 2000)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value: value ? 'true' : 'false' }),
+      })
+      if (res.ok) {
+        setSaved(key)
+        setTimeout(() => setSaved(null), 2000)
+      }
+    } finally {
+      setSavingToggle(null)
+    }
   }
 
   async function savePrice(key: string) {
