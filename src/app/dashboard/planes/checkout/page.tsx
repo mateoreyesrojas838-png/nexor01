@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle2, Clock, ShieldCheck, QrCode, ExternalLink, Loader2, AlertCircle, Zap, Sparkles, Crown } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Clock, ShieldCheck, QrCode, ExternalLink, Loader2, AlertCircle, Zap, Sparkles, Crown, Upload, X } from 'lucide-react'
 import { PaymentGateway } from '@/components/PaymentGateway'
 
 const PLAN_LABELS: Record<string, string> = {
@@ -44,7 +44,15 @@ function CheckoutContent() {
   const [done, setDone] = useState(false)
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const [manualAvailable, setManualAvailable] = useState(true)
-  const [payMethod, setPayMethod] = useState<'libelula' | 'manual'>('libelula')
+  const [payMethod, setPayMethod] = useState<'libelula' | 'manual' | 'hgw'>('libelula')
+
+  // HGW state
+  const [hgwCode, setHgwCode] = useState('')
+  const [hgwFile, setHgwFile] = useState<File | null>(null)
+  const [hgwPreview, setHgwPreview] = useState<string | null>(null)
+  const [hgwLoading, setHgwLoading] = useState(false)
+  const [hgwError, setHgwError] = useState('')
+  const hgwFileRef = useRef<HTMLInputElement>(null)
 
   const [libelulaLoading, setLibelulaLoading] = useState(false)
   const [libelulaData, setLibelulaData] = useState<{
@@ -173,6 +181,36 @@ function CheckoutContent() {
 
   const handleSuccess = () => setDone(true)
 
+  async function handleHgwSubmit() {
+    if (!hgwCode.trim()) { setHgwError('Ingresa tu código ID de HGW'); return }
+    if (!hgwFile) { setHgwError('Sube la foto de tu recompra'); return }
+    setHgwLoading(true)
+    setHgwError('')
+    try {
+      // Upload photo
+      const formData = new FormData()
+      formData.append('file', hgwFile)
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) throw new Error(uploadData.error ?? 'Error al subir la imagen')
+      const proofUrl = uploadData.url
+
+      // Submit request
+      const res = await fetch('/api/pack-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId, isRenewal, paymentProofUrl: proofUrl, hgwCodeId: hgwCode.trim(), isHgw: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al enviar la solicitud')
+      setDone(true)
+    } catch (err: unknown) {
+      setHgwError(err instanceof Error ? err.message : 'Error desconocido')
+    } finally {
+      setHgwLoading(false)
+    }
+  }
+
   if (!['BASIC', 'PRO', 'ELITE'].includes(planId)) return null
 
   const PlanIcon = PLAN_ICONS[planId] ?? Zap
@@ -283,8 +321,8 @@ function CheckoutContent() {
                 </div>
 
                 {/* Method tabs */}
-                {libelulaAvailable && manualAvailable && (
-                  <div className="flex rounded-xl overflow-hidden border border-white/10 mb-5">
+                <div className="flex rounded-xl overflow-hidden border border-white/10 mb-5">
+                  {libelulaAvailable && (
                     <button
                       onClick={() => setPayMethod('libelula')}
                       className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'libelula' ? 'text-black' : 'text-white/40 hover:text-white/60'}`}
@@ -292,14 +330,23 @@ function CheckoutContent() {
                     >
                       QR Libélula
                     </button>
+                  )}
+                  {manualAvailable && (
                     <button
                       onClick={() => setPayMethod('manual')}
                       className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'manual' ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/60'}`}
                     >
                       Comprobante
                     </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    onClick={() => setPayMethod('hgw')}
+                    className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'hgw' ? 'text-black' : 'text-white/40 hover:text-white/60'}`}
+                    style={payMethod === 'hgw' ? { background: 'linear-gradient(135deg, #15803d, #22c55e)' } : { background: 'transparent' }}
+                  >
+                    HGW 10PV
+                  </button>
+                </div>
 
                 {/* Libélula flow */}
                 {payMethod === 'libelula' && (
@@ -386,6 +433,97 @@ function CheckoutContent() {
                     onCancel={() => router.push('/dashboard/planes')}
                   />
                 )}
+
+                {/* HGW flow */}
+                {payMethod === 'hgw' && (
+                  <div className="space-y-4">
+                    {/* Info banner */}
+                    <div className="rounded-2xl p-4 flex items-start gap-3" style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                      <span className="text-lg leading-none">🌿</span>
+                      <div>
+                        <p className="text-xs font-black text-green-400 mb-0.5">Activar con recompra HGW</p>
+                        <p className="text-[11px] text-white/40 leading-relaxed">
+                          Si realizaste una recompra de <strong className="text-white/60">10 PV o más</strong> en HGW, ingresa tu código ID y sube la foto del comprobante. El equipo lo verificará y activará tu plan.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Código ID */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-white/35 mb-1.5">
+                        Código ID de HGW
+                      </label>
+                      <input
+                        type="text"
+                        value={hgwCode}
+                        onChange={e => setHgwCode(e.target.value)}
+                        placeholder="Ej: HGW-123456"
+                        className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none focus:border-green-500/50 transition-colors"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      />
+                    </div>
+
+                    {/* Foto recompra */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-white/35 mb-1.5">
+                        Foto de tu recompra HGW
+                      </label>
+                      <input
+                        ref={hgwFileRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null
+                          setHgwFile(file)
+                          if (file) setHgwPreview(URL.createObjectURL(file))
+                          else setHgwPreview(null)
+                        }}
+                      />
+                      {hgwPreview ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-white/10">
+                          <img src={hgwPreview} alt="Recompra HGW" className="w-full max-h-48 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => { setHgwFile(null); setHgwPreview(null); if (hgwFileRef.current) hgwFileRef.current.value = '' }}
+                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                          >
+                            <X size={13} className="text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => hgwFileRef.current?.click()}
+                          className="w-full py-8 rounded-2xl border-2 border-dashed flex flex-col items-center gap-2 transition-colors hover:border-green-500/30"
+                          style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}
+                        >
+                          <Upload size={20} className="text-white/25" />
+                          <p className="text-xs text-white/30">Toca para subir la foto</p>
+                          <p className="text-[10px] text-white/20">JPG, PNG — máx. 5 MB</p>
+                        </button>
+                      )}
+                    </div>
+
+                    {hgwError && (
+                      <div className="flex items-center gap-2 rounded-xl px-3.5 py-2.5" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        <AlertCircle size={13} className="text-red-400 shrink-0" />
+                        <p className="text-[11px] text-red-400">{hgwError}</p>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleHgwSubmit}
+                      disabled={hgwLoading}
+                      className="w-full py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-white disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #15803d, #22c55e)', boxShadow: '0 4px 20px rgba(34,197,94,0.2)' }}
+                    >
+                      {hgwLoading ? <Loader2 size={15} className="animate-spin" /> : '🌿'}
+                      {hgwLoading ? 'Enviando...' : 'Enviar comprobante HGW'}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -394,8 +532,10 @@ function CheckoutContent() {
         {!done && (
           <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-white/20">
             <ShieldCheck size={11} />
-            {libelulaAvailable && payMethod === 'libelula'
+            {payMethod === 'libelula' && libelulaAvailable
               ? 'Pago procesado por Libélula · Banco Mercantil Santa Cruz'
+              : payMethod === 'hgw'
+              ? 'Verificación de recompra HGW revisada manualmente · menos de 24 h'
               : 'Proceso verificado manualmente por el equipo Nexor'}
           </div>
         )}

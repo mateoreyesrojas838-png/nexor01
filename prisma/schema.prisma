@@ -325,6 +325,7 @@ model PackPurchaseRequest {
   plan            UserPlan
   price           Decimal       @db.Decimal(10, 2)
   paymentProofUrl String?       @map("payment_proof_url")
+  hgwCodeId       String?       @map("hgw_code_id")
   status          RequestStatus @default(PENDING)
   notes           String?
   reviewedBy      String?       @map("reviewed_by") @db.Uuid

@@ -47,11 +47,18 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()
-    const { plan, isRenewal, paymentProofUrl } = body
+    const { plan, isRenewal, paymentProofUrl, hgwCodeId, isHgw } = body
 
     if (!plan || !paymentProofUrl) {
       return NextResponse.json(
         { error: 'plan y paymentProofUrl son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    if (isHgw && !hgwCodeId?.trim()) {
+      return NextResponse.json(
+        { error: 'El código ID de HGW es requerido' },
         { status: 400 }
       )
     }
@@ -82,14 +89,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const req = await prisma.packPurchaseRequest.create({
+    const req = await (prisma.packPurchaseRequest as any).create({
       data: {
         userId: user.id,
         plan,
         price,
         paymentProofUrl,
+        hgwCodeId: isHgw ? hgwCodeId.trim() : null,
         status: 'PENDING',
-        notes: isRenewal ? 'RENEWAL' : null,
+        notes: isHgw ? 'HGW' : isRenewal ? 'RENEWAL' : null,
       },
     })
 

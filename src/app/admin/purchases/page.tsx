@@ -8,6 +8,7 @@ interface PurchaseRequest {
   plan: string
   price: number
   paymentProofUrl: string | null
+  hgwCodeId: string | null
   status: string
   notes: string | null
   createdAt: string
@@ -146,12 +147,27 @@ export default function AdminPurchasesPage() {
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${PLAN_BADGE[r.plan] ?? ''}`}>
                         {PLAN_LABEL[r.plan] ?? r.plan}
                       </span>
+                      {r.notes === 'HGW' && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/25">
+                          🌿 HGW 10PV
+                        </span>
+                      )}
                       <span className="text-sm font-black text-white/80">${r.price.toFixed(2)} USD</span>
                       <span className="text-[10px] text-white/25 flex items-center gap-1">
                         <Clock size={9} />
                         {new Date(r.createdAt).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
+
+                    {/* HGW Code ID */}
+                    {r.hgwCodeId && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] text-white/40">Código HGW:</span>
+                        <span className="text-xs font-black text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-lg">
+                          {r.hgwCodeId}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Payment proof */}
                     {r.paymentProofUrl ? (
