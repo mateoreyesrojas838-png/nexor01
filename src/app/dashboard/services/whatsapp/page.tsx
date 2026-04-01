@@ -1349,7 +1349,7 @@ function PromptTab({ bot, onSaved }: { bot: Bot; onSaved: (updated: Partial<Bot>
             <div className="bg-[#0E0E16] border border-white/10 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
                 <p className="font-black text-sm uppercase tracking-widest text-white">Plantillas de prompt</p>
-                <button onClick={() => setShowTemplates(false)} className="text-white/40 hover:text-white transition-colors">✕</button>
+                <button type="button" onClick={() => setShowTemplates(false)} className="text-white/40 hover:text-white transition-colors">✕</button>
               </div>
               <div className="overflow-y-auto flex-1 p-4 space-y-2">
                 {loadingTemplates ? (
