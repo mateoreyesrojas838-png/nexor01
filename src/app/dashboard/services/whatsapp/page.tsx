@@ -1281,6 +1281,31 @@ function PromptTab({ bot, onSaved }: { bot: Bot; onSaved: (updated: Partial<Bot>
   })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [templates, setTemplates] = useState<{ id: string; name: string; description: string | null; content: string; category: string }[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
+
+  async function openTemplates() {
+    setShowTemplates(true)
+    if (templates.length > 0) return
+    setLoadingTemplates(true)
+    const res = await fetch('/api/prompt-templates')
+    const data = await res.json()
+    setTemplates(data.templates || [])
+    setLoadingTemplates(false)
+  }
+
+  async function applyTemplate(t: { id: string; content: string }) {
+    if (form.systemPromptTemplate.trim() && !confirm('¿Reemplazar el prompt actual con esta plantilla?')) return
+    setForm(f => ({ ...f, systemPromptTemplate: t.content }))
+    setShowTemplates(false)
+    // Increment usage counter (fire and forget)
+    fetch('/api/prompt-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: t.id }),
+    }).catch(() => {})
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -1318,30 +1343,79 @@ function PromptTab({ bot, onSaved }: { bot: Bot; onSaved: (updated: Partial<Bot>
 
         {msg && <Alert type={msg.type} msg={msg.text} />}
 
+        {/* Template picker modal */}
+        {showTemplates && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-[#0E0E16] border border-white/10 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+                <p className="font-black text-sm uppercase tracking-widest text-white">Plantillas de prompt</p>
+                <button onClick={() => setShowTemplates(false)} className="text-white/40 hover:text-white transition-colors">✕</button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-4 space-y-2">
+                {loadingTemplates ? (
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-amber-400" size={24} /></div>
+                ) : templates.length === 0 ? (
+                  <p className="text-center text-white/30 text-sm py-10">No hay plantillas disponibles</p>
+                ) : (
+                  templates.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => applyTemplate(t)}
+                      className="w-full text-left p-4 rounded-xl border border-white/8 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-500/30 transition-all group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">{t.name}</p>
+                          {t.description && <p className="text-xs text-white/35 mt-0.5">{t.description}</p>}
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/8 text-white/30 font-bold shrink-0 capitalize">{t.category}</span>
+                      </div>
+                      <p className="text-[11px] text-white/20 mt-2 line-clamp-2 font-mono">{t.content.slice(0, 120)}...</p>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-white/8">
+                <p className="text-[11px] text-white/25">Al seleccionar una plantilla, se cargará en tu editor. Podrás modificarla antes de guardar.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
             <label className="block text-xs font-medium text-white/50">
               Instrucciones del vendedor (system prompt)
             </label>
-            <button
-              type="button"
-              onClick={() => {
-                if (!form.systemPromptTemplate.trim()) {
-                  setForm(f => ({ ...f, systemPromptTemplate: EXAMPLE_PROMPT }))
-                } else if (confirm('Esto reemplazará tu prompt actual. ¿Continuar?')) {
-                  setForm(f => ({ ...f, systemPromptTemplate: EXAMPLE_PROMPT }))
-                }
-              }}
-              className="text-[10px] px-2.5 py-1 rounded-lg bg-indigo-400/10 border border-indigo-400/20 text-indigo-400 hover:bg-indigo-400/20 transition-colors font-medium"
-            >
-              Cargar plantilla de ejemplo
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={openTemplates}
+                className="text-[10px] px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-colors font-bold flex items-center gap-1"
+              >
+                📋 Cargar plantilla del admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!form.systemPromptTemplate.trim()) {
+                    setForm(f => ({ ...f, systemPromptTemplate: EXAMPLE_PROMPT }))
+                  } else if (confirm('Esto reemplazará tu prompt actual. ¿Continuar?')) {
+                    setForm(f => ({ ...f, systemPromptTemplate: EXAMPLE_PROMPT }))
+                  }
+                }}
+                className="text-[10px] px-2.5 py-1 rounded-lg bg-indigo-400/10 border border-indigo-400/20 text-indigo-400 hover:bg-indigo-400/20 transition-colors font-medium"
+              >
+                Ejemplo base
+              </button>
+            </div>
           </div>
           <textarea
             value={form.systemPromptTemplate}
             onChange={e => setForm(f => ({ ...f, systemPromptTemplate: e.target.value }))}
             rows={12}
-            placeholder={`Escribe aquí las instrucciones de tu vendedor.\n\nEjemplo:\n- Su nombre, estilo de comunicación y tono\n- Cómo identificar el problema del cliente\n- Cómo presentar y cerrar la venta\n- Reglas de negocio especiales\n\nUsa el botón "Cargar plantilla de ejemplo" para ver una plantilla lista.`}
+            placeholder={`Escribe aquí las instrucciones de tu vendedor.\n\nEjemplo:\n- Su nombre, estilo de comunicación y tono\n- Cómo identificar el problema del cliente\n- Cómo presentar y cerrar la venta\n- Reglas de negocio especiales\n\nUsa el botón "Cargar plantilla del admin" para ver plantillas listas.`}
             className="w-full bg-[#0B0B12]/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-400/40 font-mono resize-y min-h-[200px]"
           />
           <p className="text-xs text-white/25 mt-1">

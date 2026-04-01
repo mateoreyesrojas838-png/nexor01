@@ -890,6 +890,22 @@ model BroadcastLog {
   @@map("broadcast_logs")
 }
 
+// ─── PROMPT TEMPLATES ────────────────────────────────────────────────────────
+
+model PromptTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  content     String   @db.Text
+  category    String   @default("general")
+  isActive    Boolean  @default(true) @map("is_active")
+  usageCount  Int      @default(0) @map("usage_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("prompt_templates")
+}
+
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
 
 model AuditLog {
