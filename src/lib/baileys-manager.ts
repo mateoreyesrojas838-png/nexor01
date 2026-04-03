@@ -641,10 +641,12 @@ export const BaileysManager = {
                 console.log(`[BAILEYS] Label sync botId=${botId}: ${conn.labels.size} etiquetas`)
             })
 
-            sock.ev.on('labels.association', ({ type: actionType, association }: any) => {
+            sock.ev.on('labels.association', (data: any) => {
+                console.log(`[BAILEYS] labels.association event botId=${botId}:`, JSON.stringify(data))
+                const actionType = data?.type
+                const association = data?.association
                 if (association?.type === 'label_jid') {
                     if (actionType === 'add') {
-                        // Avoid duplicates
                         const exists = conn.labelChats.some(
                             a => a.labelId === association.labelId && a.chatId === association.chatId
                         )
@@ -655,6 +657,39 @@ export const BaileysManager = {
                         conn.labelChats = conn.labelChats.filter(
                             a => !(a.labelId === association.labelId && a.chatId === association.chatId)
                         )
+                    }
+                    console.log(`[BAILEYS] Label associations botId=${botId}: ${conn.labelChats.length} total`)
+                }
+            })
+
+            // Also listen for chats.update which may carry label info
+            sock.ev.on('chats.update', (updates: any[]) => {
+                for (const update of updates) {
+                    if (update?.label) {
+                        // Some Baileys versions send label info via chats.update
+                        const chatId = update.id
+                        const labelId = String(update.label)
+                        const exists = conn.labelChats.some(
+                            a => a.labelId === labelId && a.chatId === chatId
+                        )
+                        if (!exists) {
+                            conn.labelChats.push({ labelId, chatId })
+                        }
+                    }
+                }
+            })
+
+            sock.ev.on('chats.upsert', (chats: any[]) => {
+                for (const chat of chats) {
+                    if (chat?.labels?.length) {
+                        for (const labelId of chat.labels) {
+                            const exists = conn.labelChats.some(
+                                a => a.labelId === String(labelId) && a.chatId === chat.id
+                            )
+                            if (!exists) {
+                                conn.labelChats.push({ labelId: String(labelId), chatId: chat.id })
+                            }
+                        }
                     }
                 }
             })
