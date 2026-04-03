@@ -469,29 +469,64 @@ export const BaileysManager = {
         const conn = connections.get(botId)
         if (!conn?.sock || conn.status !== 'connected') return false
         try {
-            const keys = (conn.sock as any).authState?.keys
-            if (keys) {
-                // Reset app state version to 0 for regular collections
-                // This forces WhatsApp to send a FULL snapshot including all label associations
-                const collections = ['regular', 'regular_low', 'regular_high']
-                for (const name of collections) {
-                    try {
-                        await keys.set({ 'app-state-sync-version': { [name]: null } })
-                    } catch { /* ignore */ }
-                }
-                console.log(`[BAILEYS] Reset app state versions for label resync botId=${botId}`)
+            // Simple incremental resync — do NOT reset versions or use isInitialSync
+            await (conn.sock as any).resyncAppState(['regular'], false)
+            console.log(`[BAILEYS] Label resync for botId=${botId}: ${conn.labels.size} etiquetas, ${conn.labelChats.length} asociaciones from events`)
+
+            // If events didn't bring associations, read from stored app state
+            if (conn.labelChats.length === 0 && conn.labels.size > 0) {
+                await this.readLabelAssociationsFromState(botId)
             }
 
-            // Now resync — since version is 0, it will request full snapshot
-            await (conn.sock as any).resyncAppState(
-                ['regular', 'regular_low', 'regular_high'],
-                true  // isInitialSync = true to process all data
-            )
-            console.log(`[BAILEYS] Full label resync for botId=${botId}: ${conn.labels.size} etiquetas, ${conn.labelChats.length} asociaciones`)
             return true
         } catch (err) {
             console.error(`[BAILEYS] Label resync error for botId=${botId}:`, err)
-            return false
+            // Even if resync fails, try reading from stored state
+            await this.readLabelAssociationsFromState(botId)
+            return conn.labelChats.length > 0
+        }
+    },
+
+    async readLabelAssociationsFromState(botId: string): Promise<void> {
+        const conn = connections.get(botId)
+        if (!conn?.sock) return
+
+        try {
+            const keys = (conn.sock as any).authState?.keys
+            if (!keys) return
+
+            const result = await keys.get('app-state-sync-version', ['regular'])
+            const state = result?.regular
+            if (!state?.indexValueMap) {
+                console.log(`[BAILEYS] No indexValueMap found for botId=${botId}`)
+                return
+            }
+
+            let found = 0
+            for (const indexKey of Object.keys(state.indexValueMap)) {
+                try {
+                    // indexKey contains the sync action index — check if it's a label_jid association
+                    const decoded = Buffer.from(indexKey, 'base64').toString('utf-8')
+                    if (decoded.includes('label_jid')) {
+                        // Format: label_jid\x00<labelId>\x00<chatJid>
+                        const parts = decoded.split('\0').filter(Boolean)
+                        if (parts.length >= 3 && parts[0] === 'label_jid') {
+                            const labelId = parts[1]
+                            const chatId = parts[2]
+                            const exists = conn.labelChats.some(
+                                a => a.labelId === labelId && a.chatId === chatId
+                            )
+                            if (!exists) {
+                                conn.labelChats.push({ labelId, chatId })
+                                found++
+                            }
+                        }
+                    }
+                } catch { /* skip unparseable keys */ }
+            }
+            console.log(`[BAILEYS] Read ${found} label associations from indexValueMap for botId=${botId} (total: ${conn.labelChats.length})`)
+        } catch (err) {
+            console.error(`[BAILEYS] Error reading label state for botId=${botId}:`, err)
         }
     },
 
@@ -499,34 +534,23 @@ export const BaileysManager = {
         const conn = connections.get(botId)
         if (!conn?.sock) return []
 
+        // If no associations yet, try reading from stored state
+        if (conn.labelChats.length === 0) {
+            await this.readLabelAssociationsFromState(botId)
+        }
+
         const chatIds = conn.labelChats
             .filter(a => a.labelId === labelId)
             .map(a => a.chatId)
 
-        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds from events`, chatIds.slice(0, 5))
+        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds`)
 
-        // If we have associations from events, resolve them
-        if (chatIds.length > 0) {
-            const phones: string[] = []
-            for (const chatId of chatIds) {
-                const phone = await this.resolveContactPhone(botId, chatId)
-                if (phone) phones.push(phone)
-            }
-            return phones
+        const phones: string[] = []
+        for (const chatId of chatIds) {
+            const phone = await this.resolveContactPhone(botId, chatId)
+            if (phone) phones.push(phone)
         }
-
-        // Fallback: try to read app state keys directly for this label
-        try {
-            const keys = (conn.sock as any).authState?.keys
-            if (keys) {
-                const result = await keys.get('app-state-sync-key', ['label_jid'])
-                console.log(`[BAILEYS] app-state-sync-key label_jid result:`, Object.keys(result || {}))
-            }
-        } catch (e) {
-            console.log(`[BAILEYS] Could not read app state keys:`, e)
-        }
-
-        return []
+        return phones
     },
 
     async resolveContactPhone(botId: string, chatId: string): Promise<string | null> {
@@ -534,20 +558,17 @@ export const BaileysManager = {
         if (!conn?.sock) return null
 
         if (chatId.endsWith('@lid')) {
-            // LID format — resolve to real phone number
             try {
                 const pn = await (conn.sock as any).signalRepository?.lidMapping?.getPNForLID(chatId)
                 if (pn) {
                     const num = pn.replace('@s.whatsapp.net', '').replace(/\D/g, '')
                     if (num) return `+${num}`
                 }
-                console.log(`[BAILEYS] Could not resolve LID ${chatId}`)
-            } catch {
-                console.log(`[BAILEYS] LID resolution failed for ${chatId}`)
-            }
-            return null
+            } catch { /* silent */ }
+            // Fallback: strip @lid and try as phone
+            const raw = chatId.replace('@lid', '').replace(/\D/g, '')
+            return raw.length >= 8 ? `+${raw}` : null
         } else {
-            // Normal format: "591XXXXXXXX@s.whatsapp.net"
             const phone = chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '')
             return phone ? `+${phone}` : null
         }
@@ -627,14 +648,14 @@ export const BaileysManager = {
                     const phone = sock.user?.id?.split(':')[0] ?? ''
                     conn.phone = phone
                     await prisma.bot.update({ where: { id: botId }, data: { baileysPhone: phone } }).catch(() => { })
-                    // Force label sync after connection
+                    // Force label sync after connection — wait 15s for all keys to be ready
                     setTimeout(async () => {
                         try {
                             await BaileysManager.resyncLabels(botId)
                         } catch (err) {
                             console.log(`[BAILEYS] Label resync skipped for botId=${botId} (may not be Business account)`)
                         }
-                    }, 5000)
+                    }, 15000)
                 }
                 if (connection === 'close') {
                     const statusCode = new Boom(update.lastDisconnect?.error)?.output?.statusCode
@@ -705,37 +726,6 @@ export const BaileysManager = {
                 }
             })
 
-            // Also listen for chats.update which may carry label info
-            sock.ev.on('chats.update', (updates: any[]) => {
-                for (const update of updates) {
-                    if (update?.label) {
-                        // Some Baileys versions send label info via chats.update
-                        const chatId = update.id
-                        const labelId = String(update.label)
-                        const exists = conn.labelChats.some(
-                            a => a.labelId === labelId && a.chatId === chatId
-                        )
-                        if (!exists) {
-                            conn.labelChats.push({ labelId, chatId })
-                        }
-                    }
-                }
-            })
-
-            sock.ev.on('chats.upsert', (chats: any[]) => {
-                for (const chat of chats) {
-                    if (chat?.labels?.length) {
-                        for (const labelId of chat.labels) {
-                            const exists = conn.labelChats.some(
-                                a => a.labelId === String(labelId) && a.chatId === chat.id
-                            )
-                            if (!exists) {
-                                conn.labelChats.push({ labelId: String(labelId), chatId: chat.id })
-                            }
-                        }
-                    }
-                }
-            })
 
         } catch (err) {
             console.error(`[BAILEYS] Error al iniciar conexión para bot ${botId}:`, err)
