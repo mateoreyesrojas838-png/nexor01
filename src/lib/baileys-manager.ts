@@ -50,6 +50,7 @@ interface BaileysConnection {
     botName: string
     labels: Map<string, WhatsAppLabel>
     labelChats: LabelAssociation[]
+    lidToPhone: Map<string, string>  // LID → phone number mapping
 }
 
 // ── In-memory store (global para sobrevivir Next.js HMR) ──────────────────────
@@ -487,6 +488,47 @@ export const BaileysManager = {
         }
     },
 
+    async loadLidMappingsFromStore(botId: string): Promise<void> {
+        const conn = connections.get(botId)
+        if (!conn?.sock) return
+
+        try {
+            const keys = (conn.sock as any).authState?.keys
+            if (!keys) return
+
+            // Read all stored keys from the session directory
+            const sessionDir = path.join(SESSIONS_DIR, botId)
+            const lidMappingDir = path.join(sessionDir, 'lid-mapping')
+            if (fs.existsSync(lidMappingDir)) {
+                const files = fs.readdirSync(lidMappingDir)
+                for (const file of files) {
+                    try {
+                        const content = fs.readFileSync(path.join(lidMappingDir, file), 'utf-8')
+                        const data = JSON.parse(content)
+                        // Format: key is LID user, value is PN
+                        const lidUser = file.replace('.json', '').replace(/_reverse$/, '')
+                        if (data && typeof data === 'string') {
+                            const pn = data.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+                            if (pn) {
+                                conn.lidToPhone.set(`${lidUser}@lid`, pn)
+                                conn.lidToPhone.set(lidUser, pn)
+                            }
+                        } else if (data?.value) {
+                            const pn = String(data.value).replace('@s.whatsapp.net', '').replace(/\D/g, '')
+                            if (pn) {
+                                conn.lidToPhone.set(`${lidUser}@lid`, pn)
+                                conn.lidToPhone.set(lidUser, pn)
+                            }
+                        }
+                    } catch { /* skip unreadable */ }
+                }
+            }
+            console.log(`[BAILEYS] Loaded ${conn.lidToPhone.size} LID→Phone mappings from store for botId=${botId}`)
+        } catch (err) {
+            console.log(`[BAILEYS] Error loading LID mappings from store:`, err)
+        }
+    },
+
     async readLabelAssociationsFromState(botId: string): Promise<void> {
         const conn = connections.get(botId)
         if (!conn?.sock) return
@@ -543,7 +585,12 @@ export const BaileysManager = {
             .filter(a => a.labelId === labelId)
             .map(a => a.chatId)
 
-        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds`, chatIds.slice(0, 3))
+        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds, lidMap=${conn.lidToPhone.size}`)
+
+        // Load LID mappings if not loaded yet
+        if (conn.lidToPhone.size === 0) {
+            await this.loadLidMappingsFromStore(botId)
+        }
 
         const phones: string[] = []
         const unresolved: string[] = []
@@ -556,7 +603,7 @@ export const BaileysManager = {
             }
         }
         if (unresolved.length > 0) {
-            console.log(`[BAILEYS] Could not resolve ${unresolved.length} LIDs:`, unresolved.slice(0, 3))
+            console.log(`[BAILEYS] Unresolved LIDs (${unresolved.length}):`, unresolved.slice(0, 5))
         }
         console.log(`[BAILEYS] Resolved ${phones.length}/${chatIds.length} contacts for label=${labelId}`)
         return phones
@@ -574,45 +621,47 @@ export const BaileysManager = {
 
         // LID format: needs resolution
         if (chatId.endsWith('@lid')) {
-            // Method 1: Use Baileys LID mapping store
+            // Method 1: Check our own LID→Phone map (built from events)
+            const fromMap = conn.lidToPhone.get(chatId)
+            if (fromMap) {
+                const num = fromMap.replace(/\D/g, '')
+                if (num) return `+${num}`
+            }
+
+            // Method 2: Use Baileys LID mapping store
             try {
                 const pn = await (conn.sock as any).signalRepository?.lidMapping?.getPNForLID(chatId)
                 if (pn) {
                     const num = pn.replace('@s.whatsapp.net', '').replace(/\D/g, '')
-                    if (num) return `+${num}`
+                    if (num) {
+                        conn.lidToPhone.set(chatId, num) // cache
+                        return `+${num}`
+                    }
                 }
             } catch { /* silent */ }
 
-            // Method 2: Use USyncQuery to resolve LID to phone via WhatsApp server
-            try {
-                const { USyncQuery, USyncUser } = await import('@whiskeysockets/baileys/lib/WAUSync/index.js')
-                const query = new USyncQuery().withContactProtocol()
-                const lidClean = chatId.replace('@lid', '')
-                query.withUser(new USyncUser().withId(`${lidClean}@s.whatsapp.net`))
-                const results = await (conn.sock as any).executeUSyncQuery(query)
-                if (results?.list?.[0]?.id) {
-                    const num = results.list[0].id.replace('@s.whatsapp.net', '').split(':')[0].replace(/\D/g, '')
-                    if (num) return `+${num}`
-                }
-            } catch { /* silent */ }
-
-            // Method 3: Check if lid-mapping key store has it
+            // Method 3: Check key store lid-mapping with different key formats
             try {
                 const keys = (conn.sock as any).authState?.keys
                 if (keys) {
-                    const result = await keys.get('lid-mapping', [chatId])
-                    const mapped = result?.[chatId]
-                    if (mapped) {
-                        const num = String(mapped).replace('@s.whatsapp.net', '').replace(/\D/g, '')
-                        if (num) return `+${num}`
+                    const lidUser = chatId.replace('@lid', '')
+                    // Try both formats
+                    for (const key of [chatId, `${lidUser}_reverse`, lidUser]) {
+                        const result = await keys.get('lid-mapping', [key])
+                        const mapped = result?.[key]
+                        if (mapped) {
+                            const num = String(mapped).replace('@s.whatsapp.net', '').replace(/\D/g, '')
+                            if (num) {
+                                conn.lidToPhone.set(chatId, num) // cache
+                                return `+${num}`
+                            }
+                        }
                     }
                 }
             } catch { /* silent */ }
         }
 
-        // Last resort: strip suffix and check if it looks like a phone
-        const raw = chatId.replace(/@.*$/, '').replace(/\D/g, '')
-        return raw.length >= 8 ? `+${raw}` : null
+        return null // Don't return garbage IDs
     },
 
     async sendText(botId: string, toPhone: string, text: string): Promise<boolean> {
@@ -661,7 +710,7 @@ export const BaileysManager = {
         const sessionDir = path.join(SESSIONS_DIR, botId)
         if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true })
 
-        const conn: BaileysConnection = { status: 'connecting', openaiKey, reportPhone, botId, botName, labels: new Map(), labelChats: [] }
+        const conn: BaileysConnection = { status: 'connecting', openaiKey, reportPhone, botId, botName, labels: new Map(), labelChats: [], lidToPhone: new Map() }
         connections.set(botId, conn)
 
         try {
@@ -689,9 +738,11 @@ export const BaileysManager = {
                     const phone = sock.user?.id?.split(':')[0] ?? ''
                     conn.phone = phone
                     await prisma.bot.update({ where: { id: botId }, data: { baileysPhone: phone } }).catch(() => { })
-                    // Force label sync after connection — wait 15s for all keys to be ready
+                    // Force label sync + LID mapping load after connection
                     setTimeout(async () => {
                         try {
+                            // Load all LID mappings from key store
+                            await BaileysManager.loadLidMappingsFromStore(botId)
                             await BaileysManager.resyncLabels(botId)
                         } catch (err) {
                             console.log(`[BAILEYS] Label resync skipped for botId=${botId} (may not be Business account)`)
@@ -767,6 +818,69 @@ export const BaileysManager = {
                 }
             })
 
+            // ── LID→Phone mapping collectors ─────────────────────────────
+            // Source 1: History sync — most complete, fires on initial connection
+            sock.ev.on('messaging-history.set', ({ contacts }: any) => {
+                if (!contacts?.length) return
+                let mapped = 0
+                for (const c of contacts) {
+                    if (c.id && c.notify) {
+                        // c.id can be LID or PN
+                        if (c.id.endsWith('@lid')) {
+                            // We'll get the PN from other fields
+                        }
+                    }
+                    // phoneNumberToLidMappings from history
+                    if (c.lid && c.id && !c.id.endsWith('@lid')) {
+                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', ''))
+                        mapped++
+                    }
+                    if (c.lid && c.phoneNumber) {
+                        conn.lidToPhone.set(c.lid, c.phoneNumber.replace(/\D/g, ''))
+                        mapped++
+                    }
+                }
+                if (mapped > 0) {
+                    console.log(`[BAILEYS] History sync: ${mapped} LID mappings (total: ${conn.lidToPhone.size}) botId=${botId}`)
+                }
+            })
+
+            // Source 2: contacts.upsert — contacts with phone numbers
+            sock.ev.on('contacts.upsert', (contacts: any[]) => {
+                for (const c of contacts) {
+                    if (c.lid && c.id && !c.id.endsWith('@lid')) {
+                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', ''))
+                    }
+                    if (c.id?.endsWith('@lid') && c.phoneNumber) {
+                        conn.lidToPhone.set(c.id, c.phoneNumber.replace(/\D/g, ''))
+                    }
+                }
+            })
+
+            // Source 3: contacts.update
+            sock.ev.on('contacts.update', (contacts: any[]) => {
+                for (const c of contacts) {
+                    if (c.lid && c.id && !c.id.endsWith('@lid')) {
+                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', ''))
+                    }
+                }
+            })
+
+            // Source 4: Messages — each incoming message can carry LID↔PN mapping
+            // (already handled by Baileys internally via decode-wa-message, but we capture from message key)
+            sock.ev.on('messages.upsert', ({ messages: msgs }: any) => {
+                for (const m of msgs || []) {
+                    const jid = m.key?.remoteJid
+                    const participant = m.key?.participant
+                    // If message comes with both LID and PN info
+                    if (jid?.endsWith('@lid') && m.verifiedBizName) {
+                        // Some business messages include phone mapping
+                    }
+                    if (participant?.endsWith('@lid') && jid?.endsWith('@s.whatsapp.net')) {
+                        conn.lidToPhone.set(participant, jid.replace('@s.whatsapp.net', ''))
+                    }
+                }
+            })
 
         } catch (err) {
             console.error(`[BAILEYS] Error al iniciar conexión para bot ${botId}:`, err)
