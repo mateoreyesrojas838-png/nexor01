@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
     Bot, Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
-    Tag, Pencil, Trash2, Plus, Phone, FileText, ChevronDown
+    Tag, Pencil, Trash2, Plus, Phone, FileText, ChevronDown, RefreshCw
 } from 'lucide-react'
 
 interface ContactEntry {
@@ -67,6 +67,7 @@ export default function NewCrmCampaignPage() {
     const [labels, setLabels] = useState<LabelData[]>([])
     const [loadingLabels, setLoadingLabels] = useState(false)
     const [selectedLabels, setSelectedLabels] = useState<string[]>([])
+    const [resyncingLabels, setResyncingLabels] = useState(false)
 
     // Templates
     const [templates, setTemplates] = useState<CrmTemplate[]>([])
@@ -142,6 +143,17 @@ export default function NewCrmCampaignPage() {
             setLabels([])
         }
         setLoadingLabels(false)
+    }
+
+    async function resyncLabels() {
+        if (!form.botId) return
+        setResyncingLabels(true)
+        try {
+            const res = await fetch(`/api/bots/${form.botId}/baileys/labels`, { method: 'POST' })
+            const data = await res.json()
+            setLabels(data.labels || [])
+        } catch { /* silent */ }
+        setResyncingLabels(false)
     }
 
     function toggleLabel(labelId: string) {
@@ -627,10 +639,31 @@ export default function NewCrmCampaignPage() {
                                     <Loader2 size={12} className="animate-spin" /> Cargando etiquetas...
                                 </div>
                             ) : labels.length === 0 ? (
-                                <p className="text-xs text-white/30">No se encontraron etiquetas en esta cuenta de WhatsApp Business</p>
+                                <div className="space-y-3">
+                                    <p className="text-xs text-white/30">No se encontraron etiquetas. Asegurate de que sea una cuenta <span className="text-amber-400/70">WhatsApp Business</span>.</p>
+                                    <button
+                                        type="button"
+                                        onClick={resyncLabels}
+                                        disabled={resyncingLabels}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white/50 hover:text-amber-400 hover:border-amber-500/40 transition-all disabled:opacity-50"
+                                    >
+                                        {resyncingLabels ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                        {resyncingLabels ? 'Sincronizando...' : 'Reintentar sincronización'}
+                                    </button>
+                                </div>
                             ) : (
                                 <div className="space-y-2">
-                                    <p className="text-[11px] text-white/25">Seleccioná una o varias etiquetas para cargar sus contactos</p>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[11px] text-white/25">Seleccioná una o varias etiquetas para cargar sus contactos</p>
+                                        <button
+                                            type="button"
+                                            onClick={resyncLabels}
+                                            disabled={resyncingLabels}
+                                            className="flex items-center gap-1 text-[10px] text-white/25 hover:text-amber-400 transition-all"
+                                        >
+                                            <RefreshCw size={10} className={resyncingLabels ? 'animate-spin' : ''} /> Recargar
+                                        </button>
+                                    </div>
                                     <div className="flex flex-wrap gap-2">
                                         {labels.map(label => {
                                             const selected = selectedLabels.includes(label.id)

@@ -30,14 +30,60 @@ export async function GET(
         return NextResponse.json({ labels: [], error: 'Bot no conectado' })
     }
 
-    const labels = BaileysManager.getLabels(params.botId)
+    // If no labels yet, try to force a resync
+    let labels = BaileysManager.getLabels(params.botId)
+    if (labels.length === 0) {
+        await BaileysManager.resyncLabels(params.botId)
+        // Wait a moment for events to process
+        await new Promise(r => setTimeout(r, 3000))
+        labels = BaileysManager.getLabels(params.botId)
+    }
 
-    // For each label, get the contact count
     const labelsWithCount = labels.map(label => ({
         ...label,
         contacts: BaileysManager.getLabelContacts(params.botId, label.id),
         contactCount: BaileysManager.getLabelContacts(params.botId, label.id).length,
     }))
 
-    return NextResponse.json({ labels: labelsWithCount })
+    return NextResponse.json({
+        labels: labelsWithCount,
+        note: labels.length === 0 ? 'No se encontraron etiquetas. Asegurate de que sea una cuenta WhatsApp Business.' : undefined,
+    })
+}
+
+/** POST /api/bots/[botId]/baileys/labels — forzar resync de etiquetas */
+export async function POST(
+    _req: NextRequest,
+    { params }: { params: { botId: string } },
+) {
+    const auth = getAuth()
+    if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+    const bot = await prisma.bot.findFirst({
+        where: { id: params.botId, userId: auth.userId },
+        select: { id: true },
+    })
+    if (!bot) return NextResponse.json({ error: 'Bot no encontrado' }, { status: 404 })
+
+    const status = BaileysManager.getStatus(params.botId)
+    if (status.status !== 'connected') {
+        return NextResponse.json({ error: 'Bot no conectado' }, { status: 400 })
+    }
+
+    const ok = await BaileysManager.resyncLabels(params.botId)
+    if (!ok) {
+        return NextResponse.json({ error: 'No se pudo sincronizar. Puede que no sea cuenta Business.' }, { status: 400 })
+    }
+
+    // Wait for events to process
+    await new Promise(r => setTimeout(r, 3000))
+    const labels = BaileysManager.getLabels(params.botId)
+
+    const labelsWithCount = labels.map(label => ({
+        ...label,
+        contacts: BaileysManager.getLabelContacts(params.botId, label.id),
+        contactCount: BaileysManager.getLabelContacts(params.botId, label.id).length,
+    }))
+
+    return NextResponse.json({ labels: labelsWithCount, resynced: true })
 }

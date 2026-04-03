@@ -465,6 +465,19 @@ export const BaileysManager = {
         return Array.from(conn.labels.values())
     },
 
+    async resyncLabels(botId: string): Promise<boolean> {
+        const conn = connections.get(botId)
+        if (!conn?.sock || conn.status !== 'connected') return false
+        try {
+            await (conn.sock as any).resyncAppState(['regular', 'regular_low'], false)
+            console.log(`[BAILEYS] Manual label resync for botId=${botId}: ${conn.labels.size} etiquetas`)
+            return true
+        } catch (err) {
+            console.error(`[BAILEYS] Label resync error for botId=${botId}:`, err)
+            return false
+        }
+    },
+
     getLabelContacts(botId: string, labelId: string): string[] {
         const conn = connections.get(botId)
         if (!conn) return []
@@ -551,6 +564,15 @@ export const BaileysManager = {
                     const phone = sock.user?.id?.split(':')[0] ?? ''
                     conn.phone = phone
                     await prisma.bot.update({ where: { id: botId }, data: { baileysPhone: phone } }).catch(() => { })
+                    // Force label sync after connection
+                    setTimeout(async () => {
+                        try {
+                            await (sock as any).resyncAppState(['regular', 'regular_low'], false)
+                            console.log(`[BAILEYS] Label resync triggered for botId=${botId}`)
+                        } catch (err) {
+                            console.log(`[BAILEYS] Label resync skipped for botId=${botId} (may not be Business account)`)
+                        }
+                    }, 5000)
                 }
                 if (connection === 'close') {
                     const statusCode = new Boom(update.lastDisconnect?.error)?.output?.statusCode
