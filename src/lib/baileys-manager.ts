@@ -469,8 +469,12 @@ export const BaileysManager = {
         const conn = connections.get(botId)
         if (!conn?.sock || conn.status !== 'connected') return false
         try {
-            await (conn.sock as any).resyncAppState(['regular', 'regular_low'], false)
-            console.log(`[BAILEYS] Manual label resync for botId=${botId}: ${conn.labels.size} etiquetas`)
+            // Full sync of all collections to get label associations
+            await (conn.sock as any).resyncAppState(
+                ['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'],
+                false
+            )
+            console.log(`[BAILEYS] Full label resync for botId=${botId}: ${conn.labels.size} etiquetas, ${conn.labelChats.length} asociaciones`)
             return true
         } catch (err) {
             console.error(`[BAILEYS] Label resync error for botId=${botId}:`, err)
@@ -486,28 +490,54 @@ export const BaileysManager = {
             .filter(a => a.labelId === labelId)
             .map(a => a.chatId)
 
-        const phones: string[] = []
-        for (const chatId of chatIds) {
-            if (chatId.endsWith('@lid')) {
-                // LID format — resolve to real phone number
-                try {
-                    const pn = await (conn.sock as any).signalRepository?.lidMapping?.getPNForLID(chatId)
-                    if (pn) {
-                        const num = pn.replace('@s.whatsapp.net', '').replace(/\D/g, '')
-                        if (num) phones.push(`+${num}`)
-                    } else {
-                        console.log(`[BAILEYS] Could not resolve LID ${chatId} to phone`)
-                    }
-                } catch {
-                    console.log(`[BAILEYS] LID resolution failed for ${chatId}`)
-                }
-            } else {
-                // Normal format: "591XXXXXXXX@s.whatsapp.net"
-                const phone = chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '')
-                if (phone) phones.push(`+${phone}`)
+        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds from events`, chatIds.slice(0, 5))
+
+        // If we have associations from events, resolve them
+        if (chatIds.length > 0) {
+            const phones: string[] = []
+            for (const chatId of chatIds) {
+                const phone = await this.resolveContactPhone(botId, chatId)
+                if (phone) phones.push(phone)
             }
+            return phones
         }
-        return phones
+
+        // Fallback: try to read app state keys directly for this label
+        try {
+            const keys = (conn.sock as any).authState?.keys
+            if (keys) {
+                const result = await keys.get('app-state-sync-key', ['label_jid'])
+                console.log(`[BAILEYS] app-state-sync-key label_jid result:`, Object.keys(result || {}))
+            }
+        } catch (e) {
+            console.log(`[BAILEYS] Could not read app state keys:`, e)
+        }
+
+        return []
+    },
+
+    async resolveContactPhone(botId: string, chatId: string): Promise<string | null> {
+        const conn = connections.get(botId)
+        if (!conn?.sock) return null
+
+        if (chatId.endsWith('@lid')) {
+            // LID format — resolve to real phone number
+            try {
+                const pn = await (conn.sock as any).signalRepository?.lidMapping?.getPNForLID(chatId)
+                if (pn) {
+                    const num = pn.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+                    if (num) return `+${num}`
+                }
+                console.log(`[BAILEYS] Could not resolve LID ${chatId}`)
+            } catch {
+                console.log(`[BAILEYS] LID resolution failed for ${chatId}`)
+            }
+            return null
+        } else {
+            // Normal format: "591XXXXXXXX@s.whatsapp.net"
+            const phone = chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+            return phone ? `+${phone}` : null
+        }
     },
 
     async sendText(botId: string, toPhone: string, text: string): Promise<boolean> {
@@ -584,11 +614,14 @@ export const BaileysManager = {
                     const phone = sock.user?.id?.split(':')[0] ?? ''
                     conn.phone = phone
                     await prisma.bot.update({ where: { id: botId }, data: { baileysPhone: phone } }).catch(() => { })
-                    // Force label sync after connection
+                    // Force label sync after connection — full sync all collections
                     setTimeout(async () => {
                         try {
-                            await (sock as any).resyncAppState(['regular', 'regular_low'], false)
-                            console.log(`[BAILEYS] Label resync triggered for botId=${botId}`)
+                            await (sock as any).resyncAppState(
+                                ['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'],
+                                false
+                            )
+                            console.log(`[BAILEYS] Label full resync for botId=${botId}: ${conn.labels.size} etiquetas, ${conn.labelChats.length} asociaciones`)
                         } catch (err) {
                             console.log(`[BAILEYS] Label resync skipped for botId=${botId} (may not be Business account)`)
                         }
@@ -642,10 +675,11 @@ export const BaileysManager = {
             })
 
             sock.ev.on('labels.association', (data: any) => {
-                console.log(`[BAILEYS] labels.association event botId=${botId}:`, JSON.stringify(data))
+                console.log(`[BAILEYS] labels.association event botId=${botId}:`, JSON.stringify(data).slice(0, 500))
                 const actionType = data?.type
                 const association = data?.association
-                if (association?.type === 'label_jid') {
+                // Accept both 'label_jid' and any type with chatId + labelId
+                if (association?.chatId && association?.labelId) {
                     if (actionType === 'add') {
                         const exists = conn.labelChats.some(
                             a => a.labelId === association.labelId && a.chatId === association.chatId
