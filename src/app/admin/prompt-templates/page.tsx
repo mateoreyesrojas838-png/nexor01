@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Loader2, Check, X, ChevronDown, ChevronUp, Eye, EyeOff, BarChart2 } from 'lucide-react'
 
-const CATEGORIES = ['general', 'ventas', 'soporte', 'ecommerce', 'servicios', 'otro']
+const CATEGORIES = ['general', 'ventas', 'soporte', 'ecommerce', 'servicios', 'crm', 'otro']
 
 interface Template {
     id: string

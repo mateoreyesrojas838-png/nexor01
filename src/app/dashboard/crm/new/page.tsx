@@ -6,12 +6,20 @@ import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
     Bot, Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
-    Tag, Pencil, Trash2, Plus, Phone
+    Tag, Pencil, Trash2, Plus, Phone, FileText, ChevronDown
 } from 'lucide-react'
 
 interface ContactEntry {
     phone: string
     name: string | null
+}
+
+interface CrmTemplate {
+    id: string
+    name: string
+    description: string | null
+    content: string
+    usageCount: number
 }
 
 interface LabelData {
@@ -60,6 +68,10 @@ export default function NewCrmCampaignPage() {
     const [loadingLabels, setLoadingLabels] = useState(false)
     const [selectedLabels, setSelectedLabels] = useState<string[]>([])
 
+    // Templates
+    const [templates, setTemplates] = useState<CrmTemplate[]>([])
+    const [showTemplates, setShowTemplates] = useState(false)
+
     // Edit contact
     const [editingIdx, setEditingIdx] = useState<number | null>(null)
     const [editPhone, setEditPhone] = useState('')
@@ -74,7 +86,7 @@ export default function NewCrmCampaignPage() {
     const [uploadingImg, setUploadingImg] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => { fetchBots() }, [])
+    useEffect(() => { fetchBots(); fetchTemplates() }, [])
 
     // Fetch labels when bot changes
     useEffect(() => {
@@ -85,6 +97,21 @@ export default function NewCrmCampaignPage() {
             setSelectedLabels([])
         }
     }, [form.botId, botStatuses])
+
+    async function fetchTemplates() {
+        try {
+            const res = await fetch('/api/crm/templates')
+            const data = await res.json()
+            setTemplates(data.templates || [])
+        } catch { setTemplates([]) }
+    }
+
+    function applyTemplate(t: CrmTemplate) {
+        setForm(f => ({ ...f, prompt: t.content }))
+        setShowTemplates(false)
+        // Track usage
+        fetch(`/api/crm/templates/${t.id}/use`, { method: 'POST' }).catch(() => {})
+    }
 
     async function fetchBots() {
         const res = await fetch('/api/bots')
@@ -383,10 +410,45 @@ export default function NewCrmCampaignPage() {
 
                 {/* Prompt */}
                 <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
-                    <label className="block text-xs font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-2">
-                        <Sparkles size={12} /> Prompt para la IA
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
+                            <Sparkles size={12} /> Prompt para la IA
+                        </label>
+                        {templates.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowTemplates(!showTemplates)}
+                                className="flex items-center gap-1.5 text-[11px] font-bold text-amber-400/70 hover:text-amber-400 transition-all"
+                            >
+                                <FileText size={12} />
+                                Usar plantilla
+                                <ChevronDown size={12} className={`transition-transform ${showTemplates ? 'rotate-180' : ''}`} />
+                            </button>
+                        )}
+                    </div>
                     <p className="text-[11px] text-white/25 mb-3">La IA usará esto como base para generar un mensaje único para cada contacto</p>
+
+                    {/* Template selector */}
+                    {showTemplates && templates.length > 0 && (
+                        <div className="mb-3 space-y-2 max-h-48 overflow-y-auto rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                            {templates.map(t => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => applyTemplate(t)}
+                                    className="w-full text-left p-3 rounded-xl bg-white/5 border border-white/8 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-bold text-white group-hover:text-amber-400 transition-all">{t.name}</p>
+                                        <span className="text-[10px] text-white/20">{t.usageCount} usos</span>
+                                    </div>
+                                    {t.description && <p className="text-[11px] text-white/30 mt-0.5">{t.description}</p>}
+                                    <p className="text-[11px] text-white/20 mt-1 line-clamp-2">{t.content.slice(0, 120)}...</p>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <textarea
                         value={form.prompt}
                         onChange={e => setForm(f => ({ ...f, prompt: e.target.value }))}
