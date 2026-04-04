@@ -585,28 +585,19 @@ export const BaileysManager = {
             .filter(a => a.labelId === labelId)
             .map(a => a.chatId)
 
-        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds, lidMap=${conn.lidToPhone.size}`)
-
         // Load LID mappings if not loaded yet
         if (conn.lidToPhone.size === 0) {
             await this.loadLidMappingsFromStore(botId)
         }
 
         const phones: string[] = []
-        const unresolved: string[] = []
         for (const chatId of chatIds) {
             const phone = await this.resolveContactPhone(botId, chatId)
-            if (phone) {
-                phones.push(phone)
-            } else {
-                unresolved.push(chatId)
-            }
+            if (phone) phones.push(phone)
         }
-        if (unresolved.length > 0) {
-            console.log(`[BAILEYS] Unresolved LIDs (${unresolved.length}):`, unresolved.slice(0, 5))
-        }
-        console.log(`[BAILEYS] Resolved ${phones.length}/${chatIds.length} contacts for label=${labelId}`)
-        return phones
+
+        // Deduplicate
+        return Array.from(new Set(phones))
     },
 
     async resolveContactPhone(botId: string, chatId: string): Promise<string | null> {
@@ -793,14 +784,11 @@ export const BaileysManager = {
                         predefinedId: label.predefinedId,
                     })
                 }
-                console.log(`[BAILEYS] Label sync botId=${botId}: ${conn.labels.size} etiquetas`)
             })
 
             sock.ev.on('labels.association', (data: any) => {
-                console.log(`[BAILEYS] labels.association event botId=${botId}:`, JSON.stringify(data).slice(0, 500))
                 const actionType = data?.type
                 const association = data?.association
-                // Accept both 'label_jid' and any type with chatId + labelId
                 if (association?.chatId && association?.labelId) {
                     if (actionType === 'add') {
                         const exists = conn.labelChats.some(
@@ -814,25 +802,18 @@ export const BaileysManager = {
                             a => !(a.labelId === association.labelId && a.chatId === association.chatId)
                         )
                     }
-                    console.log(`[BAILEYS] Label associations botId=${botId}: ${conn.labelChats.length} total`)
                 }
             })
 
             // ── LID→Phone mapping collectors ─────────────────────────────
-            // Source 1: History sync — most complete, fires on initial connection
+
+            // History sync — contacts with LID + phone
             sock.ev.on('messaging-history.set', ({ contacts }: any) => {
                 if (!contacts?.length) return
                 let mapped = 0
                 for (const c of contacts) {
-                    if (c.id && c.notify) {
-                        // c.id can be LID or PN
-                        if (c.id.endsWith('@lid')) {
-                            // We'll get the PN from other fields
-                        }
-                    }
-                    // phoneNumberToLidMappings from history
                     if (c.lid && c.id && !c.id.endsWith('@lid')) {
-                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', ''))
+                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', '').split(':')[0])
                         mapped++
                     }
                     if (c.lid && c.phoneNumber) {
@@ -845,11 +826,11 @@ export const BaileysManager = {
                 }
             })
 
-            // Source 2: contacts.upsert — contacts with phone numbers
+            // Contacts events
             sock.ev.on('contacts.upsert', (contacts: any[]) => {
                 for (const c of contacts) {
                     if (c.lid && c.id && !c.id.endsWith('@lid')) {
-                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', ''))
+                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', '').split(':')[0])
                     }
                     if (c.id?.endsWith('@lid') && c.phoneNumber) {
                         conn.lidToPhone.set(c.id, c.phoneNumber.replace(/\D/g, ''))
@@ -857,27 +838,10 @@ export const BaileysManager = {
                 }
             })
 
-            // Source 3: contacts.update
             sock.ev.on('contacts.update', (contacts: any[]) => {
                 for (const c of contacts) {
                     if (c.lid && c.id && !c.id.endsWith('@lid')) {
-                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', ''))
-                    }
-                }
-            })
-
-            // Source 4: Messages — each incoming message can carry LID↔PN mapping
-            // (already handled by Baileys internally via decode-wa-message, but we capture from message key)
-            sock.ev.on('messages.upsert', ({ messages: msgs }: any) => {
-                for (const m of msgs || []) {
-                    const jid = m.key?.remoteJid
-                    const participant = m.key?.participant
-                    // If message comes with both LID and PN info
-                    if (jid?.endsWith('@lid') && m.verifiedBizName) {
-                        // Some business messages include phone mapping
-                    }
-                    if (participant?.endsWith('@lid') && jid?.endsWith('@s.whatsapp.net')) {
-                        conn.lidToPhone.set(participant, jid.replace('@s.whatsapp.net', ''))
+                        conn.lidToPhone.set(c.lid, c.id.replace('@s.whatsapp.net', '').split(':')[0])
                     }
                 }
             })
