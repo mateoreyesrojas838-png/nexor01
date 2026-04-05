@@ -10,9 +10,10 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(req.url)
-    const type = searchParams.get('type') // all_chats | sales | label | campaign
+    const type = searchParams.get('type') // all_chats | sales | label | group | campaign
     const botId = searchParams.get('botId')
     const labelId = searchParams.get('labelId')
+    const groupId = searchParams.get('groupId')
     const campaignId = searchParams.get('campaignId')
 
     if (!type) return NextResponse.json({ error: 'Tipo de exportación requerido' }, { status: 400 })
@@ -85,6 +86,35 @@ export async function GET(req: NextRequest) {
             }
         })
         filename = `etiqueta_${(label?.name || labelId).replace(/\s+/g, '_')}`
+    }
+
+    // ── By WhatsApp group ──
+    else if (type === 'group') {
+        if (!botId || !groupId) return NextResponse.json({ error: 'botId y groupId requeridos' }, { status: 400 })
+        const bot = await prisma.bot.findFirst({ where: { id: botId, userId: user.id } })
+        if (!bot) return NextResponse.json({ error: 'Bot no encontrado' }, { status: 404 })
+
+        const groups = await BaileysManager.getGroups(botId)
+        const group = groups.find(g => g.id === groupId)
+        const phones = await BaileysManager.getGroupContacts(botId, groupId)
+
+        // Match with conversations for names
+        const conversations = await prisma.conversation.findMany({
+            where: { botId, userPhone: { in: phones } },
+            select: { userPhone: true, userName: true, sold: true, updatedAt: true },
+        })
+        const convMap = new Map(conversations.map(c => [c.userPhone, c]))
+
+        rows = phones.map(phone => {
+            const conv = convMap.get(phone)
+            return {
+                telefono: phone,
+                nombre: conv?.userName || '',
+                estado: conv?.sold ? 'Venta' : 'Miembro',
+                fecha: conv?.updatedAt?.toISOString().split('T')[0] || '',
+            }
+        })
+        filename = `grupo_${(group?.name || 'sin_nombre').replace(/\s+/g, '_').replace(/[^\w]/g, '')}`
     }
 
     // ── Campaign contacts ──

@@ -572,6 +572,59 @@ export const BaileysManager = {
         }
     },
 
+    async getGroups(botId: string): Promise<{ id: string; name: string; participantCount: number; isAdmin: boolean }[]> {
+        const conn = connections.get(botId)
+        if (!conn?.sock || conn.status !== 'connected') return []
+        try {
+            const groups = await (conn.sock as any).groupFetchAllParticipating()
+            const myJid = conn.sock.user?.id?.split(':')[0] || ''
+            const result: { id: string; name: string; participantCount: number; isAdmin: boolean }[] = []
+            for (const gid of Object.keys(groups)) {
+                const g = groups[gid]
+                if (!g) continue
+                const me = g.participants?.find((p: any) => p.id?.startsWith(myJid) || p.id === conn.sock?.user?.id)
+                result.push({
+                    id: g.id,
+                    name: g.subject || 'Sin nombre',
+                    participantCount: g.participants?.length || 0,
+                    isAdmin: me?.admin === 'admin' || me?.admin === 'superadmin',
+                })
+            }
+            return result.sort((a, b) => b.participantCount - a.participantCount)
+        } catch (err) {
+            console.error(`[BAILEYS] getGroups error for botId=${botId}:`, err)
+            return []
+        }
+    },
+
+    async getGroupContacts(botId: string, groupId: string): Promise<string[]> {
+        const conn = connections.get(botId)
+        if (!conn?.sock || conn.status !== 'connected') return []
+        try {
+            const metadata = await (conn.sock as any).groupMetadata(groupId)
+            if (!metadata?.participants) return []
+
+            // Load LID mappings if not loaded yet
+            if (conn.lidToPhone.size === 0) {
+                await this.loadLidMappingsFromStore(botId)
+            }
+
+            const myJid = conn.sock.user?.id?.split(':')[0] || ''
+            const phones: string[] = []
+            for (const p of metadata.participants) {
+                if (!p.id) continue
+                // Skip ourselves
+                if (p.id.startsWith(myJid) || p.id === conn.sock?.user?.id) continue
+                const phone = await this.resolveContactPhone(botId, p.id)
+                if (phone) phones.push(phone)
+            }
+            return Array.from(new Set(phones))
+        } catch (err) {
+            console.error(`[BAILEYS] getGroupContacts error for botId=${botId} groupId=${groupId}:`, err)
+            return []
+        }
+    },
+
     async getLabelContacts(botId: string, labelId: string): Promise<string[]> {
         const conn = connections.get(botId)
         if (!conn?.sock) return []

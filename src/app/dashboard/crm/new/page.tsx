@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
     Bot, Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
-    Tag, Pencil, Trash2, Plus, Phone, FileText, ChevronDown, RefreshCw
+    Tag, Pencil, Trash2, Plus, Phone, FileText, ChevronDown, RefreshCw, UsersRound
 } from 'lucide-react'
 
 interface ContactEntry {
@@ -28,6 +28,13 @@ interface LabelData {
     color: number
     contacts: string[]
     contactCount: number
+}
+
+interface GroupData {
+    id: string
+    name: string
+    participantCount: number
+    isAdmin: boolean
 }
 
 const LABEL_COLORS: Record<number, string> = {
@@ -56,7 +63,7 @@ export default function NewCrmCampaignPage() {
     const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'IMAGE' | 'VIDEO' }[]>([])
 
     // Contact source
-    const [contactSource, setContactSource] = useState<'excel' | 'label'>('excel')
+    const [contactSource, setContactSource] = useState<'excel' | 'label' | 'group'>('excel')
     const [contacts, setContacts] = useState<ContactEntry[]>([])
 
     // Excel
@@ -68,6 +75,12 @@ export default function NewCrmCampaignPage() {
     const [loadingLabels, setLoadingLabels] = useState(false)
     const [selectedLabels, setSelectedLabels] = useState<string[]>([])
     const [resyncingLabels, setResyncingLabels] = useState(false)
+
+    // Groups
+    const [groups, setGroups] = useState<GroupData[]>([])
+    const [loadingGroups, setLoadingGroups] = useState(false)
+    const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+    const [loadingGroupContacts, setLoadingGroupContacts] = useState(false)
 
     // Templates
     const [templates, setTemplates] = useState<CrmTemplate[]>([])
@@ -89,13 +102,16 @@ export default function NewCrmCampaignPage() {
 
     useEffect(() => { fetchBots(); fetchTemplates() }, [])
 
-    // Fetch labels when bot changes
+    // Fetch labels + groups when bot changes
     useEffect(() => {
         if (form.botId && botStatuses[form.botId] === 'connected') {
             fetchLabels(form.botId)
+            fetchGroups(form.botId)
         } else {
             setLabels([])
             setSelectedLabels([])
+            setGroups([])
+            setSelectedGroups([])
         }
     }, [form.botId, botStatuses])
 
@@ -179,6 +195,48 @@ export default function NewCrmCampaignPage() {
             setContacts(labelContacts)
             return next
         })
+    }
+
+    async function fetchGroups(botId: string) {
+        setLoadingGroups(true)
+        try {
+            const res = await fetch(`/api/bots/${botId}/baileys/groups`)
+            const data = await res.json()
+            setGroups(data.groups || [])
+        } catch {
+            setGroups([])
+        }
+        setLoadingGroups(false)
+    }
+
+    async function toggleGroup(groupId: string) {
+        const next = selectedGroups.includes(groupId)
+            ? selectedGroups.filter(id => id !== groupId)
+            : [...selectedGroups, groupId]
+        setSelectedGroups(next)
+
+        // Fetch all contacts from selected groups
+        setLoadingGroupContacts(true)
+        try {
+            const allPhones = new Set<string>()
+            for (const gid of next) {
+                const res = await fetch(`/api/bots/${form.botId}/baileys/groups`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: gid }),
+                })
+                const data = await res.json()
+                for (const phone of (data.contacts || [])) {
+                    allPhones.add(phone)
+                }
+            }
+            const groupContacts: ContactEntry[] = Array.from(allPhones).map(phone => ({
+                phone,
+                name: null,
+            }))
+            setContacts(groupContacts)
+        } catch { /* silent */ }
+        setLoadingGroupContacts(false)
     }
 
     function isVideoFile(file: File): boolean {
@@ -575,17 +633,24 @@ export default function NewCrmCampaignPage() {
                     <div className="flex gap-2 mb-4">
                         <button
                             type="button"
-                            onClick={() => { setContactSource('excel'); setContacts([]); setSelectedLabels([]) }}
+                            onClick={() => { setContactSource('excel'); setContacts([]); setSelectedLabels([]); setSelectedGroups([]) }}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${contactSource === 'excel' ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'}`}
                         >
-                            <Upload size={14} /> Desde Excel
+                            <Upload size={14} /> Excel
                         </button>
                         <button
                             type="button"
-                            onClick={() => { setContactSource('label'); setContacts([]); setExcelFile(null) }}
+                            onClick={() => { setContactSource('label'); setContacts([]); setExcelFile(null); setSelectedGroups([]) }}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${contactSource === 'label' ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'}`}
                         >
-                            <Tag size={14} /> Desde Etiquetas
+                            <Tag size={14} /> Etiquetas
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setContactSource('group'); setContacts([]); setExcelFile(null); setSelectedLabels([]) }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${contactSource === 'group' ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'}`}
+                        >
+                            <UsersRound size={14} /> Grupos
                         </button>
                     </div>
 
@@ -683,6 +748,61 @@ export default function NewCrmCampaignPage() {
                                             )
                                         })}
                                     </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* Groups */}
+                    {contactSource === 'group' && (
+                        <>
+                            {!form.botId ? (
+                                <p className="text-xs text-white/30">Seleccioná un bot primero</p>
+                            ) : botStatuses[form.botId] !== 'connected' ? (
+                                <p className="text-xs text-red-400/70">El bot debe estar conectado para ver los grupos</p>
+                            ) : loadingGroups ? (
+                                <div className="flex items-center gap-2 text-xs text-white/40">
+                                    <Loader2 size={12} className="animate-spin" /> Cargando grupos...
+                                </div>
+                            ) : groups.length === 0 ? (
+                                <p className="text-xs text-white/30">No se encontraron grupos en esta cuenta</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    <p className="text-[11px] text-white/25">Seleccioná uno o varios grupos para cargar sus miembros como contactos</p>
+                                    <div className="max-h-64 overflow-y-auto space-y-2 rounded-xl border border-white/8 p-2">
+                                        {groups.map(group => {
+                                            const selected = selectedGroups.includes(group.id)
+                                            return (
+                                                <button
+                                                    key={group.id}
+                                                    type="button"
+                                                    onClick={() => toggleGroup(group.id)}
+                                                    disabled={loadingGroupContacts}
+                                                    className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-all disabled:opacity-50 ${selected ? 'bg-amber-500/10 border-amber-500/40' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                                                            <UsersRound size={14} className="text-white/40" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-bold text-white truncate">{group.name}</p>
+                                                            <p className="text-[10px] text-white/30">
+                                                                {group.participantCount} miembros
+                                                                {group.isAdmin && <span className="text-amber-400/70 ml-1">· Admin</span>}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {selected && <CheckCircle2 size={14} className="text-green-400 shrink-0" />}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    {loadingGroupContacts && (
+                                        <div className="flex items-center gap-2 text-xs text-amber-400/70">
+                                            <Loader2 size={12} className="animate-spin" /> Cargando miembros de grupos...
+                                        </div>
+                                    )}
+                                    <p className="text-[10px] text-white/20 italic">⚠️ Solo exportá contactos de grupos donde tenés autorización</p>
                                 </div>
                             )}
                         </>
