@@ -102,11 +102,10 @@ export default function NewCrmCampaignPage() {
 
     useEffect(() => { fetchBots(); fetchTemplates() }, [])
 
-    // Fetch labels + groups when bot changes
+    // Fetch labels when bot changes (groups are lazy-loaded on tab click)
     useEffect(() => {
         if (form.botId && botStatuses[form.botId] === 'connected') {
             fetchLabels(form.botId)
-            fetchGroups(form.botId)
         } else {
             setLabels([])
             setSelectedLabels([])
@@ -114,6 +113,13 @@ export default function NewCrmCampaignPage() {
             setSelectedGroups([])
         }
     }, [form.botId, botStatuses])
+
+    // Lazy-load groups only when user switches to group tab
+    useEffect(() => {
+        if (contactSource === 'group' && form.botId && botStatuses[form.botId] === 'connected' && groups.length === 0) {
+            fetchGroups(form.botId)
+        }
+    }, [contactSource, form.botId, botStatuses])
 
     async function fetchTemplates() {
         try {
