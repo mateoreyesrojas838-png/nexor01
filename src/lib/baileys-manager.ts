@@ -597,28 +597,41 @@ export const BaileysManager = {
         }
     },
 
-    async getGroupContacts(botId: string, groupId: string): Promise<string[]> {
+    async getGroupContacts(botId: string, groupId: string, includeUnresolved = false): Promise<string[]> {
         const conn = connections.get(botId)
         if (!conn?.sock || conn.status !== 'connected') return []
         try {
             const metadata = await (conn.sock as any).groupMetadata(groupId)
             if (!metadata?.participants) return []
 
-            // Load LID mappings if not loaded yet
             if (conn.lidToPhone.size === 0) {
                 await this.loadLidMappingsFromStore(botId)
             }
 
             const myJid = conn.sock.user?.id?.split(':')[0] || ''
             const phones: string[] = []
+            const seen = new Set<string>()
             for (const p of metadata.participants) {
                 if (!p.id) continue
                 // Skip ourselves
                 if (p.id.startsWith(myJid) || p.id === conn.sock?.user?.id) continue
                 const phone = await this.resolveContactPhone(botId, p.id)
-                if (phone) phones.push(phone)
+                if (phone) {
+                    if (!seen.has(phone)) {
+                        seen.add(phone)
+                        phones.push(phone)
+                    }
+                } else if (includeUnresolved) {
+                    // Fallback for exports: include the raw participant id
+                    const raw = String(p.id).replace(/@.*$/, '').replace(/\D/g, '')
+                    if (raw && raw.length >= 8 && !seen.has(`+${raw}`)) {
+                        seen.add(`+${raw}`)
+                        phones.push(`+${raw}`)
+                    }
+                }
             }
-            return Array.from(new Set(phones))
+            console.log(`[BAILEYS] getGroupContacts group=${groupId}: ${phones.length}/${metadata.participants.length} participants resolved`)
+            return phones
         } catch (err) {
             console.error(`[BAILEYS] getGroupContacts error for botId=${botId} groupId=${groupId}:`, err)
             return []
@@ -638,19 +651,25 @@ export const BaileysManager = {
             .filter(a => a.labelId === labelId)
             .map(a => a.chatId)
 
+        console.log(`[BAILEYS] getLabelContacts label=${labelId}: ${chatIds.length} chatIds, lidMap=${conn.lidToPhone.size}`)
+
         // Load LID mappings if not loaded yet
         if (conn.lidToPhone.size === 0) {
             await this.loadLidMappingsFromStore(botId)
         }
 
         const phones: string[] = []
+        const seen = new Set<string>()
         for (const chatId of chatIds) {
             const phone = await this.resolveContactPhone(botId, chatId)
-            if (phone) phones.push(phone)
+            if (phone && !seen.has(phone)) {
+                seen.add(phone)
+                phones.push(phone)
+            }
         }
 
-        // Deduplicate
-        return Array.from(new Set(phones))
+        console.log(`[BAILEYS] Resolved ${phones.length}/${chatIds.length} contacts for label=${labelId}`)
+        return phones
     },
 
     async resolveContactPhone(botId: string, chatId: string): Promise<string | null> {

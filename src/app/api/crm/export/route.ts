@@ -96,7 +96,8 @@ export async function GET(req: NextRequest) {
 
         const groups = await BaileysManager.getGroups(botId)
         const group = groups.find(g => g.id === groupId)
-        const phones = await BaileysManager.getGroupContacts(botId, groupId)
+        // Export ALL contacts, including those we can't resolve to a phone
+        const phones = await BaileysManager.getGroupContacts(botId, groupId, true)
 
         // Match with conversations for names
         const conversations = await prisma.conversation.findMany({
