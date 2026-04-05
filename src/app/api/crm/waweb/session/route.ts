@@ -3,21 +3,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { createSession, getSession, destroySession } from '@/lib/waweb-extractor'
 
-/** POST /api/crm/waweb/session — start or get existing session (returns QR or status) */
+/** POST /api/crm/waweb/session — start session in background, return immediately */
 export async function POST() {
     const user = await getAuthUser()
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     // Check if session already exists
-    let session = getSession(user.id)
-    if (!session) {
-        session = await createSession(user.id)
+    const existing = getSession(user.id)
+    if (existing) {
+        return NextResponse.json({
+            status: existing.status,
+            qr: existing.qrBase64 || null,
+            phone: existing.phone || null,
+        })
     }
 
+    // Start in background — don't await! Return immediately.
+    createSession(user.id).catch(err => {
+        console.error('[WAWEB] Background init error:', err)
+    })
+
     return NextResponse.json({
-        status: session.status,
-        qr: session.qrBase64 || null,
-        phone: session.phone || null,
+        status: 'loading',
+        qr: null,
+        phone: null,
+        message: 'Iniciando sesión... Esperá unos segundos.',
     })
 }
 

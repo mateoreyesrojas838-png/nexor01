@@ -41,32 +41,37 @@ export default function WaWebExtractPage() {
         setLoading(true)
         setError(null)
         try {
-            // Start session
+            // Start session (returns immediately, Chromium starts in background)
             const res = await fetch('/api/crm/waweb/session', { method: 'POST' })
             const data = await res.json()
 
             if (data.status === 'ready') {
                 onReady(data.phone)
+                setLoading(false)
                 return
             }
             if (data.qr) setQrImage(data.qr)
 
-            // Poll every 2s until ready
+            // Poll every 2s until QR arrives or session is ready
             pollRef.current = setInterval(async () => {
                 try {
                     const r = await fetch('/api/crm/waweb/session')
                     const d = await r.json()
-                    if (d.qr && d.qr !== qrImage) setQrImage(d.qr)
                     if (d.status === 'ready') {
                         if (pollRef.current) clearInterval(pollRef.current)
                         onReady(d.phone)
+                        return
+                    }
+                    if (d.qr) {
+                        setQrImage(d.qr)
+                        setLoading(false) // QR arrived, stop showing "Generando..."
                     }
                 } catch {}
             }, 2000)
         } catch (err) {
             setError('Error al iniciar sesión')
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     function onReady(ph: string) {
@@ -222,12 +227,15 @@ export default function WaWebExtractPage() {
                         </div>
                     ) : (
                         <div className="w-64 h-64 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 mb-4">
-                            <Loader2 size={24} className="animate-spin text-amber-400" />
-                            <span className="text-xs text-white/40">Generando QR...</span>
+                            <Loader2 size={28} className="animate-spin text-amber-400" />
+                            <span className="text-xs text-white/50 font-bold">Iniciando WhatsApp Web...</span>
+                            <span className="text-[10px] text-white/30">Tarda 15-30 segundos la primera vez</span>
                         </div>
                     )}
 
-                    <p className="text-[10px] text-white/30">Esperando que escanees... se actualiza automáticamente</p>
+                    <p className="text-[10px] text-white/30">
+                        {qrImage ? 'Esperando que escanees el QR...' : 'Levantando Chromium headless...'}
+                    </p>
                 </div>
             )}
 
