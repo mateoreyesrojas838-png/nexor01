@@ -50,21 +50,30 @@ export default function WaWebExtractPage() {
                 setLoading(false)
                 return
             }
-            if (data.qr) setQrImage(data.qr)
+            if (data.qr) {
+                setQrImage(data.qr)
+                setLoading(false)
+            }
 
-            // Poll every 2s until QR arrives or session is ready
+            // Poll every 2s until session is ready — STOPS once ready
+            let alreadyReady = false
             pollRef.current = setInterval(async () => {
+                if (alreadyReady) return // prevent double-fire
                 try {
                     const r = await fetch('/api/crm/waweb/session')
                     const d = await r.json()
-                    if (d.status === 'ready') {
-                        if (pollRef.current) clearInterval(pollRef.current)
+                    if (d.status === 'ready' && !alreadyReady) {
+                        alreadyReady = true
+                        if (pollRef.current) {
+                            clearInterval(pollRef.current)
+                            pollRef.current = null
+                        }
                         onReady(d.phone)
                         return
                     }
                     if (d.qr) {
                         setQrImage(d.qr)
-                        setLoading(false) // QR arrived, stop showing "Generando..."
+                        setLoading(false)
                     }
                 } catch {}
             }, 2000)
