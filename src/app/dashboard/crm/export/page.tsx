@@ -3,21 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-    ArrowLeft, Download, Loader2, Bot, Tag, Users,
-    ShoppingCart, MessageSquare, FileSpreadsheet, CheckCircle2, UsersRound, Chrome, Package
+    ArrowLeft, Download, Loader2, Bot, Users,
+    ShoppingCart, MessageSquare, FileSpreadsheet, CheckCircle2, Chrome, Package
 } from 'lucide-react'
 
 interface BotOption {
     id: string
     name: string
     baileysPhone?: string
-}
-
-interface LabelOption {
-    id: string
-    name: string
-    color: number
-    contactCount: number
 }
 
 interface CampaignOption {
@@ -27,44 +20,15 @@ interface CampaignOption {
     totalContacts: number
 }
 
-interface GroupOption {
-    id: string
-    name: string
-    participantCount: number
-    isAdmin: boolean
-}
-
-const LABEL_COLORS: Record<number, string> = {
-    0: '#64748b', 1: '#f97316', 2: '#84cc16', 3: '#a855f7',
-    4: '#ec4899', 5: '#14b8a6', 6: '#3b82f6', 7: '#ef4444',
-    8: '#06b6d4', 9: '#eab308', 10: '#8b5cf6', 11: '#f43f5e',
-    12: '#10b981', 13: '#6366f1', 14: '#d946ef', 15: '#0ea5e9',
-    16: '#f59e0b', 17: '#22c55e', 18: '#e11d48', 19: '#7c3aed',
-}
-
 export default function CrmExportPage() {
     const [bots, setBots] = useState<BotOption[]>([])
     const [botStatuses, setBotStatuses] = useState<Record<string, string>>({})
     const [selectedBot, setSelectedBot] = useState('')
-    const [labels, setLabels] = useState<LabelOption[]>([])
-    const [loadingLabels, setLoadingLabels] = useState(false)
-    const [groups, setGroups] = useState<GroupOption[]>([])
-    const [loadingGroups, setLoadingGroups] = useState(false)
     const [campaigns, setCampaigns] = useState<CampaignOption[]>([])
     const [downloading, setDownloading] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
     useEffect(() => { fetchBots(); fetchCampaigns() }, [])
-
-    useEffect(() => {
-        if (selectedBot && botStatuses[selectedBot] === 'connected') {
-            fetchLabels(selectedBot)
-            fetchGroups(selectedBot)
-        } else {
-            setLabels([])
-            setGroups([])
-        }
-    }, [selectedBot, botStatuses])
 
     async function fetchBots() {
         const res = await fetch('/api/bots')
@@ -83,26 +47,6 @@ export default function CrmExportPage() {
             }
         }))
         setBotStatuses(statuses)
-    }
-
-    async function fetchLabels(botId: string) {
-        setLoadingLabels(true)
-        try {
-            const res = await fetch(`/api/bots/${botId}/baileys/labels`)
-            const data = await res.json()
-            setLabels(data.labels || [])
-        } catch { setLabels([]) }
-        setLoadingLabels(false)
-    }
-
-    async function fetchGroups(botId: string) {
-        setLoadingGroups(true)
-        try {
-            const res = await fetch(`/api/bots/${botId}/baileys/groups`)
-            const data = await res.json()
-            setGroups(data.groups || [])
-        } catch { setGroups([]) }
-        setLoadingGroups(false)
     }
 
     async function fetchCampaigns() {
@@ -235,114 +179,6 @@ export default function CrmExportPage() {
                         success={success === 'sales'}
                         onDownload={() => downloadExcel('sales', `type=sales&botId=${selectedBot}`)}
                     />
-
-                    {/* ── Por etiqueta ── */}
-                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
-                                <Tag size={18} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold">Por etiqueta de WhatsApp</p>
-                                <p className="text-[11px] text-white/30">Contactos agrupados por etiqueta</p>
-                            </div>
-                        </div>
-
-                        {botStatuses[selectedBot] !== 'connected' ? (
-                            <p className="text-xs text-red-400/70 mt-2">El bot debe estar conectado para ver etiquetas</p>
-                        ) : loadingLabels ? (
-                            <div className="flex items-center gap-2 text-xs text-white/40 mt-2">
-                                <Loader2 size={12} className="animate-spin" /> Cargando etiquetas...
-                            </div>
-                        ) : labels.length === 0 ? (
-                            <p className="text-xs text-white/30 mt-2">No se encontraron etiquetas</p>
-                        ) : (
-                            <div className="space-y-2 mt-3">
-                                {labels.map(label => (
-                                    <div key={label.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/8">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: LABEL_COLORS[label.color] || '#64748b' }} />
-                                            <div>
-                                                <p className="text-sm font-bold text-white">{label.name}</p>
-                                                <p className="text-[10px] text-white/30">{label.contactCount} contacto{label.contactCount !== 1 ? 's' : ''}</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => downloadExcel(`label_${label.id}`, `type=label&botId=${selectedBot}&labelId=${label.id}`)}
-                                            disabled={downloading === `label_${label.id}` || label.contactCount === 0}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-white/60 hover:text-amber-400 hover:border-amber-500/40 transition-all disabled:opacity-30"
-                                        >
-                                            {downloading === `label_${label.id}` ? (
-                                                <Loader2 size={12} className="animate-spin" />
-                                            ) : success === `label_${label.id}` ? (
-                                                <CheckCircle2 size={12} className="text-green-400" />
-                                            ) : (
-                                                <Download size={12} />
-                                            )}
-                                            Excel
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* ── Por grupo de WhatsApp ── */}
-                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                                <UsersRound size={18} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold">Por grupo de WhatsApp</p>
-                                <p className="text-[11px] text-white/30">Miembros de grupos donde está el bot</p>
-                            </div>
-                        </div>
-
-                        {botStatuses[selectedBot] !== 'connected' ? (
-                            <p className="text-xs text-red-400/70 mt-2">El bot debe estar conectado para ver grupos</p>
-                        ) : loadingGroups ? (
-                            <div className="flex items-center gap-2 text-xs text-white/40 mt-2">
-                                <Loader2 size={12} className="animate-spin" /> Cargando grupos...
-                            </div>
-                        ) : groups.length === 0 ? (
-                            <p className="text-xs text-white/30 mt-2">No se encontraron grupos</p>
-                        ) : (
-                            <div className="space-y-2 mt-3 max-h-80 overflow-y-auto">
-                                {groups.map(group => (
-                                    <div key={group.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/8">
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                                                <UsersRound size={14} className="text-white/40" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-bold text-white truncate">{group.name}</p>
-                                                <p className="text-[10px] text-white/30">
-                                                    {group.participantCount} miembros
-                                                    {group.isAdmin && <span className="text-amber-400/70 ml-1">· Admin</span>}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => downloadExcel(`group_${group.id}`, `type=group&botId=${selectedBot}&groupId=${encodeURIComponent(group.id)}`)}
-                                            disabled={downloading === `group_${group.id}` || group.participantCount === 0}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-white/60 hover:text-amber-400 hover:border-amber-500/40 transition-all disabled:opacity-30 shrink-0 ml-2"
-                                        >
-                                            {downloading === `group_${group.id}` ? (
-                                                <Loader2 size={12} className="animate-spin" />
-                                            ) : success === `group_${group.id}` ? (
-                                                <CheckCircle2 size={12} className="text-green-400" />
-                                            ) : (
-                                                <Download size={12} />
-                                            )}
-                                            Excel
-                                        </button>
-                                    </div>
-                                ))}
-                                <p className="text-[10px] text-white/20 italic pt-2">⚠️ Solo exportá contactos de grupos donde tenés autorización</p>
-                            </div>
-                        )}
-                    </div>
 
                     {/* ── Por campaña CRM ── */}
                     {campaigns.length > 0 && (

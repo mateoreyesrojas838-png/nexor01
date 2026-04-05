@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
     Bot, Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
-    Tag, Pencil, Trash2, Plus, Phone, FileText, ChevronDown, RefreshCw, UsersRound
+    Pencil, Trash2, Plus, Phone, FileText, ChevronDown
 } from 'lucide-react'
 
 interface ContactEntry {
@@ -20,29 +20,6 @@ interface CrmTemplate {
     description: string | null
     content: string
     usageCount: number
-}
-
-interface LabelData {
-    id: string
-    name: string
-    color: number
-    contacts: string[]
-    contactCount: number
-}
-
-interface GroupData {
-    id: string
-    name: string
-    participantCount: number
-    isAdmin: boolean
-}
-
-const LABEL_COLORS: Record<number, string> = {
-    0: '#64748b', 1: '#f97316', 2: '#84cc16', 3: '#a855f7',
-    4: '#ec4899', 5: '#14b8a6', 6: '#3b82f6', 7: '#ef4444',
-    8: '#06b6d4', 9: '#eab308', 10: '#8b5cf6', 11: '#f43f5e',
-    12: '#10b981', 13: '#6366f1', 14: '#d946ef', 15: '#0ea5e9',
-    16: '#f59e0b', 17: '#22c55e', 18: '#e11d48', 19: '#7c3aed',
 }
 
 export default function NewCrmCampaignPage() {
@@ -62,25 +39,12 @@ export default function NewCrmCampaignPage() {
     })
     const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'IMAGE' | 'VIDEO' }[]>([])
 
-    // Contact source
-    const [contactSource, setContactSource] = useState<'excel' | 'label' | 'group'>('excel')
+    // Contacts
     const [contacts, setContacts] = useState<ContactEntry[]>([])
 
     // Excel
     const [excelFile, setExcelFile] = useState<File | null>(null)
     const [parsingExcel, setParsingExcel] = useState(false)
-
-    // Labels
-    const [labels, setLabels] = useState<LabelData[]>([])
-    const [loadingLabels, setLoadingLabels] = useState(false)
-    const [selectedLabels, setSelectedLabels] = useState<string[]>([])
-    const [resyncingLabels, setResyncingLabels] = useState(false)
-
-    // Groups
-    const [groups, setGroups] = useState<GroupData[]>([])
-    const [loadingGroups, setLoadingGroups] = useState(false)
-    const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-    const [loadingGroupContacts, setLoadingGroupContacts] = useState(false)
 
     // Templates
     const [templates, setTemplates] = useState<CrmTemplate[]>([])
@@ -101,25 +65,6 @@ export default function NewCrmCampaignPage() {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => { fetchBots(); fetchTemplates() }, [])
-
-    // Fetch labels when bot changes (groups are lazy-loaded on tab click)
-    useEffect(() => {
-        if (form.botId && botStatuses[form.botId] === 'connected') {
-            fetchLabels(form.botId)
-        } else {
-            setLabels([])
-            setSelectedLabels([])
-            setGroups([])
-            setSelectedGroups([])
-        }
-    }, [form.botId, botStatuses])
-
-    // Lazy-load groups only when user switches to group tab
-    useEffect(() => {
-        if (contactSource === 'group' && form.botId && botStatuses[form.botId] === 'connected' && groups.length === 0) {
-            fetchGroups(form.botId)
-        }
-    }, [contactSource, form.botId, botStatuses])
 
     async function fetchTemplates() {
         try {
@@ -153,96 +98,6 @@ export default function NewCrmCampaignPage() {
             }
         }))
         setBotStatuses(statuses)
-    }
-
-    async function fetchLabels(botId: string) {
-        setLoadingLabels(true)
-        try {
-            const res = await fetch(`/api/bots/${botId}/baileys/labels`)
-            const data = await res.json()
-            setLabels(data.labels || [])
-        } catch {
-            setLabels([])
-        }
-        setLoadingLabels(false)
-    }
-
-    async function resyncLabels() {
-        if (!form.botId) return
-        setResyncingLabels(true)
-        try {
-            const res = await fetch(`/api/bots/${form.botId}/baileys/labels`, { method: 'POST' })
-            const data = await res.json()
-            setLabels(data.labels || [])
-        } catch { /* silent */ }
-        setResyncingLabels(false)
-    }
-
-    function toggleLabel(labelId: string) {
-        setSelectedLabels(prev => {
-            const next = prev.includes(labelId)
-                ? prev.filter(id => id !== labelId)
-                : [...prev, labelId]
-
-            // Update contacts from selected labels
-            const allPhones = new Set<string>()
-            const targetLabels = next
-            for (const label of labels) {
-                if (targetLabels.includes(label.id)) {
-                    for (const phone of label.contacts) {
-                        allPhones.add(phone)
-                    }
-                }
-            }
-            const labelContacts: ContactEntry[] = Array.from(allPhones).map(phone => ({
-                phone,
-                name: null,
-            }))
-            setContacts(labelContacts)
-            return next
-        })
-    }
-
-    async function fetchGroups(botId: string) {
-        setLoadingGroups(true)
-        try {
-            const res = await fetch(`/api/bots/${botId}/baileys/groups`)
-            const data = await res.json()
-            setGroups(data.groups || [])
-        } catch {
-            setGroups([])
-        }
-        setLoadingGroups(false)
-    }
-
-    async function toggleGroup(groupId: string) {
-        const next = selectedGroups.includes(groupId)
-            ? selectedGroups.filter(id => id !== groupId)
-            : [...selectedGroups, groupId]
-        setSelectedGroups(next)
-
-        // Fetch all contacts from selected groups
-        setLoadingGroupContacts(true)
-        try {
-            const allPhones = new Set<string>()
-            for (const gid of next) {
-                const res = await fetch(`/api/bots/${form.botId}/baileys/groups`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ groupId: gid }),
-                })
-                const data = await res.json()
-                for (const phone of (data.contacts || [])) {
-                    allPhones.add(phone)
-                }
-            }
-            const groupContacts: ContactEntry[] = Array.from(allPhones).map(phone => ({
-                phone,
-                name: null,
-            }))
-            setContacts(groupContacts)
-        } catch { /* silent */ }
-        setLoadingGroupContacts(false)
     }
 
     function isVideoFile(file: File): boolean {
@@ -378,19 +233,8 @@ export default function NewCrmCampaignPage() {
                 return
             }
 
-            // 3. Upload contacts (JSON with phones from labels/manual, or Excel)
-            if (contactSource === 'label' || !excelFile) {
-                const contactRes = await fetch(`/api/crm/campaigns/${campaignId}/contacts`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phones: contacts.map(c => c.phone) }),
-                })
-                if (!contactRes.ok) {
-                    const contactData = await contactRes.json()
-                    setError(contactData.error)
-                    return
-                }
-            } else {
+            // 3. Upload contacts (Excel file OR JSON from manual entries)
+            if (excelFile) {
                 const excelFd = new FormData()
                 excelFd.append('file', excelFile)
                 const excelRes = await fetch(`/api/crm/campaigns/${campaignId}/contacts`, {
@@ -400,6 +244,17 @@ export default function NewCrmCampaignPage() {
                 if (!excelRes.ok) {
                     const excelData = await excelRes.json()
                     setError(excelData.error)
+                    return
+                }
+            } else {
+                const contactRes = await fetch(`/api/crm/campaigns/${campaignId}/contacts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phones: contacts.map(c => c.phone) }),
+                })
+                if (!contactRes.ok) {
+                    const contactData = await contactRes.json()
+                    setError(contactData.error)
                     return
                 }
             }
@@ -635,183 +490,40 @@ export default function NewCrmCampaignPage() {
                         <Users size={12} /> Contactos ({contacts.length})
                     </label>
 
-                    {/* Source tabs */}
-                    <div className="flex gap-2 mb-4">
-                        <button
-                            type="button"
-                            onClick={() => { setContactSource('excel'); setContacts([]); setSelectedLabels([]); setSelectedGroups([]) }}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${contactSource === 'excel' ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'}`}
-                        >
-                            <Upload size={14} /> Excel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setContactSource('label'); setContacts([]); setExcelFile(null); setSelectedGroups([]) }}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${contactSource === 'label' ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'}`}
-                        >
-                            <Tag size={14} /> Etiquetas
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setContactSource('group'); setContacts([]); setExcelFile(null); setSelectedLabels([]) }}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${contactSource === 'group' ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'}`}
-                        >
-                            <UsersRound size={14} /> Grupos
-                        </button>
-                    </div>
-
-                    {/* Excel upload */}
-                    {contactSource === 'excel' && (
-                        <>
-                            <p className="text-[11px] text-white/25 mb-3">
-                                El Excel debe tener columna <span className="text-amber-400/70">teléfono</span> (obligatorio). <span className="text-amber-400/70">Nombre</span> es opcional.
-                            </p>
-                            <button
-                                type="button"
-                                onClick={() => excelInputRef.current?.click()}
-                                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition-all ${excelFile ? 'border-green-500/40 bg-green-500/5' : 'border-white/15 hover:border-amber-500/40'}`}
-                            >
-                                {excelFile ? (
-                                    <>
-                                        <CheckCircle2 size={18} className="text-green-400 shrink-0" />
-                                        <div className="text-left">
-                                            <p className="text-sm font-bold text-green-400">{excelFile.name}</p>
-                                            <p className="text-xs text-white/30">{(excelFile.size / 1024).toFixed(1)} KB</p>
-                                        </div>
-                                        <button type="button" onClick={e => { e.stopPropagation(); setExcelFile(null); setContacts([]) }} className="ml-auto text-white/30 hover:text-red-400">
-                                            <X size={14} />
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload size={18} className="text-white/30 shrink-0" />
-                                        <p className="text-sm text-white/30">Seleccionar archivo Excel (.xlsx, .xls, .csv)</p>
-                                    </>
-                                )}
-                            </button>
-                            <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => handleExcelSelect(e.target.files)} />
-                            {parsingExcel && (
-                                <div className="mt-3 flex items-center gap-2 text-xs text-white/40">
-                                    <Loader2 size={12} className="animate-spin" /> Leyendo contactos...
+                    <p className="text-[11px] text-white/25 mb-3">
+                        Subí un Excel con tus contactos. Tip: podés exportar contactos desde WhatsApp Web con nuestra <Link href="/dashboard/crm/export" className="text-amber-400 underline">extensión de Chrome</Link>.
+                    </p>
+                    <p className="text-[11px] text-white/25 mb-3">
+                        Columnas: <span className="text-amber-400/70">teléfono</span> (obligatorio) · <span className="text-amber-400/70">nombre</span> (opcional)
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => excelInputRef.current?.click()}
+                        className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition-all ${excelFile ? 'border-green-500/40 bg-green-500/5' : 'border-white/15 hover:border-amber-500/40'}`}
+                    >
+                        {excelFile ? (
+                            <>
+                                <CheckCircle2 size={18} className="text-green-400 shrink-0" />
+                                <div className="text-left">
+                                    <p className="text-sm font-bold text-green-400">{excelFile.name}</p>
+                                    <p className="text-xs text-white/30">{(excelFile.size / 1024).toFixed(1)} KB</p>
                                 </div>
-                            )}
-                        </>
-                    )}
-
-                    {/* Labels */}
-                    {contactSource === 'label' && (
-                        <>
-                            {!form.botId ? (
-                                <p className="text-xs text-white/30">Seleccioná un bot primero</p>
-                            ) : botStatuses[form.botId] !== 'connected' ? (
-                                <p className="text-xs text-red-400/70">El bot debe estar conectado para ver las etiquetas</p>
-                            ) : loadingLabels ? (
-                                <div className="flex items-center gap-2 text-xs text-white/40">
-                                    <Loader2 size={12} className="animate-spin" /> Cargando etiquetas...
-                                </div>
-                            ) : labels.length === 0 ? (
-                                <div className="space-y-3">
-                                    <p className="text-xs text-white/30">No se encontraron etiquetas. Asegurate de que sea una cuenta <span className="text-amber-400/70">WhatsApp Business</span>.</p>
-                                    <button
-                                        type="button"
-                                        onClick={resyncLabels}
-                                        disabled={resyncingLabels}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white/50 hover:text-amber-400 hover:border-amber-500/40 transition-all disabled:opacity-50"
-                                    >
-                                        {resyncingLabels ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                                        {resyncingLabels ? 'Sincronizando...' : 'Reintentar sincronización'}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-[11px] text-white/25">Seleccioná una o varias etiquetas para cargar sus contactos</p>
-                                        <button
-                                            type="button"
-                                            onClick={resyncLabels}
-                                            disabled={resyncingLabels}
-                                            className="flex items-center gap-1 text-[10px] text-white/25 hover:text-amber-400 transition-all"
-                                        >
-                                            <RefreshCw size={10} className={resyncingLabels ? 'animate-spin' : ''} /> Recargar
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {labels.map(label => {
-                                            const selected = selectedLabels.includes(label.id)
-                                            const color = LABEL_COLORS[label.color] || '#64748b'
-                                            return (
-                                                <button
-                                                    key={label.id}
-                                                    type="button"
-                                                    onClick={() => toggleLabel(label.id)}
-                                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${selected ? 'bg-white/10 border-white/30' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
-                                                >
-                                                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                                    <span className={selected ? 'text-white' : 'text-white/60'}>{label.name}</span>
-                                                    <span className="text-[10px] text-white/30 ml-1">{label.contactCount}</span>
-                                                    {selected && <CheckCircle2 size={12} className="text-green-400" />}
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {/* Groups */}
-                    {contactSource === 'group' && (
-                        <>
-                            {!form.botId ? (
-                                <p className="text-xs text-white/30">Seleccioná un bot primero</p>
-                            ) : botStatuses[form.botId] !== 'connected' ? (
-                                <p className="text-xs text-red-400/70">El bot debe estar conectado para ver los grupos</p>
-                            ) : loadingGroups ? (
-                                <div className="flex items-center gap-2 text-xs text-white/40">
-                                    <Loader2 size={12} className="animate-spin" /> Cargando grupos...
-                                </div>
-                            ) : groups.length === 0 ? (
-                                <p className="text-xs text-white/30">No se encontraron grupos en esta cuenta</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    <p className="text-[11px] text-white/25">Seleccioná uno o varios grupos para cargar sus miembros como contactos</p>
-                                    <div className="max-h-64 overflow-y-auto space-y-2 rounded-xl border border-white/8 p-2">
-                                        {groups.map(group => {
-                                            const selected = selectedGroups.includes(group.id)
-                                            return (
-                                                <button
-                                                    key={group.id}
-                                                    type="button"
-                                                    onClick={() => toggleGroup(group.id)}
-                                                    disabled={loadingGroupContacts}
-                                                    className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-all disabled:opacity-50 ${selected ? 'bg-amber-500/10 border-amber-500/40' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
-                                                >
-                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                                                            <UsersRound size={14} className="text-white/40" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-bold text-white truncate">{group.name}</p>
-                                                            <p className="text-[10px] text-white/30">
-                                                                {group.participantCount} miembros
-                                                                {group.isAdmin && <span className="text-amber-400/70 ml-1">· Admin</span>}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    {selected && <CheckCircle2 size={14} className="text-green-400 shrink-0" />}
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                    {loadingGroupContacts && (
-                                        <div className="flex items-center gap-2 text-xs text-amber-400/70">
-                                            <Loader2 size={12} className="animate-spin" /> Cargando miembros de grupos...
-                                        </div>
-                                    )}
-                                    <p className="text-[10px] text-white/20 italic">⚠️ Solo exportá contactos de grupos donde tenés autorización</p>
-                                </div>
-                            )}
-                        </>
+                                <button type="button" onClick={e => { e.stopPropagation(); setExcelFile(null); setContacts([]) }} className="ml-auto text-white/30 hover:text-red-400">
+                                    <X size={14} />
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Upload size={18} className="text-white/30 shrink-0" />
+                                <p className="text-sm text-white/30">Seleccionar archivo Excel (.xlsx, .xls, .csv)</p>
+                            </>
+                        )}
+                    </button>
+                    <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => handleExcelSelect(e.target.files)} />
+                    {parsingExcel && (
+                        <div className="mt-3 flex items-center gap-2 text-xs text-white/40">
+                            <Loader2 size={12} className="animate-spin" /> Leyendo contactos...
+                        </div>
                     )}
 
                     {/* Contact list (editable) */}
