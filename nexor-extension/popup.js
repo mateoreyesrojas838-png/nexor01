@@ -60,30 +60,132 @@ backBtn.addEventListener('click', () => {
 })
 
 // ─── Tab communication ─────────────────────────────────────────────────────
+async function findWhatsAppTab() {
+    // Try all windows (not just current)
+    const tabs = await chrome.tabs.query({})
+    const waTab = tabs.find(t => t.url?.startsWith('https://web.whatsapp.com'))
+    return waTab || null
+}
+
 async function callContent(action, params = {}, timeoutMs = 5 * 60 * 1000) {
-    const [tab] = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*' })
+    const tab = await findWhatsAppTab()
     if (!tab?.id) {
-        return { success: false, error: 'Abrí web.whatsapp.com primero' }
+        return { success: false, error: 'NO_WA_TAB' }
     }
-    const responsePromise = chrome.tabs.sendMessage(tab.id, { action, params }).catch(err => ({
-        success: false,
-        error: err?.message || 'Error de comunicación',
-    }))
-    const timeout = new Promise(r => setTimeout(() => r({ success: false, error: 'Timeout' }), timeoutMs))
-    return Promise.race([responsePromise, timeout])
+    try {
+        const responsePromise = chrome.tabs.sendMessage(tab.id, { action, params })
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs))
+        return await Promise.race([responsePromise, timeout])
+    } catch (err) {
+        const msg = err?.message || String(err)
+        if (msg.includes('Could not establish connection') || msg.includes('receiving end')) {
+            return { success: false, error: 'NO_CONTENT_SCRIPT' }
+        }
+        if (msg === 'TIMEOUT') return { success: false, error: 'TIMEOUT' }
+        return { success: false, error: msg }
+    }
+}
+
+let checkAttempts = 0
+let pollTimer = null
+
+let autoReloadAttempted = false
+
+async function openOrReloadWhatsApp() {
+    const tab = await findWhatsAppTab()
+    if (tab?.id) {
+        // Reload existing tab
+        try {
+            await chrome.tabs.reload(tab.id)
+            await chrome.tabs.update(tab.id, { active: true })
+        } catch { }
+    } else {
+        // Open new WhatsApp Web tab
+        try {
+            await chrome.tabs.create({ url: 'https://web.whatsapp.com/' })
+        } catch { }
+    }
 }
 
 async function checkStatus() {
-    const ping = await callContent('ping', {}, 10000)
+    checkAttempts++
+    const ping = await callContent('ping', {}, 4000)
+
     if (ping?.success && ping?.ready) {
         setStatus('ok', ping.hasLabels ? 'Conectado · Business' : 'Conectado ✓')
-    } else if (ping?.error?.includes('web.whatsapp.com')) {
-        setStatus('err', 'Abrí WhatsApp Web')
+        checkAttempts = 0
+        autoReloadAttempted = false
+        return
+    }
+
+    // No WhatsApp tab open — open it automatically
+    if (ping?.error === 'NO_WA_TAB') {
+        if (!autoReloadAttempted) {
+            autoReloadAttempted = true
+            setStatus('loading', 'Abriendo WhatsApp Web...')
+            await chrome.tabs.create({ url: 'https://web.whatsapp.com/', active: true })
+            pollTimer = setTimeout(checkStatus, 3000)
+            return
+        }
+        setStatus('err', 'Escaneá el QR en la pestaña de WhatsApp Web')
+        pollTimer = setTimeout(checkStatus, 2000)
+        return
+    }
+
+    // Content script not injected — inject it manually via scripting API
+    if (ping?.error === 'NO_CONTENT_SCRIPT') {
+        if (!autoReloadAttempted) {
+            autoReloadAttempted = true
+            setStatus('loading', 'Inyectando en WhatsApp Web...')
+            const tab = await findWhatsAppTab()
+            if (tab?.id) {
+                try {
+                    // Inject both scripts programmatically
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['inject.js'],
+                        world: 'MAIN',
+                    })
+                } catch { }
+                try {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['content.js'],
+                    })
+                } catch { }
+            }
+            pollTimer = setTimeout(checkStatus, 3000)
+            return
+        }
+        setStatus('err', 'Recargá WhatsApp Web (Ctrl+Shift+R)')
+        pollTimer = setTimeout(checkStatus, 3000)
+        return
+    }
+
+    // Ping succeeded but store not ready yet — keep polling
+    if (ping?.success && !ping.ready) {
+        setStatus('loading', `Cargando Store... ${checkAttempts}`)
+        if (checkAttempts < 60) {
+            pollTimer = setTimeout(checkStatus, 2000)
+        } else {
+            setStatus('err', 'Timeout. Cerrá y reabrí WhatsApp Web.')
+        }
+        return
+    }
+
+    // Generic retry
+    if (checkAttempts < 60) {
+        setStatus('loading', `Conectando... ${checkAttempts}`)
+        pollTimer = setTimeout(checkStatus, 2000)
     } else {
-        setStatus('loading', 'Esperando WhatsApp...')
-        setTimeout(checkStatus, 3000)
+        setStatus('err', 'No responde. Recargá WhatsApp Web.')
     }
 }
+
+// Stop polling when popup closes
+window.addEventListener('unload', () => {
+    if (pollTimer) clearTimeout(pollTimer)
+})
 
 // ─── CSV download ──────────────────────────────────────────────────────────
 async function downloadCsv(rows, filename) {

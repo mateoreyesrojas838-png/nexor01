@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Nexor Contacts Extractor",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Extrae contactos de grupos y etiquetas de WhatsApp Web al CRM de Nexor con números reales",
-  "permissions": ["downloads", "storage", "activeTab"],
+  "permissions": ["downloads", "storage", "tabs", "scripting"],
   "host_permissions": [
     "https://web.whatsapp.com/*"
   ],

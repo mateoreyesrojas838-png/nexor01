@@ -1,174 +1,192 @@
-// Nexor Contacts Extractor — inject.js (v2.0.0)
+// Nexor Contacts Extractor — inject.js (v2.1.0)
 // Runs in MAIN world at document_start on web.whatsapp.com
-// Uses the wa-js technique: hook webpackChunk BEFORE WhatsApp initializes,
-// then capture __webpack_require__ when webpack processes our chunk.
+// Uses the wa-js dual-loader technique (classic webpack + Meta/metro loader)
+// to support both old and new WhatsApp Web versions (>= 2.3000.0)
 
 (function () {
-    if (window.__nexor_inject) return
-    window.__nexor_inject = true
+    if (window.__nexor_inject_loaded) return
+    window.__nexor_inject_loaded = true
 
+    const g = self
     const TAG = '[Nexor]'
     const log = (...args) => console.log(TAG, ...args)
 
-    let Store = null
-    let initPromise = null
+    let webpackRequire = null
+    let loaderType = 'unknown'  // 'webpack' | 'meta' | 'unknown'
+    let Store = {}
+    let isReady = false
 
-    // ─── Wait helper ──────────────────────────────────────────────────────────
-    function waitFor(predicate, timeout = 120000, interval = 200) {
-        return new Promise((resolve) => {
-            const start = Date.now()
-            const tick = () => {
-                try {
-                    if (predicate()) return resolve(true)
-                } catch { }
-                if (Date.now() - start > timeout) return resolve(false)
-                setTimeout(tick, interval)
-            }
-            tick()
-        })
+    log('inject.js v2.1.0 starting in MAIN world')
+
+    // ─── Path A: Classic webpack (WhatsApp Web < 2.3000.0) ───────────────────
+    const chunkName = 'webpackChunkwhatsapp_web_client'
+    try {
+        const chunk = g[chunkName] = g[chunkName] || []
+        chunk.push([
+            ['nexor_hook_' + Date.now()],
+            {},
+            (wr) => {
+                if (loaderType !== 'unknown') return
+                loaderType = 'webpack'
+                webpackRequire = wr
+                log('✓ Classic webpack hook succeeded')
+                onInjected()
+            },
+        ])
+        log('Classic webpack hook installed, chunks:', chunk.length)
+    } catch (err) {
+        log('Classic webpack hook error:', err)
     }
 
-    // ─── Store recursive scanner ──────────────────────────────────────────────
-    function scanForStore(mod, store, depth = 0) {
-        if (depth > 3 || !mod || typeof mod !== 'object') return
+    // ─── Path B: Meta loader (WhatsApp Web >= 2.3000.0) ──────────────────────
+    const metaTimer = setInterval(() => {
+        if (loaderType !== 'unknown') { clearInterval(metaTimer); return }
+        if (!g.require || !g.__d) return
+        loaderType = 'meta'
+        clearInterval(metaTimer)
 
-        // Direct check
         try {
-            if (mod.Chat && typeof mod.Chat.getModelsArray === 'function' && !store.Chat) {
-                store.Chat = mod.Chat
-            }
-            if (mod.Contact && typeof mod.Contact.getModelsArray === 'function' && !store.Contact) {
-                store.Contact = mod.Contact
-            }
-            if (mod.Label && typeof mod.Label.getModelsArray === 'function' && !store.Label) {
-                store.Label = mod.Label
-            }
-            if (mod.GroupMetadata && typeof mod.GroupMetadata.getModelsArray === 'function' && !store.GroupMetadata) {
-                store.GroupMetadata = mod.GroupMetadata
-            }
-            if (mod.LabelAssociation && !store.LabelAssociation) {
-                store.LabelAssociation = mod.LabelAssociation
-            }
-        } catch { }
-
-        // Default export
-        if (mod.default && mod.default !== mod) {
-            scanForStore(mod.default, store, depth + 1)
-        }
-
-        // Limited recursive search into sub-objects
-        if (depth < 2) {
-            for (const key in mod) {
-                if (store.Chat && store.Contact && store.Label && store.GroupMetadata) return
+            // Build a webpack-compatible shim using Meta's module system
+            webpackRequire = function (id) {
                 try {
-                    const val = mod[key]
-                    if (val && typeof val === 'object' && val !== mod) {
-                        scanForStore(val, store, depth + 1)
+                    g.ErrorGuard && g.ErrorGuard.skipGuardGlobal && g.ErrorGuard.skipGuardGlobal(true)
+                    if (g.importNamespace) return g.importNamespace(id)
+                    return g.require(id)
+                } catch (_error) {
+                    return null
+                }
+            }
+
+            // Fake .m property by lazy-reading __debug.modulesMap
+            Object.defineProperty(webpackRequire, 'm', {
+                get: () => {
+                    try {
+                        const modulesMap = g.require('__debug').modulesMap
+                        const ids = Object.keys(modulesMap).filter((id) =>
+                            /^(?:use)?WA/.test(id) &&
+                            !['WAWebEmojiPanelContentEmojiSearchEmpty.react', 'WAWebMoment-es-do'].includes(id)
+                        )
+                        const result = {}
+                        for (const id of ids) result[id] = modulesMap[id]?.factory
+                        return result
+                    } catch (err) {
+                        log('modulesMap access error:', err)
+                        return {}
                     }
-                } catch { }
-            }
-        }
-    }
-
-    // ─── Webpack hook (the wa-js technique) ──────────────────────────────────
-    async function initStore() {
-        if (Store) return Store
-
-        log('Initializing...')
-
-        // Wait for WhatsApp to be loaded (QR visible or chat list)
-        await waitFor(() => {
-            return document.querySelector('#pane-side') ||
-                document.querySelector('[data-testid="qrcode"]') ||
-                document.querySelector('canvas') ||
-                document.querySelector('[data-ref]')
-        }, 120000)
-
-        // Wait for webpack chunks to exist
-        const chunkName = 'webpackChunkwhatsapp_web_client'
-        const ready = await waitFor(() => {
-            const arr = self[chunkName]
-            return arr && Array.isArray(arr) && arr.length > 0
-        }, 60000)
-
-        if (!ready) {
-            log('webpackChunk never initialized')
-            return null
-        }
-
-        log('webpackChunk found with', self[chunkName].length, 'chunks')
-
-        // Push our own chunk to capture __webpack_require__
-        let webpackRequire = null
-        try {
-            await new Promise((resolve) => {
-                const id = 'nexor_hook_' + Date.now()
-                self[chunkName].push([
-                    [id],
-                    {},
-                    (r) => {
-                        webpackRequire = r
-                        resolve()
-                    },
-                ])
-                // Fallback timeout
-                setTimeout(resolve, 5000)
+                },
             })
+
+            log('✓ Meta loader hook succeeded')
+            onInjected()
         } catch (err) {
-            log('push error:', err)
+            log('Meta loader error:', err)
+            loaderType = 'unknown'
         }
+    }, 500)
 
-        if (!webpackRequire) {
-            log('Failed to capture webpack require')
-            return null
-        }
-
-        log('Got webpack require with cache size:', Object.keys(webpackRequire.c || {}).length)
-
-        const store = {}
-
-        // Phase 1: Scan ALREADY-LOADED modules from cache (safest)
-        for (const id in webpackRequire.c) {
+    // ─── Search helper: iterate modules to find one matching a predicate ─────
+    function findModule(predicate) {
+        if (!webpackRequire) return null
+        const ids = Object.keys(webpackRequire.m || {})
+        for (const id of ids) {
             try {
-                const mod = webpackRequire.c[id]?.exports
-                scanForStore(mod, store)
+                const mod = webpackRequire(id)
+                if (mod && predicate(mod)) return mod
             } catch { }
         }
-
-        log('After cache scan:', Object.keys(store))
-
-        // Phase 2: If incomplete, try loading from factories
-        if (!store.Chat || !store.Label) {
-            for (const id in webpackRequire.m) {
-                if (store.Chat && store.Label && store.Contact) break
-                try {
-                    const mod = webpackRequire(id)
-                    scanForStore(mod, store)
-                } catch { }
-            }
-        }
-
-        log('Final store:', Object.keys(store))
-
-        if (store.Chat) {
-            Store = store
-            window.__nexor_store = Store
-            return Store
-        }
-
         return null
     }
 
-    function getStore() {
-        if (Store) return Promise.resolve(Store)
-        if (!initPromise) initPromise = initStore()
-        return initPromise
+    // ─── After hook is captured, find Store modules using wa-js patterns ─────
+    async function onInjected() {
+        log('Searching for Store modules...')
+
+        // For classic webpack, preload chunks so lazy modules are available
+        if (loaderType === 'webpack' && webpackRequire.e) {
+            log('Preloading main chunks...')
+            try {
+                // Get all possible chunk ids (brute force up to 10000)
+                const ids = []
+                for (let i = 0; i < 10000; i++) {
+                    try {
+                        const fn = webpackRequire.u ? webpackRequire.u(i) : null
+                        if (fn && !String(fn).includes('undefined')) ids.push(i)
+                    } catch { }
+                }
+                log(`Found ${ids.length} chunk ids to preload`)
+
+                // Preload main chunks first
+                const mainIds = ids.filter(i => {
+                    try {
+                        const name = webpackRequire.u(i) || ''
+                        return name.includes('main') && !name.includes('locales')
+                    } catch { return false }
+                })
+                for (const id of mainIds) {
+                    try { await webpackRequire.e(id) } catch { }
+                }
+                log(`Preloaded ${mainIds.length} main chunks`)
+
+                // Then preload the rest in background
+                for (const id of ids) {
+                    try { await webpackRequire.e(id) } catch { }
+                }
+                log('Chunk preload complete')
+            } catch (err) {
+                log('Preload error:', err)
+            }
+        }
+
+        // Search for Store modules using wa-js predicates
+        const chatModule = findModule(m => m.ChatCollection || m.ChatCollectionImpl)
+        if (chatModule) {
+            Store.Chat = chatModule.ChatCollectionImpl || chatModule.ChatCollection
+            log('✓ Found Store.Chat')
+        }
+
+        const contactModule = findModule(m => m.ContactCollection || m.ContactCollectionImpl)
+        if (contactModule) {
+            Store.Contact = contactModule.ContactCollectionImpl || contactModule.ContactCollection
+            log('✓ Found Store.Contact')
+        }
+
+        const labelModule = findModule(m => m.LabelCollection || m.LabelCollectionImpl)
+        if (labelModule) {
+            Store.Label = labelModule.LabelCollectionImpl || labelModule.LabelCollection
+            log('✓ Found Store.Label')
+        }
+
+        const groupMetadataModule = findModule(m => m.GroupMetadataCollection || m.GroupMetadataCollectionImpl)
+        if (groupMetadataModule) {
+            Store.GroupMetadata = groupMetadataModule.GroupMetadataCollectionImpl || groupMetadataModule.GroupMetadataCollection
+            log('✓ Found Store.GroupMetadata')
+        }
+
+        // Fallback: some versions expose directly without Impl suffix
+        if (!Store.Chat) {
+            const m = findModule(m => m.Chat && typeof m.Chat.getModelsArray === 'function')
+            if (m) { Store.Chat = m.Chat; log('✓ Found Store.Chat (direct)') }
+        }
+        if (!Store.Contact) {
+            const m = findModule(m => m.Contact && typeof m.Contact.getModelsArray === 'function')
+            if (m) { Store.Contact = m.Contact; log('✓ Found Store.Contact (direct)') }
+        }
+        if (!Store.Label) {
+            const m = findModule(m => m.Label && typeof m.Label.getModelsArray === 'function')
+            if (m) { Store.Label = m.Label; log('✓ Found Store.Label (direct)') }
+        }
+
+        if (Store.Chat) {
+            isReady = true
+            window.__nexor_store = Store
+            log('✓ Store READY', Object.keys(Store))
+        } else {
+            log('❌ Store.Chat not found — will retry in 5s')
+            setTimeout(onInjected, 5000)
+        }
     }
 
-    // Start init as soon as possible
-    getStore()
-
-    // ─── Helper: phone from id ────────────────────────────────────────────────
+    // ─── Utilities ───────────────────────────────────────────────────────────
     function phoneFromId(idObj) {
         if (!idObj) return null
         let serialized = ''
@@ -196,22 +214,21 @@
         )
     }
 
-    // ─── API handlers ─────────────────────────────────────────────────────────
+    // ─── API handlers ────────────────────────────────────────────────────────
     const handlers = {
-        async ping() {
-            const s = await getStore()
+        ping() {
             return {
                 success: true,
-                ready: !!(s && s.Chat),
-                hasLabels: !!(s && s.Label),
+                ready: isReady && !!(Store && Store.Chat),
+                hasLabels: !!(Store && Store.Label),
+                loaderType,
             }
         },
 
-        async listGroups() {
-            const s = await getStore()
-            if (!s?.Chat) return { success: false, error: 'WhatsApp Web no cargó completamente' }
+        listGroups() {
+            if (!isReady || !Store.Chat) return { success: false, error: 'Store no listo aún' }
             try {
-                const chats = s.Chat.getModelsArray()
+                const chats = Store.Chat.getModelsArray()
                 const groups = chats
                     .filter(c => c.isGroup === true || (c.id?._serialized || '').endsWith('@g.us'))
                     .map(g => {
@@ -235,14 +252,12 @@
             }
         },
 
-        async listLabels() {
-            const s = await getStore()
-            if (!s?.Label) {
-                return { success: false, error: 'No se encontraron etiquetas. Requiere WhatsApp Business.' }
-            }
+        listLabels() {
+            if (!isReady || !Store.Chat) return { success: false, error: 'Store no listo aún' }
+            if (!Store.Label) return { success: false, error: 'Sin etiquetas (requiere WhatsApp Business)' }
             try {
-                const chats = s.Chat.getModelsArray()
-                const labels = s.Label.getModelsArray().map(l => {
+                const chats = Store.Chat.getModelsArray()
+                const labels = Store.Label.getModelsArray().map(l => {
                     const id = String(l.id)
                     const labeledChats = chats.filter(c => {
                         const lids = c.labels || c.labelIds || []
@@ -266,14 +281,13 @@
             }
         },
 
-        async getGroupContacts({ groupIds }) {
-            const s = await getStore()
-            if (!s?.Chat) return { success: false, error: 'Store no disponible' }
+        getGroupContacts({ groupIds }) {
+            if (!isReady || !Store.Chat) return { success: false, error: 'Store no listo aún' }
             try {
                 const contacts = []
                 const seen = new Set()
                 for (const groupId of groupIds || []) {
-                    const chat = s.Chat.get(groupId)
+                    const chat = Store.Chat.get(groupId)
                     if (!chat) continue
                     const groupName = chat.formattedTitle || chat.name || 'Grupo'
                     const participants = chat.groupMetadata?.participants
@@ -284,7 +298,7 @@
                         const key = `${groupId}:${phone}`
                         if (seen.has(key)) continue
                         seen.add(key)
-                        const contact = p.contact || s.Contact?.get?.(p.id)
+                        const contact = p.contact || Store.Contact?.get?.(p.id)
                         const name = contact?.pushname || contact?.name || contact?.verifiedName || ''
                         contacts.push({ phone, name, source: `Grupo: ${groupName}` })
                     }
@@ -295,14 +309,13 @@
             }
         },
 
-        async getLabelContacts({ labelIds }) {
-            const s = await getStore()
-            if (!s?.Chat || !s?.Label) return { success: false, error: 'Store no disponible' }
+        getLabelContacts({ labelIds }) {
+            if (!isReady || !Store.Chat || !Store.Label) return { success: false, error: 'Store no listo aún' }
             try {
                 const contacts = []
                 const seen = new Set()
-                const allChats = s.Chat.getModelsArray()
-                const allLabels = s.Label.getModelsArray()
+                const allChats = Store.Chat.getModelsArray()
+                const allLabels = Store.Label.getModelsArray()
                 const labelNameById = new Map(allLabels.map(l => [String(l.id), l.name || 'Etiqueta']))
 
                 for (const labelId of labelIds || []) {
@@ -316,11 +329,7 @@
                         const key = `${labelId}:${phone}`
                         if (seen.has(key)) continue
                         seen.add(key)
-                        contacts.push({
-                            phone,
-                            name: getContactName(chat),
-                            source: `Etiqueta: ${labelName}`,
-                        })
+                        contacts.push({ phone, name: getContactName(chat), source: `Etiqueta: ${labelName}` })
                     }
                 }
                 return { success: true, contacts }
@@ -329,11 +338,10 @@
             }
         },
 
-        async listAllChats() {
-            const s = await getStore()
-            if (!s?.Chat) return { success: false, error: 'Store no disponible' }
+        listAllChats() {
+            if (!isReady || !Store.Chat) return { success: false, error: 'Store no listo aún' }
             try {
-                const chats = s.Chat.getModelsArray()
+                const chats = Store.Chat.getModelsArray()
                 const contacts = []
                 const seen = new Set()
                 for (const chat of chats) {
@@ -350,8 +358,8 @@
         },
     }
 
-    // ─── Message bridge (MAIN world ↔ ISOLATED content script) ───────────────
-    window.addEventListener('message', async (event) => {
+    // ─── Message bridge (MAIN ↔ ISOLATED content script) ────────────────────
+    window.addEventListener('message', (event) => {
         if (event.source !== window) return
         const data = event.data
         if (!data || data.type !== 'NEXOR_REQUEST') return
@@ -368,12 +376,16 @@
         }
 
         try {
-            const result = await handler(params || {})
-            respond(result)
+            const result = handler(params || {})
+            if (result && typeof result.then === 'function') {
+                result.then(respond).catch(err => respond({ success: false, error: err?.message || String(err) }))
+            } else {
+                respond(result)
+            }
         } catch (err) {
             respond({ success: false, error: err?.message || String(err) })
         }
     })
 
-    log('inject.js v2.0.0 loaded')
+    log('✓ inject.js v2.1.0 loaded, waiting for WhatsApp...')
 })()
