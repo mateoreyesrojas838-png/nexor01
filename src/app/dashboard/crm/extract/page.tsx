@@ -47,6 +47,7 @@ export default function CrmExtractPage() {
     const [exporting, setExporting] = useState(false)
     const [successMsg, setSuccessMsg] = useState<string | null>(null)
     const [syncing, setSyncing] = useState(false)
+    const [syncedBots, setSyncedBots] = useState<Set<string>>(new Set())
 
     useEffect(() => { fetchBots() }, [])
 
@@ -54,9 +55,34 @@ export default function CrmExtractPage() {
         if (!selectedBot || botStatuses[selectedBot] !== 'connected') {
             setGroups([]); setLabels([]); return
         }
+        // Auto-sync on first selection of this bot in this session
+        if (!syncedBots.has(selectedBot)) {
+            autoSync(selectedBot)
+        } else {
+            if (tab === 'groups') loadGroups()
+            else if (tab === 'labels') loadLabels()
+        }
+    }, [selectedBot, tab, botStatuses])
+
+    async function autoSync(botId: string) {
+        setSyncing(true)
+        setError(null)
+        try {
+            const res = await fetch(`/api/crm/extract/sync?botId=${botId}`, { method: 'POST' })
+            const data = await res.json()
+            if (res.ok) {
+                setSyncedBots(prev => new Set(prev).add(botId))
+                if (data.newlyResolved > 0) {
+                    setSuccessMsg(`${data.newlyResolved} contactos nuevos resueltos · Total: ${data.totalMappings}`)
+                    setTimeout(() => setSuccessMsg(null), 5000)
+                }
+            }
+        } catch { /* silent */ }
+        setSyncing(false)
+        // Now load the current tab
         if (tab === 'groups') loadGroups()
         else if (tab === 'labels') loadLabels()
-    }, [selectedBot, tab, botStatuses])
+    }
 
     async function fetchBots() {
         try {
@@ -230,23 +256,32 @@ export default function CrmExtractPage() {
 
             {selectedBot && isConnected && (
                 <>
-                    {/* Deep sync button */}
+                    {/* Sync status */}
                     <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 mb-5 flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
                             <RefreshCw size={16} className={`text-amber-400 ${syncing ? 'animate-spin' : ''}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-white">¿Primera vez? Sincronizá tus contactos</p>
-                            <p className="text-[10px] text-white/50 mt-0.5 leading-relaxed">
-                                Fuerza a WhatsApp a enviarnos tus contactos y grupos. Aumenta la cantidad de teléfonos resueltos.
-                            </p>
+                            {syncing ? (
+                                <>
+                                    <p className="text-xs font-bold text-amber-400">Sincronizando contactos...</p>
+                                    <p className="text-[10px] text-white/50 mt-0.5">Pidiendo a WhatsApp tus grupos, etiquetas y contactos</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-xs font-bold text-white">
+                                        {syncedBots.has(selectedBot) ? '✓ Sincronizado' : 'Listo para sincronizar'}
+                                    </p>
+                                    <p className="text-[10px] text-white/50 mt-0.5">Forzá otra sincronización si agregaste contactos nuevos</p>
+                                </>
+                            )}
                         </div>
                         <button
                             onClick={handleSync}
                             disabled={syncing}
                             className="px-4 py-2.5 rounded-xl text-[11px] font-black uppercase bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 whitespace-nowrap"
                         >
-                            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                            {syncing ? '...' : 'Re-sincronizar'}
                         </button>
                     </div>
 
