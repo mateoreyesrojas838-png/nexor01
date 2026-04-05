@@ -84,26 +84,35 @@ export async function createSession(userId: string): Promise<WaWebSession> {
         }
     })
 
+    client.on('loading_screen', (percent: number, message: string) => {
+        console.log(`[WAWEB] Loading: ${percent}% - ${message} userId=${userId}`)
+    })
+
     client.on('ready', () => {
         session.status = 'ready'
         session.phone = client.info?.wid?.user || ''
-        console.log(`[WAWEB] Ready for userId=${userId}, phone=${session.phone}`)
+        console.log(`[WAWEB] ✓ READY for userId=${userId}, phone=${session.phone}`)
         resetAutoDestroy(session)
     })
 
     client.on('authenticated', () => {
-        console.log(`[WAWEB] Authenticated userId=${userId}`)
+        console.log(`[WAWEB] ✓ Authenticated userId=${userId}`)
+        session.status = 'loading' // between auth and ready
     })
 
-    client.on('auth_failure', () => {
+    client.on('auth_failure', (msg: string) => {
         session.status = 'error'
-        console.error(`[WAWEB] Auth failure for userId=${userId}`)
+        console.error(`[WAWEB] ✗ Auth failure for userId=${userId}: ${msg}`)
     })
 
-    client.on('disconnected', () => {
+    client.on('disconnected', (reason: string) => {
         session.status = 'destroyed'
-        console.log(`[WAWEB] Disconnected userId=${userId}`)
+        console.log(`[WAWEB] Disconnected userId=${userId}: ${reason}`)
         sessions.delete(userId)
+    })
+
+    client.on('change_state', (state: string) => {
+        console.log(`[WAWEB] State change userId=${userId}: ${state}`)
     })
 
     // Initialize

@@ -41,6 +41,11 @@ export async function GET() {
         return NextResponse.json({ status: 'none' })
     }
 
+    // Log only on state changes (not every 2s)
+    if (session.status === 'ready' || session.status === 'error') {
+        console.log(`[WAWEB API] GET /session — status: ${session.status}, phone: ${session.phone}`)
+    }
+
     return NextResponse.json({
         status: session.status,
         qr: session.qrBase64 || null,
