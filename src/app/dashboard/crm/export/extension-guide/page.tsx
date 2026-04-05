@@ -25,16 +25,22 @@ export default function ExtensionGuidePage() {
                     </div>
                     <div>
                         <p className="text-lg font-black">Nexor Desktop</p>
-                        <p className="text-[11px] text-white/50">v1.0.0 · Windows / Mac / Linux</p>
+                        <p className="text-[11px] text-white/50">v1.0.0 · App de escritorio</p>
                     </div>
                 </div>
                 <p className="text-xs text-white/60 leading-relaxed mb-4">
-                    App nativa con <b className="text-white">WhatsApp Web embebido</b>. Extrae contactos de grupos y etiquetas con los números reales, directamente desde el modelo interno de WhatsApp. Sin depender de extensiones de terceros.
+                    App nativa con <b className="text-white">WhatsApp Web embebido</b>. Extrae contactos de grupos y etiquetas con los números reales, directamente desde el modelo interno de WhatsApp.
                 </p>
-                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-[11px] text-white/60 leading-relaxed">
-                    <b className="text-amber-400">En desarrollo:</b> La app está lista en <code className="bg-white/10 px-1 py-0.5 rounded text-amber-400 font-mono text-[10px]">nexor-desktop/</code> del repo.
-                    Correla en modo desarrollo con <code className="bg-white/10 px-1 py-0.5 rounded text-amber-400 font-mono text-[10px]">npm install && npm start</code>.
-                    Los instaladores (.exe, .dmg, .AppImage) se generan con <code className="bg-white/10 px-1 py-0.5 rounded text-amber-400 font-mono text-[10px]">npm run build:win / build:mac / build:linux</code>.
+                <div className="flex flex-wrap items-center gap-2">
+                    <a
+                        href="/downloads/Nexor-Desktop-Windows.zip"
+                        download
+                        className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-black transition-all hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)' }}
+                    >
+                        <Download size={14} /> Descargar para Windows
+                    </a>
+                    <span className="text-[10px] text-white/30">~108 MB · Windows 10/11 · Portable</span>
                 </div>
             </div>
 
@@ -55,29 +61,39 @@ export default function ExtensionGuidePage() {
                 <Step
                     number={1}
                     icon={<Download size={18} />}
-                    title="Instalar Nexor Desktop"
-                    description="Descargá el instalador para tu sistema operativo. Se instala como cualquier app normal (doble click, siguiente, siguiente, listo)."
+                    title="Descargar el ZIP"
+                    description="Click en el botón de arriba para bajar el archivo Nexor-Desktop-Windows.zip (~108 MB). Se guarda en tu carpeta de Descargas."
                 />
                 <Step
                     number={2}
-                    icon={<Play size={18} />}
-                    title="Abrir la app"
-                    description="Se abre una ventana con WhatsApp Web adentro. La primera vez escaneás el QR con tu celular. Las próximas veces te recuerda la sesión."
+                    icon={<Package size={18} />}
+                    title="Descomprimir"
+                    description="Click derecho en el ZIP → Extraer todo. Te va a crear una carpeta llamada Nexor WhatsApp Extractor-win32-x64. Podés mover esa carpeta a donde quieras (Escritorio, Documentos, etc)."
                 />
                 <Step
                     number={3}
+                    icon={<Play size={18} />}
+                    title="Ejecutar la app"
+                    description={
+                        <>
+                            Abrí la carpeta y doble click en <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-400 font-mono text-[10px]">Nexor WhatsApp Extractor.exe</code>. La primera vez Windows puede mostrar un warning de SmartScreen — click en "Más información" → "Ejecutar de todas formas". Se abre una ventana con WhatsApp Web adentro, escaneás el QR con tu celular.
+                        </>
+                    }
+                />
+                <Step
+                    number={4}
                     icon={<CheckCircle2 size={18} />}
                     title="Elegir qué exportar"
                     description="En el panel lateral, click en Grupos, Etiquetas o Todos los chats. Podés seleccionar con checkboxes y buscar por nombre."
                 />
                 <Step
-                    number={4}
+                    number={5}
                     icon={<Package size={18} />}
                     title="Exportar"
                     description="Elegís si querés solo teléfonos o teléfono + nombre. Click en Exportar y guardás el CSV donde quieras."
                 />
                 <Step
-                    number={5}
+                    number={6}
                     icon={<Upload size={18} />}
                     title="Subir al CRM"
                     description={

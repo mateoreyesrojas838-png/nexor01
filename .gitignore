@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Large binary downloads (hosted externally)
+public/downloads/*.zip
+public/downloads/*.exe
+public/downloads/*.dmg
+public/downloads/*.AppImage
+
 # Next.js build output
 .next/
 out/

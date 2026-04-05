@@ -7,13 +7,13 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win --x64",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "package:win": "electron-packager . \"Nexor WhatsApp Extractor\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.png",
+    "package:mac": "electron-packager . \"Nexor WhatsApp Extractor\" --platform=darwin --arch=x64 --out=dist --overwrite --icon=icon.png",
+    "package:linux": "electron-packager . \"Nexor WhatsApp Extractor\" --platform=linux --arch=x64 --out=dist --overwrite --icon=icon.png"
   },
   "devDependencies": {
     "electron": "^32.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-packager": "^17.1.2"
   },
   "build": {
     "appId": "com.nexor.whatsapp-extractor",

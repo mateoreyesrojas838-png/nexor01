@@ -112,12 +112,19 @@ export default function CrmExportPage() {
                             App de escritorio con WhatsApp Web embebido. Extrae <span className="text-amber-400 font-bold">números reales</span> de grupos y etiquetas directamente, sin depender de terceros. Exporta a Excel.
                         </p>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <Link
-                                href="/dashboard/crm/export/extension-guide"
-                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider text-white transition-all hover:opacity-90"
+                            <a
+                                href="/downloads/Nexor-Desktop-Windows.zip"
+                                download
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider text-black transition-all hover:opacity-90"
                                 style={{ background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)' }}
                             >
-                                <Package size={12} /> Descargar Nexor Desktop
+                                <Package size={12} /> Descargar para Windows
+                            </a>
+                            <Link
+                                href="/dashboard/crm/export/extension-guide"
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold text-white/60 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 transition-all"
+                            >
+                                Cómo usar
                             </Link>
                         </div>
                     </div>
