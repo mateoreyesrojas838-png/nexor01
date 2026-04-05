@@ -46,6 +46,7 @@ export default function CrmExtractPage() {
     const [error, setError] = useState<string | null>(null)
     const [exporting, setExporting] = useState(false)
     const [successMsg, setSuccessMsg] = useState<string | null>(null)
+    const [syncing, setSyncing] = useState(false)
 
     useEffect(() => { fetchBots() }, [])
 
@@ -113,6 +114,23 @@ export default function CrmExtractPage() {
         const list = tab === 'groups' ? groups : labels
         if (selectedIds.length === list.length) setSelectedIds([])
         else setSelectedIds(list.map(x => x.id))
+    }
+
+    async function handleSync() {
+        if (!selectedBot) return
+        setSyncing(true)
+        setError(null)
+        setSuccessMsg(null)
+        try {
+            const res = await fetch(`/api/crm/extract/sync?botId=${selectedBot}`, { method: 'POST' })
+            const data = await res.json()
+            if (!res.ok) { setError(data.error || 'Error al sincronizar'); return }
+            setSuccessMsg(`Sincronización completa: ${data.totalMappings} contactos mapeados (${data.newlyResolved} nuevos)`)
+            // Reload current tab
+            if (tab === 'groups') loadGroups()
+            else if (tab === 'labels') loadLabels()
+        } catch { setError('Error de conexión') }
+        setSyncing(false)
     }
 
     async function handleExport() {
@@ -212,6 +230,26 @@ export default function CrmExtractPage() {
 
             {selectedBot && isConnected && (
                 <>
+                    {/* Deep sync button */}
+                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 mb-5 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                            <RefreshCw size={16} className={`text-amber-400 ${syncing ? 'animate-spin' : ''}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-white">¿Primera vez? Sincronizá tus contactos</p>
+                            <p className="text-[10px] text-white/50 mt-0.5 leading-relaxed">
+                                Fuerza a WhatsApp a enviarnos tus contactos y grupos. Aumenta la cantidad de teléfonos resueltos.
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="px-4 py-2.5 rounded-xl text-[11px] font-black uppercase bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 whitespace-nowrap"
+                        >
+                            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                        </button>
+                    </div>
+
                     {/* Tabs */}
                     <div className="flex gap-2 mb-5">
                         <TabButton active={tab === 'groups'} onClick={() => setTab('groups')} icon={<UsersRound size={14} />} label="Grupos" />
