@@ -6,7 +6,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    width: 340px;
+    width: 360px;
     background: #06060A;
     color: white;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -33,6 +33,21 @@
   }
   .title { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
   .subtitle { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+
+  .back-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 6px;
+  }
+  .back-btn:hover { color: #FFD700; background: rgba(255,255,255,0.05); }
 
   .status {
     font-size: 11px;
@@ -80,8 +95,134 @@
     flex-shrink: 0;
   }
   .btn-text { flex: 1; }
-  .btn-title { display: block; }
+  .btn-title { display: block; font-size: 12px; }
   .btn-desc { display: block; font-size: 10px; color: rgba(255,255,255,0.4); font-weight: 500; margin-top: 1px; }
+
+  .btn-primary {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #B45309, #D97706, #FFD700);
+    border: none;
+    color: black;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* View system */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Selection list */
+  .list-header {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .select-all {
+    background: transparent;
+    border: none;
+    color: #FFD700;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .select-all:hover { background: rgba(255,215,0,0.1); }
+
+  .list {
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 4px;
+  }
+  .list::-webkit-scrollbar { width: 6px; }
+  .list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.1s;
+  }
+  .item:hover { background: rgba(255,255,255,0.04); }
+  .item.selected { background: rgba(217,119,6,0.1); }
+  .checkbox {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.1s;
+  }
+  .item.selected .checkbox {
+    background: #FFD700;
+    border-color: #FFD700;
+  }
+  .checkbox svg { display: none; }
+  .item.selected .checkbox svg { display: block; }
+  .item-name { flex: 1; font-weight: 600; color: rgba(255,255,255,0.85); }
+
+  .empty { text-align: center; padding: 20px; color: rgba(255,255,255,0.3); font-size: 11px; }
+
+  /* Options */
+  .options {
+    margin-bottom: 12px;
+    padding: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+  }
+  .options-title {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 8px;
+  }
+  .radio-group { display: flex; gap: 6px; }
+  .radio {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .radio:hover { color: white; border-color: rgba(255,255,255,0.2); }
+  .radio.active {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: rgba(217, 119, 6, 0.5);
+    color: #FFD700;
+  }
 
   .log {
     margin-top: 12px;
@@ -102,6 +243,25 @@
   .log-entry.success { color: #22c55e; }
   .log-entry.error { color: #ef4444; }
 
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: rgba(255,255,255,0.5);
+    font-size: 11px;
+  }
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: #FFD700;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .footer {
     margin-top: 12px;
     padding-top: 10px;
@@ -115,10 +275,11 @@
 <body>
   <div class="header">
     <div class="logo">N</div>
-    <div>
-      <div class="title">Nexor WhatsApp Exporter</div>
-      <div class="subtitle">Exportar contactos a Excel</div>
+    <div style="flex:1">
+      <div class="title" id="viewTitle">Nexor WhatsApp Exporter</div>
+      <div class="subtitle" id="viewSubtitle">Exportar contactos a Excel</div>
     </div>
+    <button id="backBtn" class="back-btn" style="display:none">← Atrás</button>
   </div>
 
   <div id="status" class="status err">
@@ -126,33 +287,75 @@
     <span id="statusText">Verificando...</span>
   </div>
 
-  <button id="btnGroups" class="btn" disabled>
-    <div class="btn-icon">👥</div>
-    <div class="btn-text">
-      <span class="btn-title">Exportar grupos</span>
-      <span class="btn-desc">Lista todos los grupos y sus miembros</span>
-    </div>
-  </button>
+  <!-- VIEW: Main menu -->
+  <div id="viewMain" class="view active">
+    <button id="btnGroups" class="btn" disabled>
+      <div class="btn-icon">👥</div>
+      <div class="btn-text">
+        <span class="btn-title">Exportar grupos</span>
+        <span class="btn-desc">Elegí qué grupos exportar</span>
+      </div>
+    </button>
 
-  <button id="btnLabels" class="btn" disabled>
-    <div class="btn-icon">🏷️</div>
-    <div class="btn-text">
-      <span class="btn-title">Exportar etiquetas</span>
-      <span class="btn-desc">Contactos agrupados por etiqueta</span>
-    </div>
-  </button>
+    <button id="btnLabels" class="btn" disabled>
+      <div class="btn-icon">🏷️</div>
+      <div class="btn-text">
+        <span class="btn-title">Exportar etiquetas</span>
+        <span class="btn-desc">Elegí qué etiquetas exportar</span>
+      </div>
+    </button>
 
-  <button id="btnAll" class="btn" disabled>
-    <div class="btn-icon">💬</div>
-    <div class="btn-text">
-      <span class="btn-title">Exportar todos los chats</span>
-      <span class="btn-desc">Todos los contactos del listado</span>
+    <button id="btnAll" class="btn" disabled>
+      <div class="btn-icon">💬</div>
+      <div class="btn-text">
+        <span class="btn-title">Exportar todos los chats</span>
+        <span class="btn-desc">Todos los contactos del listado</span>
+      </div>
+    </button>
+  </div>
+
+  <!-- VIEW: Selection (groups or labels) -->
+  <div id="viewSelect" class="view">
+    <div id="loadingList" class="loading">
+      <div class="spinner"></div>
+      <span>Cargando...</span>
     </div>
-  </button>
+
+    <div id="listContent" style="display:none">
+      <div class="list-header">
+        <span id="listLabel">Seleccioná los grupos</span>
+        <button id="selectAll" class="select-all">Seleccionar todos</button>
+      </div>
+
+      <div id="itemsList" class="list"></div>
+
+      <div class="options">
+        <div class="options-title">¿Qué exportar?</div>
+        <div class="radio-group">
+          <button class="radio active" data-mode="phone">Solo teléfono</button>
+          <button class="radio" data-mode="phone_name">Teléfono + nombre</button>
+        </div>
+      </div>
+
+      <button id="btnExport" class="btn-primary" disabled>Exportar seleccionados</button>
+    </div>
+  </div>
+
+  <!-- VIEW: All chats options -->
+  <div id="viewAll" class="view">
+    <div class="options">
+      <div class="options-title">¿Qué exportar?</div>
+      <div class="radio-group">
+        <button class="radio active" data-mode-all="phone">Solo teléfono</button>
+        <button class="radio" data-mode-all="phone_name">Teléfono + nombre</button>
+      </div>
+    </div>
+    <button id="btnExportAll" class="btn-primary">Exportar todos los chats</button>
+  </div>
 
   <div id="log" class="log"></div>
 
-  <div class="footer">Nexor CRM · v1.0.0</div>
+  <div class="footer">Nexor CRM · v1.1.0</div>
 
   <script src="popup.js"></script>
 </body>
