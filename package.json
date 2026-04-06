@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
+    "@sparticuz/chromium": "^143.0.4",
     "@supabase/supabase-js": "^2.45.0",
     "@types/nodemailer": "^7.0.10",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",

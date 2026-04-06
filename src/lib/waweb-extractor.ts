@@ -9,6 +9,7 @@ import { Client, LocalAuth } from 'whatsapp-web.js'
 import { toDataURL } from 'qrcode'
 import path from 'path'
 import fs from 'fs'
+import chromium from '@sparticuz/chromium'
 
 export interface WaWebSession {
     id: string
@@ -48,24 +49,28 @@ export async function createSession(userId: string): Promise<WaWebSession> {
 
     const sessionPath = path.join(SESSIONS_DIR, userId)
 
+    // Detect if running in serverless/container (Render, Vercel, Lambda)
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.RENDER
+    let executablePath: string | undefined
+
+    if (isProduction) {
+        try {
+            executablePath = await chromium.executablePath()
+            console.log(`[WAWEB] Using @sparticuz/chromium: ${executablePath}`)
+        } catch (err) {
+            console.log('[WAWEB] @sparticuz/chromium not available, using default Puppeteer')
+        }
+    }
+
     const client = new Client({
         authStrategy: new LocalAuth({ dataPath: sessionPath }),
         puppeteer: {
-            headless: true,
-            // Puppeteer downloads its own Chromium — no system install needed
-            args: [
+            headless: isProduction ? (chromium.headless as any) : true,
+            executablePath,
+            args: isProduction ? chromium.args : [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--single-process',
-                '--no-zygote',
-                '--disable-extensions',
-                '--disable-background-networking',
-                '--disable-translate',
-                '--disable-sync',
-                '--metrics-recording-only',
-                '--no-first-run',
             ],
         },
     })
