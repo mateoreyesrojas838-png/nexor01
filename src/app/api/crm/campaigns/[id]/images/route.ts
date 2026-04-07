@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic'
+// Allow large file uploads (default Next.js limit is ~4.5 MB)
+export const maxDuration = 300 // 5 min timeout for large files
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -17,8 +19,8 @@ const ALLOWED_TYPES: Record<string, string> = {
     'video/3gpp': 'VIDEO',
 }
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024   // 5 MB
-const MAX_VIDEO_SIZE = 64 * 1024 * 1024  // 64 MB
+// Sin límite de tamaño — el usuario decide qué subir
+const MAX_FILE_SIZE = 500 * 1024 * 1024  // 500 MB (tope de seguridad)
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
     const user = await getAuthUser()
@@ -39,13 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         return NextResponse.json({ error: 'Solo se permiten imágenes (JPG, PNG, WEBP, GIF) o videos (MP4, MOV, WEBM, 3GP)' }, { status: 400 })
     }
 
-    const maxSize = mediaType === 'VIDEO' ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE
-    if (file.size > maxSize) {
-        return NextResponse.json({
-            error: mediaType === 'VIDEO'
-                ? 'El video no puede superar 64 MB'
-                : 'La imagen no puede superar 5 MB',
-        }, { status: 400 })
+    if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: 'El archivo no puede superar 500 MB' }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

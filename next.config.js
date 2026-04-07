@@ -21,6 +21,10 @@ const nextConfig = {
             'noise-handshake',
             'libsignal',
             'get-port',
+            'whatsapp-web.js',
+            'puppeteer',
+            'puppeteer-core',
+            '@sparticuz/chromium',
         ],
     },
 
