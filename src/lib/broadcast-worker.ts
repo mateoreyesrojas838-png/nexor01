@@ -9,7 +9,7 @@ import { decrypt } from '@/lib/crypto'
 
 const OPENAI_BASE = 'https://api.openai.com/v1'
 
-async function generateUniqueMessage(prompt: string, contactName: string, apiKey: string): Promise<string> {
+async function generateUniqueMessage(prompt: string, _unused: string, apiKey: string): Promise<string> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 15000)
     try {
@@ -25,16 +25,17 @@ async function generateUniqueMessage(prompt: string, contactName: string, apiKey
                         content: `Eres un experto en ventas por WhatsApp Bolivia. Genera mensajes cortos, cálidos y únicos.
 REGLAS:
 - Máximo 3 oraciones
-- Si hay nombre de contacto úsalo al inicio
+- NUNCA uses el nombre del contacto, NO personalices con nombres
 - Tono boliviano, cercano y directo
 - Incluir emojis estratégicamente
 - NUNCA generar el mismo mensaje dos veces
-- El mensaje debe ser completamente único y diferente cada vez`,
+- El mensaje debe ser completamente único y diferente cada vez
+- El mensaje debe ser genérico, sin dirigirse a nadie por nombre`,
                     },
                     {
                         role: 'user',
-                        content: `Genera un mensaje de WhatsApp único y personalizado basado en este tema: "${prompt}".
-${contactName ? `El contacto se llama: ${contactName}.` : ''}
+                        content: `Genera un mensaje de WhatsApp único basado en este tema: "${prompt}".
+No uses nombres propios. El mensaje debe ser genérico.
 Genera solo el mensaje, sin comillas, sin explicaciones.`,
                     },
                 ],
@@ -121,7 +122,7 @@ export async function executeBroadcast(campaignId: string) {
 
         try {
             // Generate unique AI message
-            const message = await generateUniqueMessage(campaign.prompt, contact.name || '', openaiKey)
+            const message = await generateUniqueMessage(campaign.prompt, '', openaiKey)
 
             // Get rotating image
             const imageUrl = images.length > 0 ? images[imageIndex % images.length]?.url : null
