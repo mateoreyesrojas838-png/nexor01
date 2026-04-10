@@ -118,7 +118,7 @@ function ResetForm() {
                     <input
                       type={showPassword ? 'text' : 'password'}
                       className={`${inputCls} pr-10`}
-                      placeholder="Min. 8 caracteres"
+                      placeholder="Ingresa tu nueva contraseña"
                       value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
                       required

@@ -43,12 +43,6 @@ function RegisterForm() {
     if (!form.fullName || !form.email || !form.password || !form.confirmPassword) {
       setError('Completa todos los campos'); return
     }
-    if (form.password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres'); return
-    }
-    if (!/(?=.*[A-Z])(?=.*[0-9])/.test(form.password)) {
-      setError('La contraseña debe tener una mayúscula y un número'); return
-    }
     if (form.password !== form.confirmPassword) {
       setError('Las contraseñas no coinciden'); return
     }
@@ -208,7 +202,7 @@ function RegisterForm() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   className={`${inputCls} pr-11`}
-                  placeholder="Mín. 8 chars, 1 mayúscula, 1 número"
+                  placeholder="Ingresa tu contraseña"
                   value={form.password}
                   onChange={e => update('password', e.target.value)}
                   autoComplete="new-password"
@@ -218,13 +212,6 @@ function RegisterForm() {
                   {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
-              {form.password && (
-                <div className="flex gap-3 mt-1.5">
-                  <span className={`text-[10px] font-bold ${form.password.length >= 8 ? 'text-green-400' : 'text-white/20'}`}>8+ chars</span>
-                  <span className={`text-[10px] font-bold ${/[A-Z]/.test(form.password) ? 'text-green-400' : 'text-white/20'}`}>Mayúscula</span>
-                  <span className={`text-[10px] font-bold ${/[0-9]/.test(form.password) ? 'text-green-400' : 'text-white/20'}`}>Número</span>
-                </div>
-              )}
             </div>
 
             {/* Confirmar contraseña */}

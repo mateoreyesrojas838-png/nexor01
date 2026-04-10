@@ -15,10 +15,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Las contrasenas no coinciden' }, { status: 400 })
     }
 
-    if (password.length < 8) {
-      return NextResponse.json({ error: 'La contrasena debe tener al menos 8 caracteres' }, { status: 400 })
-    }
-
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { token },
       include: { user: true }

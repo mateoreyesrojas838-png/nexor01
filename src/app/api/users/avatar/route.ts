@@ -23,15 +23,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error leyendo el archivo' }, { status: 400 })
   }
 
-  // 3. Validar tipo y tamaño
+  // 3. Validar tipo
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
   if (!allowedTypes.includes(file.type)) {
     return NextResponse.json({ error: 'Formato no permitido. Usa JPG, PNG o WebP' }, { status: 400 })
   }
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: 'Imagen demasiado grande. Máximo 5MB' }, { status: 400 })
-  }
-
   // 4. Subir a Supabase Storage
   const bytes = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)

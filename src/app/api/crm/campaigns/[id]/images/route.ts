@@ -19,8 +19,6 @@ const ALLOWED_TYPES: Record<string, string> = {
     'video/3gpp': 'VIDEO',
 }
 
-// Sin límite de tamaño — el usuario decide qué subir
-const MAX_FILE_SIZE = 500 * 1024 * 1024  // 500 MB (tope de seguridad)
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
     const user = await getAuthUser()
@@ -39,10 +37,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const mediaType = ALLOWED_TYPES[file.type]
     if (!mediaType) {
         return NextResponse.json({ error: 'Solo se permiten imágenes (JPG, PNG, WEBP, GIF) o videos (MP4, MOV, WEBM, 3GP)' }, { status: 400 })
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json({ error: 'El archivo no puede superar 500 MB' }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
