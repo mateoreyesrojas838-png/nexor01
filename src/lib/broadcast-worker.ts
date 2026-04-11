@@ -6,6 +6,7 @@
 import { prisma } from '@/lib/prisma'
 import { BaileysManager } from '@/lib/baileys-manager'
 import { decrypt } from '@/lib/crypto'
+import { getGlobalOpenAIKey } from '@/lib/ai-credits'
 
 const OPENAI_BASE = 'https://api.openai.com/v1'
 
@@ -76,29 +77,35 @@ export async function executeBroadcast(campaignId: string) {
         data: { status: 'RUNNING', startedAt: new Date() },
     })
 
-    // Get bot + secret
-    const bot = await prisma.bot.findUnique({
-        where: { id: campaign.botId },
-        include: { secret: true },
-    })
-    const botSecret = bot?.secret
-    if (!botSecret?.openaiApiKeyEnc) {
+    // OpenAI key: config del usuario → key global del admin
+    let openaiKey = ''
+    const oaiConfig = await (prisma as any).openAIConfig.findUnique({ where: { userId: campaign.userId } })
+    if (oaiConfig?.isValid && oaiConfig.apiKeyEnc) {
+        try { openaiKey = decrypt(oaiConfig.apiKeyEnc) } catch {}
+    }
+    if (!openaiKey) {
+        openaiKey = (await getGlobalOpenAIKey()) ?? ''
+    }
+    if (!openaiKey) {
         await (prisma as any).broadcastCampaign.update({ where: { id: campaignId }, data: { status: 'FAILED' } })
+        console.error(`[BROADCAST] No hay OpenAI API Key para campaña ${campaignId}`)
         return
     }
-    const openaiKey = decrypt(botSecret.openaiApiKeyEnc)
 
-    // Auto-reconnect if session exists on disk but not in memory
+    // Get bot name for reconnect
+    const bot = await prisma.bot.findUnique({ where: { id: campaign.botId }, select: { name: true } })
+
+    // Auto-reconnect si hay sesión en disco pero no en memoria
     const currentStatus = BaileysManager.getStatus(campaign.botId)
-    if (currentStatus.status !== 'connected' && bot && botSecret.reportPhone) {
-        await BaileysManager.connect(campaign.botId, bot.name, openaiKey, botSecret.reportPhone)
-        // Wait up to 20s for connection
+    if (currentStatus.status !== 'connected' && bot) {
+        await BaileysManager.connect(campaign.botId, bot.name, openaiKey, '')
+        // Esperar hasta 20s para conectar
         for (let i = 0; i < 20; i++) {
             await new Promise(r => setTimeout(r, 1000))
             if (BaileysManager.getStatus(campaign.botId).status === 'connected') break
         }
     }
-    // If still not connected after reconnect attempt, fail the campaign
+    // Si sigue desconectado, fallar campaña
     if (BaileysManager.getStatus(campaign.botId).status !== 'connected') {
         await (prisma as any).broadcastCampaign.update({
             where: { id: campaignId },

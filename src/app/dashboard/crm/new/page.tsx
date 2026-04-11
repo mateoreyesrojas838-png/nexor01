@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
-    Bot, Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
+    Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
     Pencil, Trash2, Plus, Phone, FileText, ChevronDown
 } from 'lucide-react'
 
@@ -27,11 +27,8 @@ export default function NewCrmCampaignPage() {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const excelInputRef = useRef<HTMLInputElement>(null)
 
-    const [bots, setBots] = useState<any[]>([])
-    const [botStatuses, setBotStatuses] = useState<Record<string, string>>({})
     const [form, setForm] = useState({
         name: '',
-        botId: '',
         prompt: '',
         delayValue: '30',
         delayUnit: 'seconds',
@@ -64,7 +61,7 @@ export default function NewCrmCampaignPage() {
     const [uploadingImg, setUploadingImg] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => { fetchBots(); fetchTemplates() }, [])
+    useEffect(() => { fetchTemplates() }, [])
 
     async function fetchTemplates() {
         try {
@@ -79,25 +76,6 @@ export default function NewCrmCampaignPage() {
         setShowTemplates(false)
         // Track usage
         fetch(`/api/crm/templates/${t.id}/use`, { method: 'POST' }).catch(() => {})
-    }
-
-    async function fetchBots() {
-        const res = await fetch('/api/bots')
-        const data = await res.json()
-        const baileysBots = (data.bots || []).filter((b: any) => b.type === 'BAILEYS')
-        setBots(baileysBots)
-        if (baileysBots.length === 1) setForm(f => ({ ...f, botId: baileysBots[0].id }))
-        const statuses: Record<string, string> = {}
-        await Promise.all(baileysBots.map(async (b: any) => {
-            try {
-                const sr = await fetch(`/api/bots/${b.id}/baileys/status`)
-                const sd = await sr.json()
-                statuses[b.id] = sd.status || 'disconnected'
-            } catch {
-                statuses[b.id] = 'disconnected'
-            }
-        }))
-        setBotStatuses(statuses)
     }
 
     function isVideoFile(file: File): boolean {
@@ -196,7 +174,6 @@ export default function NewCrmCampaignPage() {
         e.preventDefault()
         setError(null)
 
-        if (!form.botId) { setError('Selecciona un bot de WhatsApp'); return }
         if (mediaFiles.length === 0) { setError('Agrega al menos 1 archivo (imagen o video)'); return }
         if (contacts.length === 0) { setError('Agrega contactos (desde Excel, etiquetas o manualmente)'); return }
 
@@ -302,43 +279,6 @@ export default function NewCrmCampaignPage() {
                     />
                 </div>
 
-                {/* Bot */}
-                <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
-                    <label className="block text-xs font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2">
-                        <Bot size={12} /> Bot de WhatsApp (solo Baileys)
-                    </label>
-                    {bots.length === 0 ? (
-                        <p className="text-sm text-red-400">No tenés bots Baileys conectados. <Link href="/dashboard/services/whatsapp" className="underline">Crear uno →</Link></p>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {bots.map(b => (
-                                <button
-                                    key={b.id}
-                                    type="button"
-                                    onClick={() => setForm(f => ({ ...f, botId: b.id }))}
-                                    className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${form.botId === b.id ? 'border-amber-500/60 bg-amber-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}
-                                >
-                                    <div className={`w-2 h-2 rounded-full shrink-0 ${
-                                        botStatuses[b.id] === 'connected' ? 'bg-green-400' :
-                                        botStatuses[b.id] === 'connecting' || botStatuses[b.id] === 'qr_ready' ? 'bg-amber-400 animate-pulse' :
-                                        'bg-red-400'
-                                    }`} />
-                                    <div>
-                                        <p className="text-sm font-bold text-white">{b.name}</p>
-                                        <p className="text-[10px] text-white/30">
-                                            {botStatuses[b.id] === 'connected'
-                                                ? (b.baileysPhone || 'Conectado')
-                                                : botStatuses[b.id] === 'connecting' || botStatuses[b.id] === 'qr_ready'
-                                                ? 'Conectando...'
-                                                : 'Desconectado'}
-                                        </p>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
                 {/* Prompt */}
                 <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-1">
@@ -438,7 +378,7 @@ export default function NewCrmCampaignPage() {
                         </button>
                     </div>
                     <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={e => handleMediaSelect(e.target.files)} />
-                    <p className="text-[10px] text-white/20 mt-2">Imágenes: JPG, PNG, WEBP, GIF (máx 5 MB) · Videos: MP4, MOV, WEBM (máx 64 MB)</p>
+                    <p className="text-[10px] text-white/20 mt-2">Imágenes: JPG, PNG, WEBP, GIF · Videos: MP4, MOV, WEBM</p>
                 </div>
 
                 {/* Delay */}
@@ -617,7 +557,7 @@ export default function NewCrmCampaignPage() {
                 {/* Submit */}
                 <button
                     type="submit"
-                    disabled={loading || bots.length === 0}
+                    disabled={loading}
                     className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-black uppercase tracking-widest text-white transition-all disabled:opacity-50"
                     style={{ background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)' }}
                 >

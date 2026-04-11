@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
     ArrowLeft, Play, Pause, Users, CheckCircle2, XCircle,
-    Clock, Loader2, AlertCircle, MessageSquare, RefreshCw,
-    Image as ImageIcon, Calendar, Bot, Trash2, Film
+    Clock, Loader2, AlertCircle, RefreshCw,
+    Image as ImageIcon, Calendar, Smartphone, Wifi, WifiOff, Film
 } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -34,13 +34,50 @@ export default function CrmCampaignDetailPage() {
     const [error, setError] = useState<string | null>(null)
     const [actionLoading, setActionLoading] = useState(false)
 
-    useEffect(() => { fetchCampaign() }, [id])
+    // WhatsApp QR state
+    const [waStatus, setWaStatus] = useState<{ status: string; qrBase64?: string; phone?: string }>({ status: 'disconnected' })
+    const [waConnecting, setWaConnecting] = useState(false)
+
+    useEffect(() => { fetchCampaign(); fetchWaStatus() }, [id])
 
     useEffect(() => {
         if (campaign?.status !== 'RUNNING') return
         const interval = setInterval(fetchCampaign, 4000)
         return () => clearInterval(interval)
     }, [campaign?.status])
+
+    // Polling QR: solo cuando está conectando o esperando escaneo
+    useEffect(() => {
+        if (waStatus.status === 'connected' || waStatus.status === 'disconnected') return
+        const interval = setInterval(fetchWaStatus, 2000)
+        return () => clearInterval(interval)
+    }, [waStatus.status])
+
+    async function fetchWaStatus() {
+        try {
+            const res = await fetch(`/api/crm/campaigns/${id}/connect`)
+            if (res.ok) {
+                const data = await res.json()
+                setWaStatus(data)
+            }
+        } catch {}
+    }
+
+    async function connectWhatsApp() {
+        setWaConnecting(true)
+        setError(null)
+        try {
+            const res = await fetch(`/api/crm/campaigns/${id}/connect`, { method: 'POST' })
+            if (res.ok) {
+                setWaStatus({ status: 'connecting' })
+                // el polling del useEffect tomará el relevo
+            }
+        } catch {
+            setError('Error al iniciar conexión')
+        } finally {
+            setWaConnecting(false)
+        }
+    }
 
     async function fetchCampaign() {
         try {
@@ -98,7 +135,9 @@ export default function CrmCampaignDetailPage() {
                             {campaign.status === 'RUNNING' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse mr-1.5" />}
                             {STATUS_LABELS[campaign.status]}
                         </span>
-                        <span className="text-xs text-white/20">· {campaign.bot?.name}</span>
+                        <span className={`text-xs font-bold ${waStatus.status === 'connected' ? 'text-green-400' : 'text-white/20'}`}>
+                            · WA {waStatus.status === 'connected' ? '✓' : waStatus.status === 'connecting' || waStatus.status === 'qr_ready' ? 'conectando...' : 'desconectado'}
+                        </span>
                     </div>
                 </div>
                 <button onClick={fetchCampaign} className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all">
@@ -197,6 +236,53 @@ export default function CrmCampaignDetailPage() {
                 {/* Right col */}
                 <div className="space-y-5">
 
+                    {/* WhatsApp QR */}
+                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5 space-y-3">
+                        <p className="text-xs font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
+                            <Smartphone size={12} /> WhatsApp
+                        </p>
+
+                        {waStatus.status === 'connected' ? (
+                            <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                                <Wifi size={14} className="text-green-400 shrink-0" />
+                                <div>
+                                    <p className="text-xs font-bold text-green-400">Conectado</p>
+                                    {waStatus.phone && <p className="text-[10px] text-white/30">{waStatus.phone}</p>}
+                                </div>
+                            </div>
+                        ) : waStatus.status === 'qr_ready' && waStatus.qrBase64 ? (
+                            <div className="flex flex-col items-center gap-2">
+                                <p className="text-[11px] text-white/40 text-center">Escanea con WhatsApp</p>
+                                <div className="bg-white p-2 rounded-xl">
+                                    <img src={waStatus.qrBase64} alt="QR WhatsApp" className="w-40 h-40" />
+                                </div>
+                                <p className="text-[10px] text-white/25 text-center">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
+                            </div>
+                        ) : waStatus.status === 'connecting' ? (
+                            <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                <Loader2 size={14} className="text-amber-400 animate-spin shrink-0" />
+                                <p className="text-xs text-amber-400">Generando QR...</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                                    <WifiOff size={14} className="text-white/30 shrink-0" />
+                                    <p className="text-xs text-white/40">Sin conectar</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={connectWhatsApp}
+                                    disabled={waConnecting}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #065f46, #059669)' }}
+                                >
+                                    {waConnecting ? <Loader2 size={12} className="animate-spin" /> : <Smartphone size={12} />}
+                                    Conectar WhatsApp
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Actions */}
                     <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5 space-y-3">
                         <p className="text-xs font-black uppercase tracking-widest text-white/30">Acciones</p>
@@ -239,10 +325,6 @@ export default function CrmCampaignDetailPage() {
                                     </span>
                                 </div>
                             )}
-                            <div className="flex justify-between">
-                                <span className="text-white/40 flex items-center gap-1.5"><Bot size={12} /> Bot</span>
-                                <span className="font-bold text-xs truncate max-w-[120px]">{campaign.bot?.name}</span>
-                            </div>
                         </div>
                     </div>
 
