@@ -41,6 +41,7 @@ export default function CrmCampaignDetailPage() {
     const [assigningBot, setAssigningBot] = useState(false)
     const [botAiActive, setBotAiActive] = useState<boolean | null>(null)
     const [togglingAi, setTogglingAi] = useState(false)
+    const [activeBotId, setActiveBotId] = useState<string | null>(null)
 
     useEffect(() => { fetchCampaign(); fetchWaStatus(); fetchAvailableBots() }, [id])
 
@@ -79,6 +80,7 @@ export default function CrmCampaignDetailPage() {
             if (res.ok) {
                 const data = await res.json()
                 setWaStatus({ status: data.status, phone: data.phone, qrBase64: data.qrBase64 })
+                setActiveBotId(botId)
                 // Cargar estado del bot recién asignado
                 const botRes = await fetch(`/api/bots/${botId}`)
                 if (botRes.ok) {
@@ -128,17 +130,19 @@ export default function CrmCampaignDetailPage() {
             setCampaign(data.campaign)
             if (data.campaign?.bot?.status) {
                 setBotAiActive(data.campaign.bot.status === 'ACTIVE')
+                setActiveBotId(data.campaign.bot.id)
             }
         } catch { setError('Error al cargar') }
         finally { setLoading(false) }
     }
 
     async function toggleAiResponse() {
-        if (!campaign?.bot?.id || togglingAi) return
+        const botId = activeBotId || campaign?.bot?.id
+        if (!botId || togglingAi) return
         setTogglingAi(true)
         const newActive = !botAiActive
         try {
-            const res = await fetch(`/api/bots/${campaign.bot.id}`, {
+            const res = await fetch(`/api/bots/${botId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newActive ? 'ACTIVE' : 'PAUSED' }),
@@ -323,7 +327,7 @@ export default function CrmCampaignDetailPage() {
                                         type="button"
                                         onClick={toggleAiResponse}
                                         disabled={togglingAi}
-                                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 transition-all disabled:opacity-50"
+                                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
                                     >
                                         <div className="flex items-center gap-2">
                                             {togglingAi
