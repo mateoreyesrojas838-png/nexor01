@@ -39,6 +39,8 @@ export default function CrmCampaignDetailPage() {
     const [waConnecting, setWaConnecting] = useState(false)
     const [availableBots, setAvailableBots] = useState<{ id: string; name: string; baileysPhone: string | null }[]>([])
     const [assigningBot, setAssigningBot] = useState(false)
+    const [botAiActive, setBotAiActive] = useState<boolean | null>(null)
+    const [togglingAi, setTogglingAi] = useState(false)
 
     useEffect(() => { fetchCampaign(); fetchWaStatus(); fetchAvailableBots() }, [id])
 
@@ -77,6 +79,13 @@ export default function CrmCampaignDetailPage() {
             if (res.ok) {
                 const data = await res.json()
                 setWaStatus({ status: data.status, phone: data.phone, qrBase64: data.qrBase64 })
+                // Cargar estado del bot recién asignado
+                const botRes = await fetch(`/api/bots/${botId}`)
+                if (botRes.ok) {
+                    const botData = await botRes.json()
+                    setBotAiActive(botData.bot?.status === 'ACTIVE')
+                }
+                fetchCampaign()
             }
         } catch {
             setError('Error al asignar bot')
@@ -117,8 +126,29 @@ export default function CrmCampaignDetailPage() {
             const data = await res.json()
             if (!res.ok) { router.push('/dashboard/crm'); return }
             setCampaign(data.campaign)
+            if (data.campaign?.bot?.status) {
+                setBotAiActive(data.campaign.bot.status === 'ACTIVE')
+            }
         } catch { setError('Error al cargar') }
         finally { setLoading(false) }
+    }
+
+    async function toggleAiResponse() {
+        if (!campaign?.bot?.id || togglingAi) return
+        setTogglingAi(true)
+        const newActive = !botAiActive
+        try {
+            const res = await fetch(`/api/bots/${campaign.bot.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newActive ? 'ACTIVE' : 'PAUSED' }),
+            })
+            if (res.ok) setBotAiActive(newActive)
+        } catch {
+            setError('Error al cambiar estado del agente')
+        } finally {
+            setTogglingAi(false)
+        }
     }
 
     async function execute() {
@@ -279,12 +309,37 @@ export default function CrmCampaignDetailPage() {
                         </p>
 
                         {waStatus.status === 'connected' ? (
-                            <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-                                <Wifi size={14} className="text-green-400 shrink-0" />
-                                <div>
-                                    <p className="text-xs font-bold text-green-400">Conectado</p>
-                                    {waStatus.phone && <p className="text-[11px] text-white/60 mt-0.5">📱 +{waStatus.phone}</p>}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                                    <Wifi size={14} className="text-green-400 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-green-400">Conectado</p>
+                                        {waStatus.phone && <p className="text-[11px] text-white/60 mt-0.5">📱 +{waStatus.phone}</p>}
+                                    </div>
                                 </div>
+                                {/* Toggle respuestas IA */}
+                                {botAiActive !== null && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleAiResponse}
+                                        disabled={togglingAi}
+                                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 transition-all disabled:opacity-50"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {togglingAi
+                                                ? <Loader2 size={13} className="animate-spin text-white/40" />
+                                                : <span className="text-sm">{botAiActive ? '🤖' : '🔕'}</span>
+                                            }
+                                            <div className="text-left">
+                                                <p className="text-xs font-bold text-white/80">Respuesta automática</p>
+                                                <p className="text-[10px] text-white/35">{botAiActive ? 'Agente responde mensajes' : 'Solo envío, sin respuestas'}</p>
+                                            </div>
+                                        </div>
+                                        <div className={`w-9 h-5 rounded-full transition-all relative ${botAiActive ? 'bg-amber-500' : 'bg-white/15'}`}>
+                                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${botAiActive ? 'left-4' : 'left-0.5'}`} />
+                                        </div>
+                                    </button>
+                                )}
                             </div>
                         ) : waStatus.status === 'qr_ready' && waStatus.qrBase64 ? (
                             <div className="flex flex-col items-center gap-2">
