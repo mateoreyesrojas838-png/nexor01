@@ -136,7 +136,11 @@ export default function CrmCampaignDetailPage() {
                             {STATUS_LABELS[campaign.status]}
                         </span>
                         <span className={`text-xs font-bold ${waStatus.status === 'connected' ? 'text-green-400' : 'text-white/20'}`}>
-                            · WA {waStatus.status === 'connected' ? '✓' : waStatus.status === 'connecting' || waStatus.status === 'qr_ready' ? 'conectando...' : 'desconectado'}
+                            · WA {waStatus.status === 'connected'
+                                ? `✓${waStatus.phone ? ` +${waStatus.phone}` : ''}`
+                                : waStatus.status === 'connecting' || waStatus.status === 'qr_ready'
+                                    ? 'conectando...'
+                                    : 'desconectado'}
                         </span>
                     </div>
                 </div>
@@ -247,7 +251,7 @@ export default function CrmCampaignDetailPage() {
                                 <Wifi size={14} className="text-green-400 shrink-0" />
                                 <div>
                                     <p className="text-xs font-bold text-green-400">Conectado</p>
-                                    {waStatus.phone && <p className="text-[10px] text-white/30">{waStatus.phone}</p>}
+                                    {waStatus.phone && <p className="text-[11px] text-white/60 mt-0.5">📱 +{waStatus.phone}</p>}
                                 </div>
                             </div>
                         ) : waStatus.status === 'qr_ready' && waStatus.qrBase64 ? (
