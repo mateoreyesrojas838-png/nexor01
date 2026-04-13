@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
     Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
-    Pencil, Trash2, Plus, Phone, FileText, ChevronDown
+    Pencil, Trash2, Plus, Phone, FileText, ChevronDown, Mic
 } from 'lucide-react'
 
 interface ContactEntry {
@@ -25,6 +25,7 @@ interface CrmTemplate {
 export default function NewCrmCampaignPage() {
     const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const audioInputRef = useRef<HTMLInputElement>(null)
     const excelInputRef = useRef<HTMLInputElement>(null)
 
     const [form, setForm] = useState({
@@ -35,6 +36,7 @@ export default function NewCrmCampaignPage() {
         scheduledAt: '',
     })
     const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'IMAGE' | 'VIDEO' }[]>([])
+    const [audioFiles, setAudioFiles] = useState<{ file: File }[]>([])
 
     // Contacts
     const [contacts, setContacts] = useState<ContactEntry[]>([])
@@ -80,6 +82,16 @@ export default function NewCrmCampaignPage() {
 
     function isVideoFile(file: File): boolean {
         return file.type.startsWith('video/')
+    }
+
+    function handleAudioSelect(files: FileList | null) {
+        if (!files) return
+        const selected = Array.from(files).filter(f => f.type.startsWith('audio/'))
+        setAudioFiles(prev => [...prev, ...selected.map(file => ({ file }))])
+    }
+
+    function removeAudio(index: number) {
+        setAudioFiles(prev => prev.filter((_, i) => i !== index))
     }
 
     function handleMediaSelect(files: FileList | null) {
@@ -174,7 +186,7 @@ export default function NewCrmCampaignPage() {
         e.preventDefault()
         setError(null)
 
-        if (mediaFiles.length === 0) { setError('Agrega al menos 1 archivo (imagen o video)'); return }
+        if (mediaFiles.length === 0 && audioFiles.length === 0) { setError('Agrega al menos 1 archivo (imagen, video o audio)'); return }
         if (contacts.length === 0) { setError('Agrega contactos (desde Excel, etiquetas o manualmente)'); return }
 
         setLoading(true)
@@ -189,19 +201,23 @@ export default function NewCrmCampaignPage() {
             if (!res.ok) { setError(data.error); return }
             const campaignId = data.campaign.id
 
-            // 2. Upload media files
+            // 2. Upload media files (images/videos + audios)
             setUploadingImg(true)
             const failedFiles: string[] = []
-            for (const media of mediaFiles) {
+            const allFilesToUpload = [
+                ...mediaFiles.map(m => m.file),
+                ...audioFiles.map(a => a.file),
+            ]
+            for (const file of allFilesToUpload) {
                 const fd = new FormData()
-                fd.append('file', media.file)
+                fd.append('file', file)
                 const mediaRes = await fetch(`/api/crm/campaigns/${campaignId}/images`, {
                     method: 'POST',
                     body: fd,
                 })
                 if (!mediaRes.ok) {
                     const mediaData = await mediaRes.json()
-                    failedFiles.push(mediaData.error || media.file.name)
+                    failedFiles.push(mediaData.error || file.name)
                 }
             }
             setUploadingImg(false)
@@ -243,6 +259,7 @@ export default function NewCrmCampaignPage() {
 
     const imageCount = mediaFiles.filter(m => m.type === 'IMAGE').length
     const videoCount = mediaFiles.filter(m => m.type === 'VIDEO').length
+    const audioCount = audioFiles.length
 
     return (
         <div className="px-4 md:px-6 pt-6 max-w-2xl mx-auto pb-24 text-white">
@@ -297,7 +314,10 @@ export default function NewCrmCampaignPage() {
                             </button>
                         )}
                     </div>
-                    <p className="text-[11px] text-white/25 mb-3">La IA usará esto como base para generar un mensaje único para cada contacto</p>
+                    <p className="text-[11px] text-white/25 mb-3">
+                        La IA usará esto como base para generar un mensaje único para cada contacto.
+                        {audioCount > 0 && <span className="text-amber-400/70"> Si subís audios, no se envía texto — el prompt es opcional.</span>}
+                    </p>
 
                     {/* Template selector */}
                     {showTemplates && templates.length > 0 && (
@@ -324,7 +344,7 @@ export default function NewCrmCampaignPage() {
                         value={form.prompt}
                         onChange={e => setForm(f => ({ ...f, prompt: e.target.value }))}
                         placeholder="Ej: Promoción especial de fin de año, descuento del 30% en todos nuestros productos, solo por esta semana. Tono cálido y urgente."
-                        required
+                        required={audioCount === 0}
                         rows={4}
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 resize-none leading-relaxed"
                     />
@@ -379,6 +399,44 @@ export default function NewCrmCampaignPage() {
                     </div>
                     <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={e => handleMediaSelect(e.target.files)} />
                     <p className="text-[10px] text-white/20 mt-2">Imágenes: JPG, PNG, WEBP, GIF · Videos: MP4, MOV, WEBM</p>
+                </div>
+
+                {/* Audios */}
+                <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
+                    <label className="block text-xs font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-2">
+                        <Mic size={12} /> Audios — nota de voz ({audioCount})
+                    </label>
+                    <p className="text-[11px] text-white/25 mb-3">
+                        Los audios se envían como <span className="text-green-400/70">nota de voz</span> — aparecen igual que si el usuario los grabara en WhatsApp. Se rotan entre contactos. Si hay audios, <span className="text-amber-400/70">no se envía texto</span>.
+                    </p>
+
+                    <div className="flex gap-2 flex-wrap">
+                        {audioFiles.map((audio, i) => (
+                            <div key={i} className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 group">
+                                <Mic size={14} className="text-green-400 shrink-0" />
+                                <span className="text-[11px] text-white/70 max-w-[120px] truncate">{audio.file.name}</span>
+                                <span className="text-[9px] text-white/30">{(audio.file.size / 1024).toFixed(0)}KB</span>
+                                <button
+                                    type="button"
+                                    onClick={() => removeAudio(i)}
+                                    className="ml-1 text-white/30 hover:text-red-400 transition-all"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+
+                        <button
+                            type="button"
+                            onClick={() => audioInputRef.current?.click()}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-white/15 hover:border-green-500/40 text-white/30 hover:text-green-400 transition-all text-xs font-bold"
+                        >
+                            <Upload size={14} />
+                            Agregar audio
+                        </button>
+                    </div>
+                    <input ref={audioInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => handleAudioSelect(e.target.files)} />
+                    <p className="text-[10px] text-white/20 mt-2">Formatos: OGG, MP3, WAV, AAC, M4A · Hasta 20 audios</p>
                 </div>
 
                 {/* Delay */}

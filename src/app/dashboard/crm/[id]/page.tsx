@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
     ArrowLeft, Play, Pause, Users, CheckCircle2, XCircle,
     Clock, Loader2, AlertCircle, RefreshCw,
-    Image as ImageIcon, Calendar, Smartphone, Wifi, WifiOff, Film
+    Image as ImageIcon, Calendar, Smartphone, Wifi, WifiOff, Film, Mic
 } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -456,35 +456,65 @@ export default function CrmCampaignDetailPage() {
                     </div>
 
                     {/* Media files */}
-                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
-                        <p className="text-xs font-black uppercase tracking-widest text-white/30 mb-3 flex items-center gap-2">
-                            <ImageIcon size={12} /> Archivos multimedia ({campaign.images?.length})
-                        </p>
-                        {campaign.images?.length === 0 ? (
-                            <p className="text-xs text-white/30">Sin archivos</p>
-                        ) : (
-                            <div className="grid grid-cols-3 gap-2">
-                                {campaign.images?.map((img: any, i: number) => (
-                                    <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden border border-white/10">
-                                        {img.type === 'VIDEO' ? (
-                                            <div className="w-full h-full bg-purple-500/10 flex flex-col items-center justify-center">
-                                                <Film size={24} className="text-purple-400" />
-                                                <span className="text-[9px] text-purple-300 mt-1">Video</span>
-                                            </div>
-                                        ) : (
-                                            <img src={img.url} alt="" className="w-full h-full object-cover" />
-                                        )}
-                                        <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
-                                            {i + 1}
-                                        </span>
-                                        {img.type === 'VIDEO' && (
-                                            <span className="absolute top-1 right-1 bg-purple-500/80 text-white text-[8px] font-bold px-1 rounded">VID</span>
-                                        )}
+                    {(() => {
+                        const visualFiles = campaign.images?.filter((img: any) => img.type !== 'AUDIO') ?? []
+                        const audioFiles = campaign.images?.filter((img: any) => img.type === 'AUDIO') ?? []
+                        return (
+                            <>
+                                {visualFiles.length > 0 && (
+                                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
+                                        <p className="text-xs font-black uppercase tracking-widest text-white/30 mb-3 flex items-center gap-2">
+                                            <ImageIcon size={12} /> Multimedia ({visualFiles.length})
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {visualFiles.map((img: any, i: number) => (
+                                                <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden border border-white/10">
+                                                    {img.type === 'VIDEO' ? (
+                                                        <div className="w-full h-full bg-purple-500/10 flex flex-col items-center justify-center">
+                                                            <Film size={24} className="text-purple-400" />
+                                                            <span className="text-[9px] text-purple-300 mt-1">Video</span>
+                                                        </div>
+                                                    ) : (
+                                                        <img src={img.url} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-black px-1.5 py-0.5 rounded">{i + 1}</span>
+                                                    {img.type === 'VIDEO' && (
+                                                        <span className="absolute top-1 right-1 bg-purple-500/80 text-white text-[8px] font-bold px-1 rounded">VID</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                )}
+                                {audioFiles.length > 0 && (
+                                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
+                                        <p className="text-xs font-black uppercase tracking-widest text-white/30 mb-3 flex items-center gap-2">
+                                            <Mic size={12} /> Audios — nota de voz ({audioFiles.length})
+                                        </p>
+                                        <div className="space-y-2">
+                                            {audioFiles.map((audio: any, i: number) => (
+                                                <div key={audio.id} className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                                                    <Mic size={14} className="text-green-400 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs text-white/60 truncate">{audio.url.split('/').pop()}</p>
+                                                    </div>
+                                                    <span className="text-[10px] text-white/30 shrink-0">#{i + 1}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {visualFiles.length === 0 && audioFiles.length === 0 && (
+                                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
+                                        <p className="text-xs font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-2">
+                                            <ImageIcon size={12} /> Multimedia
+                                        </p>
+                                        <p className="text-xs text-white/30">Sin archivos</p>
+                                    </div>
+                                )}
+                            </>
+                        )
+                    })()}
 
                     {/* Logs recientes */}
                     {campaign.logs?.length > 0 && (

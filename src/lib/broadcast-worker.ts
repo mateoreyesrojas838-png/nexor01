@@ -112,8 +112,12 @@ export async function executeBroadcast(campaignId: string) {
         return
     }
 
-    const images: any[] = campaign.images || []
-    let imageIndex: number = campaign.imageIndex || 0
+    const allMedia: any[] = campaign.images || []
+    const audioFiles = allMedia.filter((m: any) => m.type === 'AUDIO')
+    const visualMedia = allMedia.filter((m: any) => m.type !== 'AUDIO')
+    const hasAudio = audioFiles.length > 0
+    const hasVisual = visualMedia.length > 0
+    let mediaIndex: number = campaign.imageIndex || 0
     const delayBetween = delayMs(campaign.delayValue, campaign.delayUnit)
 
     for (const contact of campaign.contacts) {
@@ -125,13 +129,6 @@ export async function executeBroadcast(campaignId: string) {
         if (fresh?.status === 'PAUSED' || fresh?.status === 'FAILED') break
 
         try {
-            // Generate unique AI message
-            const message = await generateUniqueMessage(campaign.prompt, '', openaiKey)
-
-            // Get rotating image
-            const imageUrl = images.length > 0 ? images[imageIndex % images.length]?.url : null
-            const nextImageIndex = images.length > 0 ? (imageIndex + 1) % images.length : 0
-
             // Send via Baileys
             const conn = BaileysManager.getStatus(campaign.botId)
             if (conn.status !== 'connected') {
@@ -146,19 +143,45 @@ export async function executeBroadcast(campaignId: string) {
                 continue
             }
 
-            // Send media first if available (image or video)
-            if (imageUrl) {
-                const mediaType = images[imageIndex % images.length]?.type || 'IMAGE'
-                if (mediaType === 'VIDEO') {
-                    await BaileysManager.sendVideo(campaign.botId, contact.phone, imageUrl).catch(() => {})
-                } else {
-                    await BaileysManager.sendImage(campaign.botId, contact.phone, imageUrl).catch(() => {})
-                }
-                await new Promise(r => setTimeout(r, 1500))
-            }
+            let sent = false
+            let logMessage = ''
+            let logImageUrl: string | null = null
+            const nextIndex = allMedia.length > 0 ? (mediaIndex + 1) % Math.max(audioFiles.length, visualMedia.length, 1) : 0
 
-            // Send text message
-            const sent = await BaileysManager.sendText(campaign.botId, contact.phone, message)
+            if (hasAudio) {
+                // Modo audio: enviar imagen primero si existe, luego audio PTT. Sin texto.
+                if (hasVisual) {
+                    const visual = visualMedia[mediaIndex % visualMedia.length]
+                    logImageUrl = visual.url
+                    if (visual.type === 'VIDEO') {
+                        await BaileysManager.sendVideo(campaign.botId, contact.phone, visual.url).catch(() => {})
+                    } else {
+                        await BaileysManager.sendImage(campaign.botId, contact.phone, visual.url).catch(() => {})
+                    }
+                    await new Promise(r => setTimeout(r, 1500))
+                }
+                const audio = audioFiles[mediaIndex % audioFiles.length]
+                sent = await BaileysManager.sendAudio(campaign.botId, contact.phone, audio.url)
+                logMessage = '🎙️ Audio'
+            } else {
+                // Modo texto: generar mensaje de IA, enviar visual opcional + texto
+                const message = await generateUniqueMessage(campaign.prompt, '', openaiKey)
+                logMessage = message
+
+                if (hasVisual) {
+                    const visual = visualMedia[mediaIndex % visualMedia.length]
+                    logImageUrl = visual.url
+                    if (visual.type === 'VIDEO') {
+                        await BaileysManager.sendVideo(campaign.botId, contact.phone, visual.url).catch(() => {})
+                    } else {
+                        await BaileysManager.sendImage(campaign.botId, contact.phone, visual.url).catch(() => {})
+                    }
+                    await new Promise(r => setTimeout(r, 1500))
+                }
+
+                sent = await BaileysManager.sendText(campaign.botId, contact.phone, message)
+                if (!sent) throw new Error('sendText retornó false')
+            }
 
             if (sent) {
                 await (prisma as any).broadcastContact.update({
@@ -170,18 +193,18 @@ export async function executeBroadcast(campaignId: string) {
                         campaignId,
                         phone: contact.phone,
                         name: contact.name || null,
-                        message,
-                        imageUrl: imageUrl || null,
+                        message: logMessage,
+                        imageUrl: logImageUrl,
                         status: 'SENT',
                     },
                 })
                 await (prisma as any).broadcastCampaign.update({
                     where: { id: campaignId },
-                    data: { sentCount: { increment: 1 }, imageIndex: nextImageIndex },
+                    data: { sentCount: { increment: 1 }, imageIndex: nextIndex },
                 })
-                imageIndex = nextImageIndex
+                mediaIndex = nextIndex
             } else {
-                throw new Error('sendText retornó false')
+                throw new Error('envío retornó false')
             }
         } catch (err: any) {
             await (prisma as any).broadcastContact.update({

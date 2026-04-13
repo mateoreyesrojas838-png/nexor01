@@ -17,6 +17,15 @@ const ALLOWED_TYPES: Record<string, string> = {
     'video/quicktime': 'VIDEO',
     'video/webm': 'VIDEO',
     'video/3gpp': 'VIDEO',
+    'audio/ogg': 'AUDIO',
+    'audio/mpeg': 'AUDIO',
+    'audio/mp3': 'AUDIO',
+    'audio/wav': 'AUDIO',
+    'audio/wave': 'AUDIO',
+    'audio/mp4': 'AUDIO',
+    'audio/x-m4a': 'AUDIO',
+    'audio/aac': 'AUDIO',
+    'audio/webm': 'AUDIO',
 }
 
 
@@ -36,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const mediaType = ALLOWED_TYPES[file.type]
     if (!mediaType) {
-        return NextResponse.json({ error: 'Solo se permiten imágenes (JPG, PNG, WEBP, GIF) o videos (MP4, MOV, WEBM, 3GP)' }, { status: 400 })
+        return NextResponse.json({ error: 'Solo se permiten imágenes (JPG, PNG, WEBP, GIF), videos (MP4, MOV, WEBM) o audios (OGG, MP3, WAV, AAC, M4A)' }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

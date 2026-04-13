@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
     const { name, prompt, delayValue, delayUnit, scheduledAt } = body
 
     if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
-    if (!prompt?.trim()) return NextResponse.json({ error: 'El prompt es requerido' }, { status: 400 })
 
     // Auto-crear bot Baileys dedicado + campaña en una transacción atómica
     const webhookToken = generateSecureToken(32)
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
                 userId: user.id,
                 botId: bot.id,
                 name: campaignName,
-                prompt: prompt.trim(),
+                prompt: prompt?.trim() || '',
                 delayValue: parseInt(delayValue) || 30,
                 delayUnit: delayUnit || 'seconds',
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
