@@ -12,9 +12,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         where: { id: params.id, userId: user.id },
     })
     if (!campaign) return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
-    if (!['DRAFT', 'SCHEDULED'].includes(campaign.status)) {
-        return NextResponse.json({ error: 'Solo se pueden agregar contactos en campañas en borrador' }, { status: 400 })
-    }
 
     const contentType = req.headers.get('content-type') || ''
 
@@ -22,8 +19,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (contentType.includes('application/json')) {
         const body = await req.json()
 
-        // Modo agregar contacto individual
+        // Modo agregar contacto individual — permite DRAFT/SCHEDULED/PAUSED/FAILED
         if (body.phone) {
+            if (campaign.status === 'RUNNING' || campaign.status === 'COMPLETED') {
+                return NextResponse.json({ error: 'No se pueden agregar contactos mientras la campaña está en ejecución o completada' }, { status: 400 })
+            }
             let phone = String(body.phone).trim().replace(/\s+/g, '')
             if (/^[67]\d{7}$/.test(phone)) phone = '+591' + phone
             if (!/^\+/.test(phone)) phone = '+' + phone
@@ -43,7 +43,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             return NextResponse.json({ contact, total }, { status: 201 })
         }
 
-        // Modo bulk: reemplaza todos los contactos pendientes
+        // Modo bulk: reemplaza todos los contactos pendientes — solo DRAFT/SCHEDULED
+        if (!['DRAFT', 'SCHEDULED'].includes(campaign.status)) {
+            return NextResponse.json({ error: 'Solo se puede reemplazar contactos en campañas en borrador o programadas' }, { status: 400 })
+        }
         const phones: string[] = body.phones || []
         if (phones.length === 0) {
             return NextResponse.json({ error: 'No se recibieron contactos' }, { status: 400 })
@@ -87,7 +90,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         return NextResponse.json({ imported: unique.length, errors: 0, duplicates: contacts.length - unique.length, total })
     }
 
-    // ── FormData mode: Excel file upload ──
+    // ── FormData mode: Excel file upload — solo DRAFT/SCHEDULED ──
+    if (!['DRAFT', 'SCHEDULED'].includes(campaign.status)) {
+        return NextResponse.json({ error: 'Solo se puede cargar Excel en campañas en borrador o programadas' }, { status: 400 })
+    }
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'Archivo Excel requerido' }, { status: 400 })

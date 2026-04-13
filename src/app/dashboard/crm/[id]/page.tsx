@@ -341,13 +341,15 @@ export default function CrmCampaignDetailPage() {
                             </p>
                             <div className="flex items-center gap-3">
                                 <span className="text-xs text-white/30">{total} total</span>
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowAddContact(v => !v); setNewPhone(''); setNewName('') }}
-                                    className="flex items-center gap-1 text-[11px] font-bold text-amber-400/70 hover:text-amber-400 transition-all"
-                                >
-                                    <Plus size={12} /> Agregar
-                                </button>
+                                {!['RUNNING', 'COMPLETED'].includes(campaign.status) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowAddContact(v => !v); setNewPhone(''); setNewName('') }}
+                                        className="flex items-center gap-1 text-[11px] font-bold text-amber-400/70 hover:text-amber-400 transition-all"
+                                    >
+                                        <Plus size={12} /> Agregar
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -424,19 +426,21 @@ export default function CrmCampaignDetailPage() {
                                                         {new Date(c.sentAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
                                                 )}
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                                                    <button type="button" onClick={() => startEditContact(c)} className="text-white/30 hover:text-amber-400 transition-all">
-                                                        <Pencil size={12} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deleteContact(c.id)}
-                                                        disabled={deletingContactId === c.id}
-                                                        className="text-white/30 hover:text-red-400 transition-all disabled:opacity-40"
-                                                    >
-                                                        {deletingContactId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                                                    </button>
-                                                </div>
+                                                {!['RUNNING', 'COMPLETED'].includes(campaign.status) && (
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                                        <button type="button" onClick={() => startEditContact(c)} className="text-white/30 hover:text-amber-400 transition-all">
+                                                            <Pencil size={12} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => deleteContact(c.id)}
+                                                            disabled={deletingContactId === c.id}
+                                                            className="text-white/30 hover:text-red-400 transition-all disabled:opacity-40"
+                                                        >
+                                                            {deletingContactId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
