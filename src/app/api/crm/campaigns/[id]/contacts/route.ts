@@ -18,9 +18,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const contentType = req.headers.get('content-type') || ''
 
-    // ── JSON mode: contacts from WhatsApp labels ──
+    // ── JSON mode ──
     if (contentType.includes('application/json')) {
         const body = await req.json()
+
+        // Modo agregar contacto individual
+        if (body.phone) {
+            let phone = String(body.phone).trim().replace(/\s+/g, '')
+            if (/^[67]\d{7}$/.test(phone)) phone = '+591' + phone
+            if (!/^\+/.test(phone)) phone = '+' + phone
+            if (!/^\+\d{8,15}$/.test(phone)) {
+                return NextResponse.json({ error: 'Teléfono inválido' }, { status: 400 })
+            }
+            const contact = await (prisma as any).broadcastContact.create({
+                data: {
+                    campaignId: params.id,
+                    phone,
+                    name: body.name?.trim() || null,
+                    status: 'PENDING',
+                },
+            })
+            const total = await (prisma as any).broadcastContact.count({ where: { campaignId: params.id } })
+            await (prisma as any).broadcastCampaign.update({ where: { id: params.id }, data: { totalContacts: total } })
+            return NextResponse.json({ contact, total }, { status: 201 })
+        }
+
+        // Modo bulk: reemplaza todos los contactos pendientes
         const phones: string[] = body.phones || []
         if (phones.length === 0) {
             return NextResponse.json({ error: 'No se recibieron contactos' }, { status: 400 })

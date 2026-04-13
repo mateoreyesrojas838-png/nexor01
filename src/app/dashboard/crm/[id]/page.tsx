@@ -6,7 +6,8 @@ import Link from 'next/link'
 import {
     ArrowLeft, Play, Pause, Users, CheckCircle2, XCircle,
     Clock, Loader2, AlertCircle, RefreshCw,
-    Image as ImageIcon, Calendar, Smartphone, Wifi, WifiOff, Film, Mic
+    Image as ImageIcon, Calendar, Smartphone, Wifi, WifiOff, Film, Mic,
+    Plus, Pencil, Trash2, Phone, X
 } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -42,6 +43,17 @@ export default function CrmCampaignDetailPage() {
     const [botAiActive, setBotAiActive] = useState<boolean | null>(null)
     const [togglingAi, setTogglingAi] = useState(false)
     const [activeBotId, setActiveBotId] = useState<string | null>(null)
+
+    // Gestión de contactos
+    const [showAddContact, setShowAddContact] = useState(false)
+    const [newPhone, setNewPhone] = useState('')
+    const [newName, setNewName] = useState('')
+    const [addingContact, setAddingContact] = useState(false)
+    const [editingContactId, setEditingContactId] = useState<string | null>(null)
+    const [editPhone, setEditPhone] = useState('')
+    const [editName, setEditName] = useState('')
+    const [savingContact, setSavingContact] = useState(false)
+    const [deletingContactId, setDeletingContactId] = useState<string | null>(null)
 
     useEffect(() => { fetchCampaign(); fetchWaStatus(); fetchAvailableBots() }, [id])
 
@@ -153,6 +165,56 @@ export default function CrmCampaignDetailPage() {
         } finally {
             setTogglingAi(false)
         }
+    }
+
+    async function addContact() {
+        if (!newPhone.trim()) return
+        setAddingContact(true)
+        try {
+            const res = await fetch(`/api/crm/campaigns/${id}/contacts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: newPhone.trim(), name: newName.trim() || null }),
+            })
+            if (res.ok) {
+                setNewPhone(''); setNewName(''); setShowAddContact(false)
+                fetchCampaign()
+            } else {
+                const data = await res.json()
+                setError(data.error || 'Error al agregar contacto')
+            }
+        } catch { setError('Error al agregar contacto') }
+        finally { setAddingContact(false) }
+    }
+
+    function startEditContact(c: any) {
+        setEditingContactId(c.id)
+        setEditPhone(c.phone)
+        setEditName(c.name || '')
+    }
+
+    async function saveEditContact() {
+        if (!editingContactId || !editPhone.trim()) return
+        setSavingContact(true)
+        try {
+            const res = await fetch(`/api/crm/campaigns/${id}/contacts/${editingContactId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: editPhone.trim(), name: editName.trim() || null }),
+            })
+            if (res.ok) { setEditingContactId(null); fetchCampaign() }
+            else { const data = await res.json(); setError(data.error || 'Error al editar') }
+        } catch { setError('Error al editar contacto') }
+        finally { setSavingContact(false) }
+    }
+
+    async function deleteContact(contactId: string) {
+        setDeletingContactId(contactId)
+        try {
+            await fetch(`/api/crm/campaigns/${id}/contacts/${contactId}`, { method: 'DELETE' })
+            fetchCampaign()
+        } catch { setError('Error al eliminar contacto') }
+        finally { setDeletingContactId(null) }
     }
 
     async function execute() {
@@ -274,27 +336,108 @@ export default function CrmCampaignDetailPage() {
                     {/* Contacts list */}
                     <div className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
                         <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                            <p className="text-xs font-black uppercase tracking-widest text-white/30">Contactos</p>
-                            <span className="text-xs text-white/30">{total} total</span>
+                            <p className="text-xs font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
+                                <Users size={11} /> Contactos
+                            </p>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs text-white/30">{total} total</span>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowAddContact(v => !v); setNewPhone(''); setNewName('') }}
+                                    className="flex items-center gap-1 text-[11px] font-bold text-amber-400/70 hover:text-amber-400 transition-all"
+                                >
+                                    <Plus size={12} /> Agregar
+                                </button>
+                            </div>
                         </div>
+
+                        {/* Formulario agregar */}
+                        {showAddContact && (
+                            <div className="p-3 border-b border-white/5 bg-white/[0.02] flex gap-2 items-center">
+                                <Phone size={12} className="text-white/30 shrink-0" />
+                                <input
+                                    value={newPhone}
+                                    onChange={e => setNewPhone(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && addContact()}
+                                    placeholder="Teléfono (+591...)"
+                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 min-w-0"
+                                />
+                                <input
+                                    value={newName}
+                                    onChange={e => setNewName(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && addContact()}
+                                    placeholder="Nombre (opcional)"
+                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 min-w-0"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addContact}
+                                    disabled={addingContact || !newPhone.trim()}
+                                    className="text-green-400 hover:text-green-300 disabled:opacity-40 shrink-0"
+                                >
+                                    {addingContact ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                </button>
+                                <button type="button" onClick={() => setShowAddContact(false)} className="text-white/30 hover:text-red-400 shrink-0">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        )}
+
                         <div className="max-h-80 overflow-y-auto">
                             {campaign.contacts?.length === 0 ? (
                                 <p className="text-center text-white/30 text-sm py-8">Sin contactos cargados</p>
                             ) : (
                                 campaign.contacts?.map((c: any) => (
-                                    <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5 last:border-0">
-                                        <div className={`w-2 h-2 rounded-full shrink-0 ${c.status === 'SENT' ? 'bg-green-400' : c.status === 'FAILED' ? 'bg-red-400' : 'bg-white/20'}`} />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-white/80 truncate">{c.name || c.phone}</p>
-                                            {c.name && <p className="text-[10px] text-white/30">{c.phone}</p>}
-                                        </div>
-                                        {c.status === 'FAILED' && c.error && (
-                                            <p className="text-[10px] text-red-400 truncate max-w-[120px]">{c.error}</p>
-                                        )}
-                                        {c.sentAt && (
-                                            <p className="text-[10px] text-white/20 shrink-0">
-                                                {new Date(c.sentAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
-                                            </p>
+                                    <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5 last:border-0 group">
+                                        {editingContactId === c.id ? (
+                                            <>
+                                                <input
+                                                    value={editPhone}
+                                                    onChange={e => setEditPhone(e.target.value)}
+                                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500/40 min-w-0"
+                                                />
+                                                <input
+                                                    value={editName}
+                                                    onChange={e => setEditName(e.target.value)}
+                                                    placeholder="Nombre"
+                                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 min-w-0"
+                                                />
+                                                <button type="button" onClick={saveEditContact} disabled={savingContact} className="text-green-400 hover:text-green-300 disabled:opacity-40 shrink-0">
+                                                    {savingContact ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                                </button>
+                                                <button type="button" onClick={() => setEditingContactId(null)} className="text-white/30 hover:text-red-400 shrink-0">
+                                                    <X size={13} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className={`w-2 h-2 rounded-full shrink-0 ${c.status === 'SENT' ? 'bg-green-400' : c.status === 'FAILED' ? 'bg-red-400' : 'bg-white/20'}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-white/80 truncate">{c.name || c.phone}</p>
+                                                    {c.name && <p className="text-[10px] text-white/30">{c.phone}</p>}
+                                                </div>
+                                                {c.status === 'FAILED' && c.error && (
+                                                    <p className="text-[10px] text-red-400 truncate max-w-[100px]">{c.error}</p>
+                                                )}
+                                                {c.sentAt && (
+                                                    <p className="text-[10px] text-white/20 shrink-0">
+                                                        {new Date(c.sentAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                )}
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                                    <button type="button" onClick={() => startEditContact(c)} className="text-white/30 hover:text-amber-400 transition-all">
+                                                        <Pencil size={12} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteContact(c.id)}
+                                                        disabled={deletingContactId === c.id}
+                                                        className="text-white/30 hover:text-red-400 transition-all disabled:opacity-40"
+                                                    >
+                                                        {deletingContactId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                                    </button>
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 ))
