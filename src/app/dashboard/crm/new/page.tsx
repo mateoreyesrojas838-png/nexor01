@@ -684,13 +684,10 @@ export default function NewCrmCampaignPage() {
                                         ) : (
                                             <>
                                                 <Phone size={10} className="text-white/20 shrink-0" />
-                                                <p className="text-xs text-white/70 truncate flex-1">
-                                                    {c.name ? (
-                                                        <><span className="font-bold">{c.name}</span> <span className="text-white/30">{c.phone}</span></>
-                                                    ) : (
-                                                        <span>{c.phone}</span>
-                                                    )}
-                                                </p>
+                                                <div className="flex-1 min-w-0">
+                                                    {c.name && <p className="text-xs font-bold text-white/80 truncate">{c.name}</p>}
+                                                    <p className="text-xs text-white/60">{c.phone}</p>
+                                                </div>
                                                 <button type="button" onClick={() => startEdit(i)} className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-amber-400 transition-all">
                                                     <Pencil size={12} />
                                                 </button>

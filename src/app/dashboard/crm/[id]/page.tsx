@@ -526,8 +526,8 @@ export default function CrmCampaignDetailPage() {
                                             <>
                                                 <div className={`w-2 h-2 rounded-full shrink-0 ${c.status === 'SENT' ? 'bg-green-400' : c.status === 'FAILED' ? 'bg-red-400' : 'bg-white/20'}`} />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-white/80 truncate">{c.name || c.phone}</p>
-                                                    {c.name && <p className="text-[10px] text-white/30">{c.phone}</p>}
+                                                    {c.name && <p className="text-xs font-bold text-white/80 truncate">{c.name}</p>}
+                                                    <p className="text-xs text-white/60">{c.phone}</p>
                                                 </div>
                                                 {c.status === 'FAILED' && c.error && (
                                                     <p className="text-[10px] text-red-400 truncate max-w-[100px]">{c.error}</p>
