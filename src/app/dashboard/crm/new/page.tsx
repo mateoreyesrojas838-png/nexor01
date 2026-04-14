@@ -41,6 +41,7 @@ export default function NewCrmCampaignPage() {
     // Audio recording
     const [isRecordingAudio, setIsRecordingAudio] = useState(false)
     const [recordingSeconds, setRecordingSeconds] = useState(0)
+    const [audioError, setAudioError] = useState<string | null>(null)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
     const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -102,8 +103,9 @@ export default function NewCrmCampaignPage() {
     }
 
     async function startRecordingAudio() {
+        setAudioError(null)
         if (!navigator.mediaDevices?.getUserMedia) {
-            setError('Tu navegador no soporta grabación de audio. Usá Chrome o Firefox, y asegurate de estar en HTTPS.')
+            setAudioError('Grabación no disponible. Usá Chrome/Firefox y asegurate de estar en HTTPS.')
             return
         }
         let stream: MediaStream
@@ -112,11 +114,11 @@ export default function NewCrmCampaignPage() {
         } catch (err: unknown) {
             const name = err instanceof Error ? err.name : ''
             if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-                setError('Permiso de micrófono denegado. Habilitalo en la configuración del navegador.')
+                setAudioError('Permiso de micrófono denegado. Hacé clic en el ícono 🔒 de la barra del navegador y habilitá el micrófono.')
             } else if (name === 'NotFoundError') {
-                setError('No se encontró ningún micrófono en este dispositivo.')
+                setAudioError('No se encontró ningún micrófono en este dispositivo.')
             } else {
-                setError('No se pudo acceder al micrófono: ' + (err instanceof Error ? err.message : String(err)))
+                setAudioError('No se pudo acceder al micrófono: ' + (err instanceof Error ? err.message : String(err)))
             }
             return
         }
@@ -146,7 +148,7 @@ export default function NewCrmCampaignPage() {
             recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
         } catch (err: unknown) {
             stream.getTracks().forEach(t => t.stop())
-            setError('Error al iniciar grabación: ' + (err instanceof Error ? err.message : String(err)))
+            setAudioError('Error al iniciar grabación: ' + (err instanceof Error ? err.message : String(err)))
         }
     }
 
@@ -523,6 +525,12 @@ export default function NewCrmCampaignPage() {
                         </button>
                     </div>
                     <input ref={audioInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => handleAudioSelect(e.target.files)} />
+                    {audioError && (
+                        <div className="mt-2 flex items-start gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[11px]">
+                            <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                            <span>{audioError}</span>
+                        </div>
+                    )}
                     <p className="text-[10px] text-white/20 mt-2">Formatos: OGG, MP3, WAV, AAC, M4A · Hasta 20 audios</p>
                 </div>
 

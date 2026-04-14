@@ -61,6 +61,7 @@ export default function CrmCampaignDetailPage() {
     const audioChunksRef = useRef<Blob[]>([])
     const [isRecording, setIsRecording] = useState(false)
     const [recordingSeconds, setRecordingSeconds] = useState(0)
+    const [audioError, setAudioError] = useState<string | null>(null)
     const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const [uploadingAudio, setUploadingAudio] = useState(false)
 
@@ -181,8 +182,9 @@ export default function CrmCampaignDetailPage() {
     }
 
     async function startRecording() {
+        setAudioError(null)
         if (!navigator.mediaDevices?.getUserMedia) {
-            setError('Tu navegador no soporta grabación de audio. Usá Chrome o Firefox, y asegurate de estar en HTTPS.')
+            setAudioError('Grabación no disponible. Usá Chrome/Firefox y asegurate de estar en HTTPS.')
             return
         }
         let stream: MediaStream
@@ -191,11 +193,11 @@ export default function CrmCampaignDetailPage() {
         } catch (err: unknown) {
             const name = err instanceof Error ? err.name : ''
             if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-                setError('Permiso de micrófono denegado. Habilitalo en la configuración del navegador.')
+                setAudioError('Permiso denegado. Hacé clic en el ícono 🔒 de la barra del navegador y habilitá el micrófono.')
             } else if (name === 'NotFoundError') {
-                setError('No se encontró ningún micrófono en este dispositivo.')
+                setAudioError('No se encontró ningún micrófono en este dispositivo.')
             } else {
-                setError('No se pudo acceder al micrófono: ' + (err instanceof Error ? err.message : String(err)))
+                setAudioError('No se pudo acceder al micrófono: ' + (err instanceof Error ? err.message : String(err)))
             }
             return
         }
@@ -220,7 +222,7 @@ export default function CrmCampaignDetailPage() {
             recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
         } catch (err: unknown) {
             stream.getTracks().forEach(t => t.stop())
-            setError('Error al iniciar grabación: ' + (err instanceof Error ? err.message : String(err)))
+            setAudioError('Error al iniciar grabación: ' + (err instanceof Error ? err.message : String(err)))
         }
     }
 
@@ -777,13 +779,21 @@ export default function CrmCampaignDetailPage() {
                                                 <Loader2 size={12} className="animate-spin" /> Subiendo audio...
                                             </div>
                                         ) : (
-                                            <button
-                                                type="button"
-                                                onClick={startRecording}
-                                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-black hover:bg-green-500/20 transition-all"
-                                            >
-                                                <Mic size={12} /> {audioFiles.length > 0 ? 'Grabar otro audio' : 'Grabar nota de voz'}
-                                            </button>
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={startRecording}
+                                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-black hover:bg-green-500/20 transition-all"
+                                                >
+                                                    <Mic size={12} /> {audioFiles.length > 0 ? 'Grabar otro audio' : 'Grabar nota de voz'}
+                                                </button>
+                                                {audioError && (
+                                                    <div className="mt-2 flex items-start gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[11px]">
+                                                        <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                                                        <span>{audioError}</span>
+                                                    </div>
+                                                )}
+                                            </>
                                         )
                                     )}
                                     {!canEdit && audioFiles.length === 0 && (
