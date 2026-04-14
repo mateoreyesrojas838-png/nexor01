@@ -389,6 +389,21 @@ async function handleMessage(
         await sleep(800)
         await sock.sendMessage(jid, { video: { url: videoUrl } }).catch(() => { })
     }
+    // Enviar audio PTT si el bot lo indica (solo Baileys)
+    if (response.audio_url && response.audio_url.startsWith('https://')) {
+        const ext = response.audio_url.split('?')[0].split('.').pop()?.toLowerCase() || ''
+        const mimeMap: Record<string, string> = {
+            ogg: 'audio/ogg; codecs=opus', oga: 'audio/ogg; codecs=opus',
+            mp3: 'audio/mpeg', wav: 'audio/wav', aac: 'audio/aac',
+            m4a: 'audio/mp4', mp4: 'audio/mp4', webm: 'audio/webm',
+        }
+        await sleep(600)
+        await sock.sendMessage(jid, {
+            audio: { url: response.audio_url },
+            mimetype: mimeMap[ext] || 'audio/ogg; codecs=opus',
+            ptt: true,
+        }).catch(err => console.error('[BAILEYS] sendAudio PTT error:', err))
+    }
     if (response.mensaje2) await sendMsg(response.mensaje2)
     if (response.mensaje3) await sendMsg(response.mensaje3)
 

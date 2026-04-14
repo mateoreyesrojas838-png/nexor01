@@ -14,6 +14,7 @@ export interface BotJsonResponse {
   mensaje3: string
   fotos_mensaje1: string[]
   videos_mensaje1: string[]
+  audio_url: string        // URL de audio PTT (nota de voz) — solo Baileys
   reporte: string
 }
 

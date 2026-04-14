@@ -67,6 +67,7 @@ export async function PATCH(
       ...(typeof body.currency === 'string' ? { currency: body.currency } : {}),
       ...(typeof body.welcomeMessage === 'string' ? { welcomeMessage: body.welcomeMessage || null } : {}),
       ...(typeof body.firstMessage === 'string' ? { firstMessage: body.firstMessage || null } : {}),
+      ...(typeof body.firstMessageAudioUrl === 'string' ? { firstMessageAudioUrl: body.firstMessageAudioUrl || null } : {}),
       ...(hooks !== undefined ? { hooks: hooks as Prisma.InputJsonValue } : {}),
       ...(imageMainUrls !== undefined ? { imageMainUrls: imageMainUrls as Prisma.InputJsonValue } : {}),
       ...(typeof body.imagePriceUnitUrl === 'string' ? { imagePriceUnitUrl: body.imagePriceUnitUrl || null } : {}),

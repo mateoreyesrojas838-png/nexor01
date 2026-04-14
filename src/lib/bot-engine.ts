@@ -214,6 +214,7 @@ export function buildSystemPrompt(
         rawProductVideos.length > 0 ? `Videos producto: ${JSON.stringify(rawProductVideos)}` : '',
         `Fotos testimonios: ${JSON.stringify(testimonialsImages)}`,
         testimonialsVideos.length > 0 ? `Videos testimonios: ${JSON.stringify(testimonialsVideos)}` : '',
+        (p as any).firstMessageAudioUrl ? `Audio nota de voz (PTT): ${(p as any).firstMessageAudioUrl}` : '',
         p.shippingInfo ? `Envío: ${p.shippingInfo}` : '',
         p.coverage ? `Cobertura: ${p.coverage}` : '',
         hooks.length > 0 ? `Gatillos: ${hooks.join(', ')}` : '',
@@ -281,6 +282,7 @@ Regla de mensajes:
 - mensaje2: SOLO para un gatillo mental o pregunta clave de cierre. Si no es necesario, dejar "".
 - mensaje3: SOLO si es imprescindible (muy raro). Si no, dejar "".
 - En la mayoría de turnos solo va mensaje1.
+- audio_url: URL del audio PTT del producto si el prompt indica enviarlo (de lo contrario "").
 
 \`\`\`json
 {
@@ -289,6 +291,7 @@ Regla de mensajes:
   "mensaje3": "",
   "fotos_mensaje1": [],
   "videos_mensaje1": [],
+  "audio_url": "",
   "reporte": ""
 }
 \`\`\`
@@ -537,6 +540,7 @@ Regla de mensajes:
 - mensaje2: solo si aporta valor real. Si no, dejar "".
 - mensaje3: raramente usado. Solo si es imprescindible. Si no, dejar "".
 - En la mayoría de turnos solo se necesita mensaje1.
+- audio_url: URL del audio PTT del producto si el prompt indica enviarlo (de lo contrario "").
 
 \`\`\`json
 {
@@ -545,6 +549,7 @@ Regla de mensajes:
   "mensaje3": "",
   "fotos_mensaje1": [],
   "videos_mensaje1": [],
+  "audio_url": "",
   "reporte": ""
 }
 \`\`\`

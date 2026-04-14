@@ -39,6 +39,7 @@ import {
   MessageSquare,
   Share2,
   UserCheck,
+  Mic,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1243,8 +1244,82 @@ function ProductForm({
   const [showTestimonialPhotos, setShowTestimonialPhotos] = useState(false)
   const [showTestimonialVideos, setShowTestimonialVideos] = useState(false)
 
+  // Audio PTT state
+  const [audioUrl, setAudioUrl] = useState<string | null>(product?.firstMessageAudioUrl ?? null)
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const setField = (key: keyof ProductFormState, value: string | boolean) =>
     setForm(f => ({ ...f, [key]: value }))
+
+  async function startRecordingAudio() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+          ? 'audio/ogg;codecs=opus'
+          : 'audio/webm'
+      const recorder = new MediaRecorder(stream, { mimeType })
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(audioChunksRef.current, { type: mimeType })
+        await uploadAudio(blob, mimeType)
+      }
+      recorder.start(100)
+      mediaRecorderRef.current = recorder
+      setIsRecordingAudio(true)
+      setRecordingSeconds(0)
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
+    } catch {
+      setError('No se pudo acceder al micrófono')
+    }
+  }
+
+  function stopRecordingAudio() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+    }
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+    setIsRecordingAudio(false)
+    setRecordingSeconds(0)
+  }
+
+  async function uploadAudio(blobOrFile: Blob | File, mimeType?: string) {
+    if (!product) { setError('Guarda el producto primero antes de subir audio'); return }
+    setUploadingAudio(true)
+    try {
+      const type = mimeType || (blobOrFile instanceof File ? blobOrFile.type : '')
+      const ext = type.includes('ogg') ? 'ogg' : type.includes('mp3') || type.includes('mpeg') ? 'mp3' : type.includes('wav') ? 'wav' : 'webm'
+      const file = blobOrFile instanceof File ? blobOrFile : new File([blobOrFile], `audio-${Date.now()}.${ext}`, { type })
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/products/${product.id}/audio`, { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al subir audio')
+      setAudioUrl(data.audioUrl)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al subir audio')
+    } finally {
+      setUploadingAudio(false)
+    }
+  }
+
+  async function deleteAudio() {
+    if (!product) return
+    try {
+      await fetch(`/api/products/${product.id}/audio`, { method: 'DELETE' })
+      setAudioUrl(null)
+    } catch {
+      setError('Error al eliminar audio')
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -1344,6 +1419,63 @@ function ProductForm({
             placeholder="Hola {nombre}! Te presento nuestro increíble producto..."
             className={textareaClass}
           />
+        </div>
+
+        {/* Audio nota de voz — solo Baileys */}
+        <div className="space-y-2">
+          <label className={labelClass}>
+            🎙️ Audio nota de voz (Baileys) — el prompt controla cuándo enviarlo
+          </label>
+          {audioUrl ? (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+              <Mic className="w-4 h-4 text-green-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-white/60 truncate">{audioUrl.split('/').pop()?.split('?')[0]}</p>
+                <audio src={audioUrl} controls className="mt-1 h-8 w-full opacity-70" />
+              </div>
+              <button
+                type="button"
+                onClick={deleteAudio}
+                className="text-white/30 hover:text-red-400 transition-colors shrink-0"
+                title="Eliminar audio"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : !product ? (
+            <p className="text-xs text-white/30 italic">Guarda el producto primero para poder subir audio</p>
+          ) : isRecordingAudio ? (
+            <button
+              type="button"
+              onClick={stopRecordingAudio}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-black animate-pulse"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-400" /> Detener grabación ({recordingSeconds}s)
+            </button>
+          ) : uploadingAudio ? (
+            <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 text-white/40 text-xs">
+              <Loader2 className="w-3 h-3 animate-spin" /> Subiendo audio...
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={startRecordingAudio}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-all"
+              >
+                <Mic className="w-3.5 h-3.5" /> Grabar
+              </button>
+              <label className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-xs font-bold hover:bg-white/10 transition-all cursor-pointer">
+                <FileText className="w-3.5 h-3.5" /> Subir archivo
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadAudio(f) }}
+                />
+              </label>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
