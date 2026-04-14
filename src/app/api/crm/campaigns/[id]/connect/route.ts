@@ -86,8 +86,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         openaiKey = (await getGlobalOpenAIKey()) ?? ''
     }
 
-    // Iniciar conexión en background usando nombre de la campaña
-    BaileysManager.connect(campaign.botId, campaign.name, openaiKey, '').catch(
+    // Iniciar conexión en background — usar prefijo __crm__ para que handleMessage lo ignore
+    BaileysManager.connect(campaign.botId, `__crm__${campaign.name}`, openaiKey, '').catch(
         err => console.error('[CRM CONNECT]', err)
     )
 

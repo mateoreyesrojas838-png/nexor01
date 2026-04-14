@@ -108,6 +108,9 @@ async function handleMessage(
         jid.endsWith('@g.us')
     ) return
 
+    // Bots CRM son solo broadcast — no responden mensajes entrantes
+    if (conn.botName.startsWith('__crm__')) return
+
     // Verificar que el bot siga ACTIVE en BD (puede haberse pausado mientras el socket sigue conectado)
     const botStatus = await prisma.bot.findUnique({
         where: { id: conn.botId },

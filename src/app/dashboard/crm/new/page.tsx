@@ -36,7 +36,14 @@ export default function NewCrmCampaignPage() {
         scheduledAt: '',
     })
     const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'IMAGE' | 'VIDEO' }[]>([])
-    const [audioFiles, setAudioFiles] = useState<{ file: File }[]>([])
+    const [audioFiles, setAudioFiles] = useState<{ file: File; name: string }[]>([])
+
+    // Audio recording
+    const [isRecordingAudio, setIsRecordingAudio] = useState(false)
+    const [recordingSeconds, setRecordingSeconds] = useState(0)
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const audioChunksRef = useRef<Blob[]>([])
+    const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     // Contacts
     const [contacts, setContacts] = useState<ContactEntry[]>([])
@@ -54,7 +61,7 @@ export default function NewCrmCampaignPage() {
     const [editPhone, setEditPhone] = useState('')
     const [editName, setEditName] = useState('')
 
-    // Add manual contact
+    // Add manual contact — siempre visible
     const [showAddContact, setShowAddContact] = useState(false)
     const [newPhone, setNewPhone] = useState('')
     const [newName, setNewName] = useState('')
@@ -87,11 +94,51 @@ export default function NewCrmCampaignPage() {
     function handleAudioSelect(files: FileList | null) {
         if (!files) return
         const selected = Array.from(files).filter(f => f.type.startsWith('audio/'))
-        setAudioFiles(prev => [...prev, ...selected.map(file => ({ file }))])
+        setAudioFiles(prev => [...prev, ...selected.map(file => ({ file, name: file.name }))])
     }
 
     function removeAudio(index: number) {
         setAudioFiles(prev => prev.filter((_, i) => i !== index))
+    }
+
+    async function startRecordingAudio() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+                    ? 'audio/ogg;codecs=opus'
+                    : 'audio/webm'
+            const ext = mimeType.includes('ogg') ? 'ogg' : 'webm'
+            const mr = new MediaRecorder(stream, { mimeType })
+            audioChunksRef.current = []
+            mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+            mr.onstop = () => {
+                stream.getTracks().forEach(t => t.stop())
+                if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+                const blob = new Blob(audioChunksRef.current, { type: mimeType })
+                const file = new File([blob], `nota-voz-${Date.now()}.${ext}`, { type: mimeType.split(';')[0] })
+                setAudioFiles(prev => [...prev, { file, name: file.name }])
+                setIsRecordingAudio(false)
+                setRecordingSeconds(0)
+            }
+            mr.start(100)
+            mediaRecorderRef.current = mr
+            setIsRecordingAudio(true)
+            setRecordingSeconds(0)
+            recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
+        } catch {
+            setError('No se pudo acceder al micrófono')
+        }
+    }
+
+    function stopRecordingAudio() {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop()
+        }
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+        setIsRecordingAudio(false)
+        setRecordingSeconds(0)
     }
 
     function handleMediaSelect(files: FileList | null) {
@@ -410,21 +457,43 @@ export default function NewCrmCampaignPage() {
                         Los audios se envían como <span className="text-green-400/70">nota de voz</span> — aparecen igual que si el usuario los grabara en WhatsApp. Se rotan entre contactos. Si hay audios, <span className="text-amber-400/70">no se envía texto</span>.
                     </p>
 
+                    {/* Lista de audios */}
+                    {audioFiles.length > 0 && (
+                        <div className="flex gap-2 flex-wrap mb-3">
+                            {audioFiles.map((audio, i) => (
+                                <div key={i} className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 group">
+                                    <Mic size={14} className="text-green-400 shrink-0" />
+                                    <span className="text-[11px] text-white/70 max-w-[120px] truncate">{audio.name}</span>
+                                    <span className="text-[9px] text-white/30">{(audio.file.size / 1024).toFixed(0)}KB</span>
+                                    <button type="button" onClick={() => removeAudio(i)} className="ml-1 text-white/30 hover:text-red-400 transition-all">
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Botones grabar / subir */}
                     <div className="flex gap-2 flex-wrap">
-                        {audioFiles.map((audio, i) => (
-                            <div key={i} className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 group">
-                                <Mic size={14} className="text-green-400 shrink-0" />
-                                <span className="text-[11px] text-white/70 max-w-[120px] truncate">{audio.file.name}</span>
-                                <span className="text-[9px] text-white/30">{(audio.file.size / 1024).toFixed(0)}KB</span>
-                                <button
-                                    type="button"
-                                    onClick={() => removeAudio(i)}
-                                    className="ml-1 text-white/30 hover:text-red-400 transition-all"
-                                >
-                                    <X size={12} />
-                                </button>
-                            </div>
-                        ))}
+                        {isRecordingAudio ? (
+                            <button
+                                type="button"
+                                onClick={stopRecordingAudio}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold animate-pulse"
+                            >
+                                <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                                Detener · {recordingSeconds}s
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={startRecordingAudio}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all text-xs font-bold"
+                            >
+                                <Mic size={14} />
+                                Grabar audio
+                            </button>
+                        )}
 
                         <button
                             type="button"
@@ -432,7 +501,7 @@ export default function NewCrmCampaignPage() {
                             className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-white/15 hover:border-green-500/40 text-white/30 hover:text-green-400 transition-all text-xs font-bold"
                         >
                             <Upload size={14} />
-                            Agregar audio
+                            Subir desde local
                         </button>
                     </div>
                     <input ref={audioInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => handleAudioSelect(e.target.files)} />
@@ -484,16 +553,49 @@ export default function NewCrmCampaignPage() {
 
                 {/* ── CONTACTOS ── */}
                 <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
-                    <label className="block text-xs font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2">
-                        <Users size={12} /> Contactos ({contacts.length})
-                    </label>
+                    <div className="flex items-center justify-between mb-3">
+                        <label className="text-xs font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
+                            <Users size={12} /> Contactos ({contacts.length})
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => setShowAddContact(v => !v)}
+                            className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-all"
+                        >
+                            <Plus size={12} /> Agregar manual
+                        </button>
+                    </div>
+
+                    {/* Formulario agregar manual — siempre disponible */}
+                    {showAddContact && (
+                        <div className="flex gap-2 mb-3 p-3 rounded-xl bg-white/5 border border-amber-500/20">
+                            <input
+                                value={newPhone}
+                                onChange={e => setNewPhone(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addManualContact())}
+                                placeholder="Teléfono (+591...)"
+                                className="flex-1 bg-transparent text-xs text-white placeholder-white/20 focus:outline-none px-2 border-r border-white/10"
+                            />
+                            <input
+                                value={newName}
+                                onChange={e => setNewName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addManualContact())}
+                                placeholder="Nombre (opcional)"
+                                className="flex-1 bg-transparent text-xs text-white placeholder-white/20 focus:outline-none px-2"
+                            />
+                            <button type="button" onClick={addManualContact} className="text-green-400 hover:text-green-300 px-1">
+                                <CheckCircle2 size={15} />
+                            </button>
+                            <button type="button" onClick={() => { setShowAddContact(false); setNewPhone(''); setNewName('') }} className="text-white/30 hover:text-red-400 px-1">
+                                <X size={15} />
+                            </button>
+                        </div>
+                    )}
 
                     <p className="text-[11px] text-white/25 mb-3">
                         Subí un Excel con tus contactos. Tip: podés exportar contactos desde WhatsApp Web con nuestra <Link href="/dashboard/crm/export" className="text-amber-400 underline">extensión de Chrome</Link>.
                     </p>
-                    <p className="text-[11px] text-white/25 mb-3">
-                        Columnas: <span className="text-amber-400/70">teléfono</span> (obligatorio) · <span className="text-amber-400/70">nombre</span> (opcional)
-                    </p>
+
                     <button
                         type="button"
                         onClick={() => excelInputRef.current?.click()}
@@ -504,7 +606,7 @@ export default function NewCrmCampaignPage() {
                                 <CheckCircle2 size={18} className="text-green-400 shrink-0" />
                                 <div className="text-left">
                                     <p className="text-sm font-bold text-green-400">{excelFile.name}</p>
-                                    <p className="text-xs text-white/30">{(excelFile.size / 1024).toFixed(1)} KB</p>
+                                    <p className="text-xs text-white/30">{(excelFile.size / 1024).toFixed(1)} KB · <span className="text-white/20">Columnas: teléfono · nombre</span></p>
                                 </div>
                                 <button type="button" onClick={e => { e.stopPropagation(); setExcelFile(null); setContacts([]) }} className="ml-auto text-white/30 hover:text-red-400">
                                     <X size={14} />
@@ -527,43 +629,9 @@ export default function NewCrmCampaignPage() {
                     {/* Contact list (editable) */}
                     {contacts.length > 0 && (
                         <div className="mt-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-[11px] text-white/30">
-                                    <span className="text-green-400 font-bold">{contacts.length} contactos</span> cargados
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddContact(true)}
-                                    className="flex items-center gap-1 text-[11px] text-amber-400/70 hover:text-amber-400 transition-all"
-                                >
-                                    <Plus size={12} /> Agregar
-                                </button>
-                            </div>
-
-                            {/* Add manual contact */}
-                            {showAddContact && (
-                                <div className="flex gap-2 mb-2 p-2 rounded-xl bg-white/5 border border-white/10">
-                                    <input
-                                        value={newPhone}
-                                        onChange={e => setNewPhone(e.target.value)}
-                                        placeholder="Teléfono"
-                                        className="flex-1 bg-transparent text-xs text-white placeholder-white/20 focus:outline-none px-2"
-                                    />
-                                    <input
-                                        value={newName}
-                                        onChange={e => setNewName(e.target.value)}
-                                        placeholder="Nombre (opcional)"
-                                        className="flex-1 bg-transparent text-xs text-white placeholder-white/20 focus:outline-none px-2"
-                                    />
-                                    <button type="button" onClick={addManualContact} className="text-green-400 hover:text-green-300">
-                                        <CheckCircle2 size={14} />
-                                    </button>
-                                    <button type="button" onClick={() => { setShowAddContact(false); setNewPhone(''); setNewName('') }} className="text-white/30 hover:text-red-400">
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                            )}
-
+                            <p className="text-[11px] text-white/30 mb-2">
+                                <span className="text-green-400 font-bold">{contacts.length} contactos</span> cargados
+                            </p>
                             <div className="max-h-60 overflow-y-auto rounded-xl border border-white/8 divide-y divide-white/5">
                                 {contacts.map((c, i) => (
                                     <div key={i} className="flex items-center gap-2 px-3 py-2 group">
@@ -609,6 +677,12 @@ export default function NewCrmCampaignPage() {
                                 ))}
                             </div>
                         </div>
+                    )}
+
+                    {contacts.length === 0 && !parsingExcel && (
+                        <p className="mt-3 text-[11px] text-white/20 text-center">
+                            Sin contactos — subí un Excel o agregá manualmente
+                        </p>
                     )}
                 </div>
 

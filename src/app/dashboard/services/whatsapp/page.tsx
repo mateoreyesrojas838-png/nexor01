@@ -1248,6 +1248,7 @@ function ProductForm({
   // Audio PTT state — sincronizar con el producto cuando cambia
   const [audioUrl, setAudioUrl] = useState<string | null>(product?.firstMessageAudioUrl ?? null)
   useEffect(() => { setAudioUrl(product?.firstMessageAudioUrl ?? null) }, [product?.id])
+  const [pendingAudio, setPendingAudio] = useState<{ file: File; localUrl: string } | null>(null)
   const [isRecordingAudio, setIsRecordingAudio] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [uploadingAudio, setUploadingAudio] = useState(false)
@@ -1272,7 +1273,7 @@ function ProductForm({
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop())
         const blob = new Blob(audioChunksRef.current, { type: mimeType })
-        await uploadAudio(blob, mimeType)
+        await handleAudioReady(blob, mimeType)
       }
       recorder.start(100)
       mediaRecorderRef.current = recorder
@@ -1293,19 +1294,31 @@ function ProductForm({
     setRecordingSeconds(0)
   }
 
-  async function uploadAudio(blobOrFile: Blob | File, mimeType?: string) {
-    if (!product) { setError('Guarda el producto primero antes de subir audio'); return }
+  // Maneja el audio ya listo (grabado o seleccionado desde archivo)
+  async function handleAudioReady(blobOrFile: Blob | File, mimeType?: string) {
+    const type = mimeType || (blobOrFile instanceof File ? blobOrFile.type : 'audio/webm')
+    const ext = type.includes('ogg') ? 'ogg' : type.includes('mp3') || type.includes('mpeg') ? 'mp3' : type.includes('wav') ? 'wav' : 'webm'
+    const file = blobOrFile instanceof File ? blobOrFile : new File([blobOrFile], `audio-${Date.now()}.${ext}`, { type })
+
+    if (!product) {
+      // Sin producto aún — guardar en pendiente, se sube al guardar el producto
+      const localUrl = URL.createObjectURL(file)
+      setPendingAudio({ file, localUrl })
+      return
+    }
+    await uploadAudioFile(file, product.id)
+  }
+
+  async function uploadAudioFile(file: File, productId: string) {
     setUploadingAudio(true)
     try {
-      const type = mimeType || (blobOrFile instanceof File ? blobOrFile.type : '')
-      const ext = type.includes('ogg') ? 'ogg' : type.includes('mp3') || type.includes('mpeg') ? 'mp3' : type.includes('wav') ? 'wav' : 'webm'
-      const file = blobOrFile instanceof File ? blobOrFile : new File([blobOrFile], `audio-${Date.now()}.${ext}`, { type })
       const fd = new FormData()
       fd.append('file', file)
-      const res = await fetch(`/api/products/${product.id}/audio`, { method: 'POST', body: fd })
+      const res = await fetch(`/api/products/${productId}/audio`, { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al subir audio')
       setAudioUrl(data.audioUrl)
+      setPendingAudio(null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al subir audio')
     } finally {
@@ -1314,7 +1327,11 @@ function ProductForm({
   }
 
   async function deleteAudio() {
-    if (!product) return
+    if (!product) {
+      // Solo limpiar pendiente local
+      if (pendingAudio) { URL.revokeObjectURL(pendingAudio.localUrl); setPendingAudio(null) }
+      return
+    }
     try {
       await fetch(`/api/products/${product.id}/audio`, { method: 'DELETE' })
       setAudioUrl(null)
@@ -1340,13 +1357,18 @@ function ProductForm({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error guardando producto')
+      const newProductId = data.product?.id as string | undefined
       // If creating a new product, also assign it to this bot
-      if (!product && data.product?.id && botId) {
+      if (!product && newProductId && botId) {
         await fetch(`/api/bots/${botId}/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: data.product.id }),
+          body: JSON.stringify({ productId: newProductId }),
         })
+      }
+      // Si hay audio pendiente y acabamos de crear el producto, subirlo ahora
+      if (!product && newProductId && pendingAudio) {
+        await uploadAudioFile(pendingAudio.file, newProductId)
       }
       onSaved()
     } catch (err: unknown) {
@@ -1428,6 +1450,7 @@ function ProductForm({
           <label className={labelClass}>
             🎙️ Audio nota de voz (Baileys) — el prompt controla cuándo enviarlo
           </label>
+          {/* Audio ya guardado en Supabase */}
           {audioUrl ? (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
               <Mic className="w-4 h-4 text-green-400 shrink-0" />
@@ -1435,17 +1458,22 @@ function ProductForm({
                 <p className="text-xs text-white/60 truncate">{audioUrl.split('/').pop()?.split('?')[0]}</p>
                 <audio src={audioUrl} controls className="mt-1 h-8 w-full opacity-70" />
               </div>
-              <button
-                type="button"
-                onClick={deleteAudio}
-                className="text-white/30 hover:text-red-400 transition-colors shrink-0"
-                title="Eliminar audio"
-              >
+              <button type="button" onClick={deleteAudio} className="text-white/30 hover:text-red-400 transition-colors shrink-0" title="Eliminar audio">
                 <X className="w-4 h-4" />
               </button>
             </div>
-          ) : !product ? (
-            <p className="text-xs text-white/30 italic">Guarda el producto primero para poder subir audio</p>
+          ) : pendingAudio ? (
+            /* Audio pendiente — se sube al guardar el producto */
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Mic className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-amber-400/80 font-bold">Audio listo — se sube al guardar</p>
+                <audio src={pendingAudio.localUrl} controls className="mt-1 h-8 w-full opacity-70" />
+              </div>
+              <button type="button" onClick={deleteAudio} className="text-white/30 hover:text-red-400 transition-colors shrink-0" title="Quitar audio">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           ) : isRecordingAudio ? (
             <button
               type="button"
@@ -1473,7 +1501,7 @@ function ProductForm({
                   type="file"
                   accept="audio/*"
                   className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadAudio(f) }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleAudioReady(f) }}
                 />
               </label>
             </div>
