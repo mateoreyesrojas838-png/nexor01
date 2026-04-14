@@ -181,8 +181,25 @@ export default function CrmCampaignDetailPage() {
     }
 
     async function startRecording() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setError('Tu navegador no soporta grabación de audio. Usá Chrome o Firefox, y asegurate de estar en HTTPS.')
+            return
+        }
+        let stream: MediaStream
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        } catch (err: unknown) {
+            const name = err instanceof Error ? err.name : ''
+            if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+                setError('Permiso de micrófono denegado. Habilitalo en la configuración del navegador.')
+            } else if (name === 'NotFoundError') {
+                setError('No se encontró ningún micrófono en este dispositivo.')
+            } else {
+                setError('No se pudo acceder al micrófono: ' + (err instanceof Error ? err.message : String(err)))
+            }
+            return
+        }
+        try {
             const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
                 ? 'audio/webm;codecs=opus'
                 : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
@@ -201,8 +218,9 @@ export default function CrmCampaignDetailPage() {
             setIsRecording(true)
             setRecordingSeconds(0)
             recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
-        } catch {
-            setError('No se pudo acceder al micrófono')
+        } catch (err: unknown) {
+            stream.getTracks().forEach(t => t.stop())
+            setError('Error al iniciar grabación: ' + (err instanceof Error ? err.message : String(err)))
         }
     }
 
