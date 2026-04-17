@@ -17,9 +17,34 @@ interface GenerateResult {
     completionTokens: number
 }
 
-async function generateUniqueMessage(prompt: string, apiKey: string): Promise<GenerateResult> {
+async function generateUniqueMessage(
+    prompt: string,
+    apiKey: string,
+    botRules?: string | null,
+    messageExample?: string | null,
+): Promise<GenerateResult> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 15000)
+
+    const systemContent = [
+        botRules?.trim()
+            ? `REGLAS Y PERSONALIDAD DEL BOT:\n${botRules.trim()}`
+            : null,
+        `Eres un experto en ventas por WhatsApp. Genera mensajes cortos, cálidos y únicos.
+REGLAS ADICIONALES:
+- NUNCA uses el nombre del contacto, el mensaje debe ser genérico
+- Incluir emojis estratégicamente
+- NUNCA generar el mismo mensaje dos veces
+- El mensaje debe ser completamente único y diferente cada vez`,
+        messageExample?.trim()
+            ? `EJEMPLAR DE REFERENCIA (seguí este estilo y formato exacto, pero con contenido diferente):\n"${messageExample.trim()}"`
+            : null,
+    ].filter(Boolean).join('\n\n')
+
+    const userContent = messageExample?.trim()
+        ? `Genera un mensaje de WhatsApp único para este tema: "${prompt}". Seguí el estilo del ejemplar de referencia pero con contenido completamente diferente. Genera solo el mensaje, sin comillas, sin explicaciones.`
+        : `Genera un mensaje de WhatsApp único basado en este tema: "${prompt}". No uses nombres propios. Genera solo el mensaje, sin comillas, sin explicaciones.`
+
     try {
         const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
             method: 'POST',
@@ -28,24 +53,8 @@ async function generateUniqueMessage(prompt: string, apiKey: string): Promise<Ge
             body: JSON.stringify({
                 model: 'gpt-4o',
                 messages: [
-                    {
-                        role: 'system',
-                        content: `Eres un experto en ventas por WhatsApp Bolivia. Genera mensajes cortos, cálidos y únicos.
-REGLAS:
-- Máximo 3 oraciones
-- NUNCA uses el nombre del contacto, NO personalices con nombres
-- Tono boliviano, cercano y directo
-- Incluir emojis estratégicamente
-- NUNCA generar el mismo mensaje dos veces
-- El mensaje debe ser completamente único y diferente cada vez
-- El mensaje debe ser genérico, sin dirigirse a nadie por nombre`,
-                    },
-                    {
-                        role: 'user',
-                        content: `Genera un mensaje de WhatsApp único basado en este tema: "${prompt}".
-No uses nombres propios. El mensaje debe ser genérico.
-Genera solo el mensaje, sin comillas, sin explicaciones.`,
-                    },
+                    { role: 'system', content: systemContent },
+                    { role: 'user', content: userContent },
                 ],
                 temperature: 1.0,
                 max_tokens: 200,
@@ -80,6 +89,7 @@ export async function executeBroadcast(campaignId: string) {
             bot: {
                 select: {
                     type: true,
+                    systemPromptTemplate: true,
                     secret: {
                         select: {
                             metaPageTokenEnc: true,
@@ -202,7 +212,7 @@ export async function executeBroadcast(campaignId: string) {
                     sent = true
                     logMessage = '🎙️ Audio'
                 } else {
-                    const generated = await generateUniqueMessage(campaign.prompt, openaiKey)
+                    const generated = await generateUniqueMessage(campaign.prompt, openaiKey, campaign.bot?.systemPromptTemplate, campaign.messageExample)
                     logMessage = generated.message
                     if (isGlobalKey) {
                         logAiUsage({ userId: campaign.userId, service: 'broadcast', model: 'gpt-4o', promptTokens: generated.promptTokens, completionTokens: generated.completionTokens }).catch(() => {})
@@ -252,7 +262,7 @@ export async function executeBroadcast(campaignId: string) {
                     logMessage = '🎙️ Audio'
                 } else {
                     // Modo texto: generar mensaje de IA, enviar visual opcional + texto
-                    const generated = await generateUniqueMessage(campaign.prompt, openaiKey)
+                    const generated = await generateUniqueMessage(campaign.prompt, openaiKey, campaign.bot?.systemPromptTemplate, campaign.messageExample)
                     logMessage = generated.message
                     if (isGlobalKey) {
                         logAiUsage({ userId: campaign.userId, service: 'broadcast', model: 'gpt-4o', promptTokens: generated.promptTokens, completionTokens: generated.completionTokens }).catch(() => {})

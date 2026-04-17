@@ -31,6 +31,7 @@ export default function NewCrmCampaignPage() {
     const [form, setForm] = useState({
         name: '',
         prompt: '',
+        messageExample: '',
         delayValue: '30',
         delayUnit: 'seconds',
         scheduledAt: '',
@@ -489,6 +490,23 @@ export default function NewCrmCampaignPage() {
                         rows={4}
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 resize-none leading-relaxed"
                     />
+
+                    {/* Ejemplar de mensaje */}
+                    <div className="mt-4">
+                        <label className="block text-xs font-black uppercase tracking-widest text-white/40 mb-1">
+                            Ejemplar de mensaje <span className="text-white/20 normal-case font-normal">(opcional)</span>
+                        </label>
+                        <p className="text-[11px] text-white/25 mb-2">
+                            La IA seguirá el estilo, tono y formato de este ejemplo para cada mensaje generado.
+                        </p>
+                        <textarea
+                            value={form.messageExample}
+                            onChange={e => setForm(f => ({ ...f, messageExample: e.target.value }))}
+                            placeholder="Ej: ¡Hola! 👋 Tenemos una oferta increíble para vos esta semana. No te la perdás 🔥"
+                            rows={3}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 resize-none leading-relaxed"
+                        />
+                    </div>
                 </div>
 
                 {/* Archivos multimedia */}

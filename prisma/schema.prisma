@@ -823,9 +823,10 @@ model BroadcastCampaign {
   id           String          @id @default(uuid()) @db.Uuid
   userId       String          @map("user_id") @db.Uuid
   botId        String          @map("bot_id") @db.Uuid
-  name         String
-  prompt       String          @db.Text
-  status       BroadcastStatus @default(DRAFT)
+  name           String
+  prompt         String          @db.Text
+  messageExample String?         @db.Text @map("message_example")
+  status         BroadcastStatus @default(DRAFT)
   delayValue   Int             @default(30) @map("delay_value")
   delayUnit    String          @default("seconds") @map("delay_unit")
   scheduledAt  DateTime?       @map("scheduled_at")

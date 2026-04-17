@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await req.json()
-    const { name, prompt, delayValue, delayUnit, scheduledAt, channelType, botId } = body
+    const { name, prompt, messageExample, delayValue, delayUnit, scheduledAt, channelType, botId } = body
 
     if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
 
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
                 botId: bot.id,
                 name: campaignName,
                 prompt: prompt?.trim() || '',
+                messageExample: messageExample?.trim() || null,
                 delayValue: parseInt(delayValue) || 30,
                 delayUnit: delayUnit || 'seconds',
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
                     botId: bot.id,
                     name: campaignName,
                     prompt: prompt?.trim() || '',
+                    messageExample: messageExample?.trim() || null,
                     delayValue: parseInt(delayValue) || 30,
                     delayUnit: delayUnit || 'seconds',
                     scheduledAt: scheduledAt ? new Date(scheduledAt) : null,

@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     const body = await req.json()
-    const { name, prompt, delayValue, delayUnit, scheduledAt } = body
+    const { name, prompt, messageExample, delayValue, delayUnit, scheduledAt } = body
 
     // Validar delayValue
     const parsedDelay = parseInt(delayValue)
@@ -52,6 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         data: {
             ...(name?.trim() && { name: name.trim() }),
             ...(prompt !== undefined && prompt !== null && { prompt: prompt.trim() }),
+            ...(messageExample !== undefined && { messageExample: messageExample?.trim() || null }),
             ...(delayValue !== undefined && { delayValue: parsedDelay }),
             ...(delayUnit && { delayUnit }),
             scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
