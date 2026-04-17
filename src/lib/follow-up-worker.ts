@@ -144,7 +144,7 @@ IMPORTANTE: Responde únicamente en formato JSON con este schema exacto:
                 }
             }
         } else if (bot.type === 'META') {
-            // META follow-ups: use Meta Graph API
+            // META follow-ups: use Meta Graph API (Messenger)
             if (bot.secret.metaPageTokenEnc) {
                 try {
                     const { sendMetaText } = await import('./meta')
@@ -156,6 +156,20 @@ IMPORTANTE: Responde únicamente en formato JSON con este schema exacto:
                 }
             } else {
                 console.warn(`[WORKER] Bot META ${bot.id} sin Page Token, omitiendo seguimiento`)
+            }
+        } else if (bot.type === 'WHATSAPP_CLOUD') {
+            // WHATSAPP_CLOUD follow-ups: use WhatsApp Cloud API
+            if (bot.secret.metaPageTokenEnc && bot.secret.metaPhoneNumberId) {
+                try {
+                    const { sendWaText } = await import('./whatsapp-cloud')
+                    const token = decrypt(bot.secret.metaPageTokenEnc)
+                    await sendWaText(userPhone, messageText, bot.secret.metaPhoneNumberId, token)
+                    sent = true
+                } catch (waErr) {
+                    console.error(`[WORKER] Error enviando seguimiento WhatsApp Cloud a ${userPhone}:`, waErr)
+                }
+            } else {
+                console.warn(`[WORKER] Bot WHATSAPP_CLOUD ${bot.id} sin token o phoneNumberId, omitiendo seguimiento`)
             }
         } else {
             // YCLOUD

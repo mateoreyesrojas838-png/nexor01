@@ -93,20 +93,41 @@ export function normalizeWaCloudMessage(
 }
 
 /**
- * Download a WA Cloud media object and return its public URL.
- * Step 1: GET /{media-id} → returns { url }
- * Step 2: GET that URL with Bearer token → redirect to actual CDN file
- * We return the CDN URL directly (it's pre-signed and valid for a short time).
+ * Download a WA Cloud media object and return its binary content as a Blob.
+ * Meta's media URLs require an Authorization header — OpenAI/Whisper cannot fetch them directly.
+ *
+ * Step 1: GET /{media-id} with Bearer token → { url, mime_type }
+ * Step 2: GET that url with Bearer token → actual binary data
  */
-async function resolveWaMediaUrl(mediaId: string, token: string): Promise<string> {
+async function downloadWaMedia(mediaId: string, token: string): Promise<{ blob: Blob; mimeType: string }> {
   const WA_API_VERSION = 'v20.0'
+
   // Step 1: get media metadata
   const metaRes = await fetch(`https://graph.facebook.com/${WA_API_VERSION}/${mediaId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!metaRes.ok) throw new Error(`[WA_CLOUD] Media meta ${metaRes.status}`)
+  if (!metaRes.ok) throw new Error(`[WA_CLOUD] Media meta ${metaRes.status}: ${await metaRes.text()}`)
   const meta = await metaRes.json() as Record<string, unknown>
-  return meta.url as string  // This is the pre-signed CDN URL
+  const cdnUrl  = meta.url as string
+  const mimeType = (meta.mime_type as string) || 'application/octet-stream'
+
+  // Step 2: download actual binary with Bearer token
+  const binRes = await fetch(cdnUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!binRes.ok) throw new Error(`[WA_CLOUD] Media download ${binRes.status}`)
+  const buffer = await binRes.arrayBuffer()
+  return { blob: new Blob([buffer], { type: mimeType }), mimeType }
+}
+
+/**
+ * Download WA Cloud media and return as base64 data URL (for OpenAI Vision).
+ */
+async function downloadWaMediaAsDataUrl(mediaId: string, token: string): Promise<string> {
+  const { blob, mimeType } = await downloadWaMedia(mediaId, token)
+  const buffer = await blob.arrayBuffer()
+  const base64 = Buffer.from(buffer).toString('base64')
+  return `data:${mimeType};base64,${base64}`
 }
 
 // ─── Engine ───────────────────────────────────────────────────────────────────
@@ -187,12 +208,14 @@ export class WhatsAppCloudEngine {
         resolvedType = 'text'
       } else if (type === 'audio' && norm.audioId) {
         resolvedType = 'audio'
-        const audioUrl = await resolveWaMediaUrl(norm.audioId, token)
-        userText = await transcribeAudio(audioUrl, openaiKey)
+        // Download binary with Bearer token; pass Blob to Whisper (transcribeAudio supports Blob)
+        const { blob: audioBlob } = await downloadWaMedia(norm.audioId, token)
+        userText = await transcribeAudio(audioBlob, openaiKey)
       } else if (type === 'image' && norm.imageId) {
         resolvedType = 'image'
-        const imageUrl = await resolveWaMediaUrl(norm.imageId, token)
-        userText = `[Imagen enviada] ${await analyzeImage(imageUrl, openaiKey)}`
+        // Download binary and encode as base64 data URL; OpenAI Vision supports data: URLs
+        const dataUrl = await downloadWaMediaAsDataUrl(norm.imageId, token)
+        userText = `[Imagen enviada] ${await analyzeImage(dataUrl, openaiKey)}`
       }
     } catch (e) {
       console.error('[WA_CLOUD] Error procesando contenido:', e)

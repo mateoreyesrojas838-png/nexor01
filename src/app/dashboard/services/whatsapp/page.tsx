@@ -3096,7 +3096,7 @@ function BotDetailView({
       </div>
 
       {/* Tab content */}
-      {tab === 'webhook' && (bot.type === 'YCLOUD' || bot.type === 'META') && <WebhookTab bot={bot} />}
+      {tab === 'webhook' && (bot.type === 'YCLOUD' || bot.type === 'META' || bot.type === 'WHATSAPP_CLOUD') && <WebhookTab bot={bot} />}
       {tab === 'credentials' && (
         <CredentialsTab
           bot={bot}
