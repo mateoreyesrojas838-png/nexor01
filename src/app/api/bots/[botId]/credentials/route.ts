@@ -31,6 +31,7 @@ export async function GET(
           openaiApiKeyEnc: true,
           metaPageTokenEnc: true,
           metaPhoneNumberId: true,
+          metaWabaId: true,
         },
       },
     },
@@ -45,7 +46,7 @@ export async function GET(
     hasOpenAIKey: !!bot.secret?.openaiApiKeyEnc,
     hasMetaToken: !!bot.secret?.metaPageTokenEnc,
     metaPhoneNumberId: bot.secret?.metaPhoneNumberId ?? '',
-    // Return masked page token hint
+    metaWabaId: (bot.secret as any)?.metaWabaId ?? '',
     metaPageTokenHint: (() => {
       try {
         return bot.secret?.metaPageTokenEnc
@@ -92,6 +93,7 @@ export async function PUT(
     reportPhone,
     metaPageToken,
     metaPhoneNumberId,
+    metaWabaId,
   } = body
 
   // Validaciones según tipo de bot
@@ -118,6 +120,7 @@ export async function PUT(
   const existingOpenai    = bot.secret?.openaiApiKeyEnc
   const existingMetaToken = bot.secret?.metaPageTokenEnc
   const existingPhoneId   = bot.secret?.metaPhoneNumberId
+  const existingWabaId    = (bot.secret as any)?.metaWabaId
 
   const ycloudEnc = ycloudApiKey?.trim()
     ? encrypt(ycloudApiKey.trim())
@@ -132,6 +135,7 @@ export async function PUT(
     : existingMetaToken ?? null
 
   const resolvedPhoneId = metaPhoneNumberId?.trim() || existingPhoneId || null
+  const resolvedWabaId  = metaWabaId?.trim() || existingWabaId || null
 
   if (!openaiEnc) {
     return NextResponse.json(
@@ -160,6 +164,7 @@ export async function PUT(
       reportPhone: isMeta ? '' : (reportPhone?.trim() ?? ''),
       ...(metaTokenEnc && { metaPageTokenEnc: metaTokenEnc }),
       ...(resolvedPhoneId && { metaPhoneNumberId: resolvedPhoneId }),
+      ...(resolvedWabaId && { metaWabaId: resolvedWabaId }),
     },
     update: {
       ycloudApiKeyEnc: ycloudEnc,
@@ -170,6 +175,7 @@ export async function PUT(
       ...(!isMeta && { reportPhone: reportPhone?.trim() ?? '' }),
       ...(metaTokenEnc && { metaPageTokenEnc: metaTokenEnc }),
       ...(resolvedPhoneId && { metaPhoneNumberId: resolvedPhoneId }),
+      ...(resolvedWabaId && { metaWabaId: resolvedWabaId }),
     },
   })
 

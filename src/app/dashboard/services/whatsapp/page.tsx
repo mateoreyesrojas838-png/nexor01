@@ -40,6 +40,7 @@ import {
   Share2,
   UserCheck,
   Mic,
+  Sparkles,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -500,13 +501,14 @@ function CredentialsTab({ bot, onStatusChange }: { bot: Bot; onStatusChange: (st
     reportPhone: '',
     metaPageToken: '',
     metaPhoneNumberId: '',
+    metaWabaId: '',
   })
   const [selectedModel, setSelectedModel] = useState(bot.aiModel || 'gpt-5.1')
   const [savingModel, setSavingModel] = useState(false)
   const [showYcloud, setShowYcloud] = useState(false)
   const [showOpenai, setShowOpenai] = useState(false)
   const [showMeta, setShowMeta] = useState(false)
-  const [creds, setCreds] = useState<{ hasYcloudKey: boolean; hasOpenAIKey: boolean; hasMetaToken: boolean; metaPageTokenHint: string; whatsappInstanceNumber: string; reportPhone: string; metaPhoneNumberId: string } | null>(null)
+  const [creds, setCreds] = useState<{ hasYcloudKey: boolean; hasOpenAIKey: boolean; hasMetaToken: boolean; metaPageTokenHint: string; whatsappInstanceNumber: string; reportPhone: string; metaPhoneNumberId: string; metaWabaId: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [savingStatus, setSavingStatus] = useState(false)
   const [msg, setMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
@@ -521,6 +523,7 @@ function CredentialsTab({ bot, onStatusChange }: { bot: Bot; onStatusChange: (st
         whatsappInstanceNumber: data.whatsappInstanceNumber,
         reportPhone: data.reportPhone,
         metaPhoneNumberId: data.metaPhoneNumberId ?? '',
+        metaWabaId: data.metaWabaId ?? '',
       }))
     }
   }, [bot.id])
@@ -679,6 +682,28 @@ function CredentialsTab({ bot, onStatusChange }: { bot: Bot; onStatusChange: (st
             />
             <p className="text-xs text-white/25 mt-1">
               Encuéntralo en developers.facebook.com → tu App → WhatsApp → Configuración → Phone Number ID.
+            </p>
+          </div>
+        )}
+
+        {/* WABA ID — solo para bots WHATSAPP_CLOUD */}
+        {isWhatsappCloud && (
+          <div>
+            <label className="block text-xs font-medium text-white/50 mb-1.5">
+              WhatsApp Business Account ID (WABA ID){' '}
+              {creds?.metaWabaId && (
+                <span className="text-green-400 ml-1">✓ configurado</span>
+              )}
+            </label>
+            <input
+              type="text"
+              value={form.metaWabaId}
+              onChange={e => setForm(f => ({ ...f, metaWabaId: e.target.value }))}
+              placeholder={creds?.metaWabaId ? '(dejar vacío para mantener)' : '1263278186011618'}
+              className="w-full bg-[#0B0B12]/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-green-400/40"
+            />
+            <p className="text-xs text-white/25 mt-1">
+              Requerido para gestionar templates. En API Setup → "Identificador de la cuenta de WhatsApp Business".
             </p>
           </div>
         )}
@@ -3093,6 +3118,15 @@ function BotDetailView({
             {t.label}
           </button>
         ))}
+        {bot.type === 'WHATSAPP_CLOUD' && (
+          <Link
+            href={`/dashboard/services/whatsapp/${bot.id}/templates`}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-green-400/70 hover:text-green-400 hover:bg-green-500/5 border border-transparent hover:border-green-500/20"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Templates
+          </Link>
+        )}
       </div>
 
       {/* Tab content */}

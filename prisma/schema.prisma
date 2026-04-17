@@ -212,6 +212,7 @@ model BotSecret {
   reportPhone            String  @map("report_phone")
   metaPageTokenEnc       String? @map("meta_page_token_enc")
   metaPhoneNumberId      String? @map("meta_phone_number_id")
+  metaWabaId             String? @map("meta_waba_id")
   bot                    Bot     @relation(fields: [botId], references: [id], onDelete: Cascade)
 
   @@map("bot_secrets")
@@ -826,6 +827,8 @@ model BroadcastCampaign {
   name           String
   prompt         String          @db.Text
   messageExample String?         @db.Text @map("message_example")
+  templateName   String?         @map("template_name")
+  templateVars   String?         @db.Text @map("template_vars")
   status         BroadcastStatus @default(DRAFT)
   delayValue   Int             @default(30) @map("delay_value")
   delayUnit    String          @default("seconds") @map("delay_unit")

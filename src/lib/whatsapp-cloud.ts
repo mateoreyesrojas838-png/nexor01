@@ -88,6 +88,91 @@ export async function sendWaAudio(
   })
 }
 
+/** Send a template message (for cold outreach — no 24h window restriction) */
+export async function sendWaTemplate(
+  to: string,
+  templateName: string,
+  languageCode: string,
+  phoneNumberId: string,
+  token: string,
+  bodyVars?: string[],   // values for {{1}}, {{2}}, ... in body
+): Promise<void> {
+  const components: unknown[] = []
+  if (bodyVars && bodyVars.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: bodyVars.map(v => ({ type: 'text', text: v })),
+    })
+  }
+  await waPost(phoneNumberId, token, {
+    recipient_type: 'individual',
+    to,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      ...(components.length > 0 && { components }),
+    },
+  })
+}
+
+/** List templates for a WABA — returns raw Meta response */
+export async function listWaTemplates(wabaId: string, token: string): Promise<unknown> {
+  const url = `${WA_BASE}/${wabaId}/message_templates?fields=id,name,status,language,category,components&limit=100`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`[WA_CLOUD] listTemplates error ${res.status}: ${err}`)
+  }
+  return res.json()
+}
+
+/** Create a template and submit for Meta review */
+export async function createWaTemplate(
+  wabaId: string,
+  token: string,
+  name: string,
+  language: string,
+  category: string,
+  bodyText: string,
+  headerText?: string,
+  footerText?: string,
+): Promise<unknown> {
+  const components: unknown[] = []
+  if (headerText?.trim()) {
+    components.push({ type: 'HEADER', format: 'TEXT', text: headerText.trim() })
+  }
+  components.push({ type: 'BODY', text: bodyText })
+  if (footerText?.trim()) {
+    components.push({ type: 'FOOTER', text: footerText.trim() })
+  }
+
+  const url = `${WA_BASE}/${wabaId}/message_templates`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name, language, category, components }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`[WA_CLOUD] createTemplate error ${res.status}: ${err}`)
+  }
+  return res.json()
+}
+
+/** Delete a template by name */
+export async function deleteWaTemplate(wabaId: string, token: string, name: string): Promise<void> {
+  const url = `${WA_BASE}/${wabaId}/message_templates?name=${encodeURIComponent(name)}`
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`[WA_CLOUD] deleteTemplate error ${res.status}: ${err}`)
+  }
+}
+
 /** Mark a message as read (shows blue ticks) */
 export async function markWaAsRead(
   messageId: string,
