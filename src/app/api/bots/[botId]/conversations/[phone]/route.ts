@@ -97,7 +97,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           await sendText(from, reportPhone, reportText, apiKey)
         } else if (bot.type === 'BAILEYS') {
           await BaileysManager.sendText(bot.id, reportPhone, reportText)
-        }
         } else if (bot.type === 'WHATSAPP_CLOUD' && bot.secret?.metaPageTokenEnc && bot.secret?.metaPhoneNumberId) {
           const waToken = decrypt(bot.secret.metaPageTokenEnc as string)
           const waPhoneId = bot.secret.metaPhoneNumberId as string
