@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { BaileysManager } from '@/lib/baileys-manager'
 import { decrypt } from '@/lib/crypto'
 import { getGlobalOpenAIKey, logAiUsage } from '@/lib/ai-credits'
-import { sendWaText, sendWaImage, sendWaVideo, sendWaAudio } from '@/lib/whatsapp-cloud'
+import { sendWaText, sendWaImage, sendWaVideo, sendWaAudio, sendWaTemplate } from '@/lib/whatsapp-cloud'
 
 const OPENAI_BASE = 'https://api.openai.com/v1'
 
@@ -196,7 +196,12 @@ export async function executeBroadcast(campaignId: string) {
                 const waPhoneId = campaign.bot.secret.metaPhoneNumberId
                 const to = contact.phone.replace(/\D/g, '')
 
-                if (hasAudio) {
+                if (campaign.templateName) {
+                    // ── Template mode — envía template aprobado por Meta ──────────
+                    await sendWaTemplate(to, campaign.templateName, 'es', waPhoneId, waToken)
+                    sent = true
+                    logMessage = `📋 Template: ${campaign.templateName}`
+                } else if (hasAudio) {
                     if (hasVisual) {
                         const visual = visualMedia[mediaIndex % visualMedia.length]
                         logImageUrl = visual.url

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await req.json()
-    const { name, prompt, messageExample, delayValue, delayUnit, scheduledAt, channelType, botId } = body
+    const { name, prompt, messageExample, templateName, delayValue, delayUnit, scheduledAt, channelType, botId } = body
 
     if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
 
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
                 name: campaignName,
                 prompt: prompt?.trim() || '',
                 messageExample: messageExample?.trim() || null,
+                templateName: templateName?.trim() || null,
                 delayValue: parseInt(delayValue) || 30,
                 delayUnit: delayUnit || 'seconds',
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : null,

@@ -39,6 +39,10 @@ export default function NewCrmCampaignPage() {
     const [channelType, setChannelType] = useState<'BAILEYS' | 'WHATSAPP_CLOUD'>('BAILEYS')
     const [waCloudBots, setWaCloudBots] = useState<{ id: string; name: string }[]>([])
     const [selectedBotId, setSelectedBotId] = useState('')
+    const [waMessageMode, setWaMessageMode] = useState<'ai' | 'template'>('ai')
+    const [waTemplates, setWaTemplates] = useState<{ name: string; status: string; bodyText: string }[]>([])
+    const [loadingWaTemplates, setLoadingWaTemplates] = useState(false)
+    const [selectedTemplateName, setSelectedTemplateName] = useState('')
     const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'IMAGE' | 'VIDEO' }[]>([])
     const [audioFiles, setAudioFiles] = useState<{ file: File; name: string }[]>([])
 
@@ -86,6 +90,27 @@ export default function NewCrmCampaignPage() {
                 setWaCloudBots(bots.map((b: any) => ({ id: b.id, name: b.name })))
             }
         } catch { setWaCloudBots([]) }
+    }
+
+    async function fetchWaTemplates(botId: string) {
+        setLoadingWaTemplates(true)
+        setWaTemplates([])
+        setSelectedTemplateName('')
+        try {
+            const res = await fetch(`/api/bots/${botId}/wa-templates`)
+            if (res.ok) {
+                const data = await res.json()
+                const approved = (data.templates ?? [])
+                    .filter((t: any) => t.status === 'APPROVED')
+                    .map((t: any) => ({
+                        name: t.name,
+                        status: t.status,
+                        bodyText: t.components?.find((c: any) => c.type === 'BODY')?.text ?? '',
+                    }))
+                setWaTemplates(approved)
+            }
+        } catch { setWaTemplates([]) }
+        finally { setLoadingWaTemplates(false) }
     }
 
     async function fetchTemplates() {
@@ -268,7 +293,9 @@ export default function NewCrmCampaignPage() {
         e.preventDefault()
         setError(null)
 
-        if (mediaFiles.length === 0 && audioFiles.length === 0) { setError('Agrega al menos 1 archivo (imagen, video o audio)'); return }
+        const isTemplateMode = channelType === 'WHATSAPP_CLOUD' && waMessageMode === 'template'
+        if (!isTemplateMode && mediaFiles.length === 0 && audioFiles.length === 0) { setError('Agrega al menos 1 archivo (imagen, video o audio)'); return }
+        if (isTemplateMode && !selectedTemplateName) { setError('Seleccioná un template de WhatsApp'); return }
         if (contacts.length === 0) { setError('Agrega contactos (desde Excel, etiquetas o manualmente)'); return }
         if (channelType === 'WHATSAPP_CLOUD' && !selectedBotId) { setError('Seleccioná un bot de WhatsApp Cloud'); return }
 
@@ -282,6 +309,7 @@ export default function NewCrmCampaignPage() {
                     ...form,
                     channelType,
                     ...(channelType === 'WHATSAPP_CLOUD' && { botId: selectedBotId }),
+                    ...(channelType === 'WHATSAPP_CLOUD' && waMessageMode === 'template' && selectedTemplateName && { templateName: selectedTemplateName }),
                 }),
             })
             const data = await res.json()
@@ -422,7 +450,7 @@ export default function NewCrmCampaignPage() {
                                         <button
                                             key={bot.id}
                                             type="button"
-                                            onClick={() => setSelectedBotId(bot.id)}
+                                            onClick={() => { setSelectedBotId(bot.id); fetchWaTemplates(bot.id) }}
                                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${selectedBotId === bot.id ? 'border-green-500/50 bg-green-500/10 text-green-400' : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white'}`}
                                         >
                                             <div className="flex items-center gap-2">
@@ -432,6 +460,55 @@ export default function NewCrmCampaignPage() {
                                             {selectedBotId === bot.id && <CheckCircle2 size={13} className="text-green-400 shrink-0" />}
                                         </button>
                                     ))}
+
+                                    {/* Modo de mensaje — solo cuando hay un bot seleccionado */}
+                                    {selectedBotId && (
+                                        <div className="mt-3 pt-3 border-t border-white/8">
+                                            <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-2">Tipo de mensaje</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button type="button" onClick={() => setWaMessageMode('ai')}
+                                                    className={`flex flex-col items-start gap-0.5 p-3 rounded-xl border-2 transition-all ${waMessageMode === 'ai' ? 'border-amber-500/60 bg-amber-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                                                    <span className="text-xs font-black text-white flex items-center gap-1.5"><Sparkles size={11} className="text-amber-400" /> IA genera texto</span>
+                                                    <span className="text-[10px] text-white/30">Mensaje único por contacto</span>
+                                                </button>
+                                                <button type="button" onClick={() => setWaMessageMode('template')}
+                                                    className={`flex flex-col items-start gap-0.5 p-3 rounded-xl border-2 transition-all ${waMessageMode === 'template' ? 'border-green-500/60 bg-green-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                                                    <span className="text-xs font-black text-white flex items-center gap-1.5"><FileText size={11} className="text-green-400" /> Template Meta</span>
+                                                    <span className="text-[10px] text-white/30">Envía a cualquier número</span>
+                                                </button>
+                                            </div>
+
+                                            {/* Selector de template */}
+                                            {waMessageMode === 'template' && (
+                                                <div className="mt-3">
+                                                    {loadingWaTemplates ? (
+                                                        <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                                                            <Loader2 size={13} className="animate-spin text-white/40" />
+                                                            <span className="text-xs text-white/40">Cargando templates...</span>
+                                                        </div>
+                                                    ) : waTemplates.length === 0 ? (
+                                                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                                            <p className="text-[11px] text-amber-400">No tenés templates aprobados. <Link href={`/dashboard/services/whatsapp/${selectedBotId}/templates`} className="underline font-bold">Crear uno →</Link></p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-1.5">
+                                                            <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-1">Seleccioná el template</p>
+                                                            {waTemplates.map(t => (
+                                                                <button key={t.name} type="button" onClick={() => setSelectedTemplateName(t.name)}
+                                                                    className={`w-full text-left p-3 rounded-xl border transition-all ${selectedTemplateName === t.name ? 'border-green-500/50 bg-green-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                                                                    <div className="flex items-center justify-between mb-1">
+                                                                        <code className="text-xs font-bold text-green-400">{t.name}</code>
+                                                                        {selectedTemplateName === t.name && <CheckCircle2 size={13} className="text-green-400 shrink-0" />}
+                                                                    </div>
+                                                                    {t.bodyText && <p className="text-[11px] text-white/50 line-clamp-2">{t.bodyText}</p>}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -486,7 +563,7 @@ export default function NewCrmCampaignPage() {
                         value={form.prompt}
                         onChange={e => setForm(f => ({ ...f, prompt: e.target.value }))}
                         placeholder="Ej: Promoción especial de fin de año, descuento del 30% en todos nuestros productos, solo por esta semana. Tono cálido y urgente."
-                        required={audioCount === 0}
+                        required={audioCount === 0 && !(channelType === 'WHATSAPP_CLOUD' && waMessageMode === 'template')}
                         rows={4}
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 resize-none leading-relaxed"
                     />
