@@ -446,9 +446,9 @@ export default function WaTemplatesPage() {
                               {uploadingMedia
                                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Subiendo...</>
                                 : <><Upload className="w-4 h-4" />
-                                    {headerType === 'IMAGE' ? 'Seleccionar imagen (JPG, PNG, WEBP · máx 5 MB)' :
-                                     headerType === 'VIDEO' ? 'Seleccionar video (MP4 · máx 16 MB)' :
-                                     'Seleccionar PDF (máx 100 MB)'}</>
+                                    {headerType === 'IMAGE' ? 'Seleccionar imagen (JPG, PNG, WEBP)' :
+                                     headerType === 'VIDEO' ? 'Seleccionar video (MP4, MOV)' :
+                                     'Seleccionar documento (PDF)'}</>
                               }
                             </button>
                           )}

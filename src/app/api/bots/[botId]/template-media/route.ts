@@ -20,9 +20,9 @@ const ALLOWED: Record<string, string> = {
 }
 
 const MAX_SIZE: Record<string, number> = {
-  IMAGE:    5  * 1024 * 1024,  // 5 MB
-  VIDEO:    16 * 1024 * 1024,  // 16 MB
-  DOCUMENT: 100 * 1024 * 1024, // 100 MB
+  IMAGE:    500 * 1024 * 1024,
+  VIDEO:    500 * 1024 * 1024,
+  DOCUMENT: 500 * 1024 * 1024,
 }
 
 export async function POST(req: NextRequest, { params }: { params: { botId: string } }) {
