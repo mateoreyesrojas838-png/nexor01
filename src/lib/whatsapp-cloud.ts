@@ -128,10 +128,11 @@ export async function listWaTemplates(wabaId: string, token: string): Promise<un
 }
 
 export interface WaTemplateButton {
-  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE'
   text: string
   url?: string          // for URL buttons
   phone_number?: string // for PHONE_NUMBER buttons
+  example?: string      // for COPY_CODE buttons (example coupon code)
 }
 
 export interface WaTemplatePayload {
@@ -183,8 +184,9 @@ export async function createWaTemplate(
     components.push({
       type: 'BUTTONS',
       buttons: buttons.map(b => {
-        if (b.type === 'QUICK_REPLY') return { type: 'QUICK_REPLY', text: b.text }
-        if (b.type === 'URL') return { type: 'URL', text: b.text, url: b.url }
+        if (b.type === 'QUICK_REPLY')  return { type: 'QUICK_REPLY', text: b.text }
+        if (b.type === 'URL')          return { type: 'URL', text: b.text, url: b.url }
+        if (b.type === 'COPY_CODE')    return { type: 'COPY_CODE', example: [b.example?.trim() || 'EJEMPLO123'] }
         return { type: 'PHONE_NUMBER', text: b.text, phone_number: b.phone_number }
       }),
     })
