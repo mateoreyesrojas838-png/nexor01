@@ -35,6 +35,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
                 messageExample: original.messageExample ?? null,
                 templateName: original.templateName ?? null,
                 templateVars: original.templateVars ?? null,
+                openaiApiKeyEnc: original.openaiApiKeyEnc ?? null,
                 delayValue: original.delayValue,
                 delayUnit: original.delayUnit,
                 status: 'DRAFT',
@@ -61,6 +62,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
                     name: newName,
                     prompt: original.prompt,
                     messageExample: original.messageExample ?? null,
+                    openaiApiKeyEnc: original.openaiApiKeyEnc ?? null,
                     delayValue: original.delayValue,
                     delayUnit: original.delayUnit,
                     status: 'DRAFT',
@@ -101,5 +103,6 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         }
     }
 
-    return NextResponse.json({ campaign: newCampaign }, { status: 201 })
+    const { openaiApiKeyEnc, ...safe } = newCampaign
+    return NextResponse.json({ campaign: { ...safe, hasOwnOpenaiKey: !!openaiApiKeyEnc } }, { status: 201 })
 }

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { encrypt } from '@/lib/crypto'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
     const user = await getAuthUser()
@@ -18,7 +19,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     })
 
     if (!campaign) return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
-    return NextResponse.json({ campaign })
+
+    // Nunca exponer la key (ni encriptada) al cliente — solo indicar si hay una propia
+    const { openaiApiKeyEnc, ...safe } = campaign
+    return NextResponse.json({ campaign: { ...safe, hasOwnOpenaiKey: !!openaiApiKeyEnc } })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -34,7 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     const body = await req.json()
-    const { name, prompt, messageExample, delayValue, delayUnit, scheduledAt } = body
+    const { name, prompt, messageExample, delayValue, delayUnit, scheduledAt, openaiApiKey } = body
 
     // Validar delayValue
     const parsedDelay = parseInt(delayValue)
@@ -55,12 +59,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             ...(messageExample !== undefined && { messageExample: messageExample?.trim() || null }),
             ...(delayValue !== undefined && { delayValue: parsedDelay }),
             ...(delayUnit && { delayUnit }),
+            // openaiApiKey: undefined = no tocar · '' = borrar (usar global) · valor = guardar encriptada
+            ...(openaiApiKey !== undefined && {
+                openaiApiKeyEnc: openaiApiKey?.trim() ? encrypt(openaiApiKey.trim()) : null,
+            }),
             scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
             status: newStatus,
         },
     })
 
-    return NextResponse.json({ campaign: updated })
+    const { openaiApiKeyEnc, ...safeUpdated } = updated
+    return NextResponse.json({ campaign: { ...safeUpdated, hasOwnOpenaiKey: !!openaiApiKeyEnc } })
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {

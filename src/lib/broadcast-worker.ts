@@ -111,12 +111,17 @@ export async function executeBroadcast(campaignId: string) {
         data: { status: 'RUNNING', startedAt: new Date() },
     })
 
-    // OpenAI key: config del usuario → key global del admin (solo si tiene saldo)
+    // OpenAI key: key propia de la campaña → config del usuario → key global del admin (solo si tiene saldo)
     let openaiKey = ''
     let isGlobalKey = false
-    const oaiConfig = await (prisma as any).openAIConfig.findUnique({ where: { userId: campaign.userId } })
-    if (oaiConfig?.isValid && oaiConfig.apiKeyEnc) {
-        try { openaiKey = decrypt(oaiConfig.apiKeyEnc) } catch {}
+    if (campaign.openaiApiKeyEnc) {
+        try { openaiKey = decrypt(campaign.openaiApiKeyEnc) } catch {}
+    }
+    if (!openaiKey) {
+        const oaiConfig = await (prisma as any).openAIConfig.findUnique({ where: { userId: campaign.userId } })
+        if (oaiConfig?.isValid && oaiConfig.apiKeyEnc) {
+            try { openaiKey = decrypt(oaiConfig.apiKeyEnc) } catch {}
+        }
     }
     if (!openaiKey) {
         const user = await (prisma as any).user.findUnique({ where: { id: campaign.userId }, select: { aiCreditsUsd: true } })

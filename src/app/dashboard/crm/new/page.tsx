@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
     ArrowLeft, Upload, X, Loader2, AlertCircle, CheckCircle2,
     Clock, Calendar, Users, Sparkles, Image as ImageIcon, Film,
-    Pencil, Trash2, Plus, Phone, FileText, ChevronDown, Mic, Wifi
+    Pencil, Trash2, Plus, Phone, FileText, ChevronDown, Mic, Wifi, KeyRound
 } from 'lucide-react'
 
 interface ContactEntry {
@@ -35,6 +35,7 @@ export default function NewCrmCampaignPage() {
         delayValue: '30',
         delayUnit: 'seconds',
         scheduledAt: '',
+        openaiApiKey: '',
     })
     const [channelType, setChannelType] = useState<'BAILEYS' | 'WHATSAPP_CLOUD'>('BAILEYS')
     const [waCloudBots, setWaCloudBots] = useState<{ id: string; name: string }[]>([])
@@ -597,6 +598,24 @@ export default function NewCrmCampaignPage() {
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 resize-none leading-relaxed"
                             />
                         </div>
+                    </div>
+
+                    {/* API Key de OpenAI (opcional) */}
+                    <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
+                        <label className="block text-xs font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-2">
+                            <KeyRound size={12} /> API Key de OpenAI <span className="text-white/20 normal-case font-normal">(opcional)</span>
+                        </label>
+                        <p className="text-[11px] text-white/25 mb-3">
+                            Dejalo vacío para usar la key configurada en tu cuenta o la del sistema. Si pegás una key acá, esta campaña usará esa key propia.
+                        </p>
+                        <input
+                            type="password"
+                            value={form.openaiApiKey}
+                            onChange={e => setForm(f => ({ ...f, openaiApiKey: e.target.value }))}
+                            placeholder="sk-..."
+                            autoComplete="off"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 font-mono"
+                        />
                     </div>
 
                     {/* Archivos multimedia */}

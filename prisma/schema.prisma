@@ -829,6 +829,7 @@ model BroadcastCampaign {
   messageExample String?         @db.Text @map("message_example")
   templateName   String?         @map("template_name")
   templateVars   String?         @db.Text @map("template_vars")
+  openaiApiKeyEnc String?        @db.Text @map("openai_api_key_enc")
   status         BroadcastStatus @default(DRAFT)
   delayValue   Int             @default(30) @map("delay_value")
   delayUnit    String          @default("seconds") @map("delay_unit")

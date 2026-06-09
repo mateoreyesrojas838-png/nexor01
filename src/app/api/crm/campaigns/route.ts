@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { generateSecureToken } from '@/lib/crypto'
+import { generateSecureToken, encrypt } from '@/lib/crypto'
 
 export async function GET() {
     const user = await getAuthUser()
@@ -18,7 +18,9 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ campaigns })
+    // No exponer la key encriptada al cliente — solo un booleano
+    const safe = campaigns.map(({ openaiApiKeyEnc, ...c }: any) => ({ ...c, hasOwnOpenaiKey: !!openaiApiKeyEnc }))
+    return NextResponse.json({ campaigns: safe })
 }
 
 export async function POST(req: NextRequest) {
@@ -26,12 +28,15 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await req.json()
-    const { name, prompt, messageExample, templateName, templateLanguage, delayValue, delayUnit, scheduledAt, channelType, botId } = body
+    const { name, prompt, messageExample, templateName, templateLanguage, delayValue, delayUnit, scheduledAt, channelType, botId, openaiApiKey } = body
 
     if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
 
     const campaignName = name.trim()
     const isWaCloud = channelType === 'WHATSAPP_CLOUD'
+
+    // Key propia de OpenAI para esta campaña (opcional) — se encripta antes de guardar
+    const openaiApiKeyEnc = openaiApiKey?.trim() ? encrypt(openaiApiKey.trim()) : null
 
     let campaign: any
 
@@ -55,6 +60,7 @@ export async function POST(req: NextRequest) {
                 templateVars: templateName?.trim() && templateLanguage?.trim()
                     ? JSON.stringify({ language: templateLanguage.trim() })
                     : null,
+                openaiApiKeyEnc,
                 delayValue: parseInt(delayValue) || 30,
                 delayUnit: delayUnit || 'seconds',
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -87,6 +93,7 @@ export async function POST(req: NextRequest) {
                     name: campaignName,
                     prompt: prompt?.trim() || '',
                     messageExample: messageExample?.trim() || null,
+                    openaiApiKeyEnc,
                     delayValue: parseInt(delayValue) || 30,
                     delayUnit: delayUnit || 'seconds',
                     scheduledAt: scheduledAt ? new Date(scheduledAt) : null,

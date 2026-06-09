@@ -72,15 +72,20 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
     const campaign = await (prisma as any).broadcastCampaign.findFirst({
         where: { id: params.id, userId: user.id },
-        select: { botId: true, name: true },
+        select: { botId: true, name: true, openaiApiKeyEnc: true },
     })
     if (!campaign) return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
 
-    // OpenAI key: config del usuario → key global del admin
+    // OpenAI key: key propia de la campaña → config del usuario → key global del admin
     let openaiKey = ''
-    const oaiConfig = await (prisma as any).openAIConfig.findUnique({ where: { userId: user.id } })
-    if (oaiConfig?.isValid && oaiConfig.apiKeyEnc) {
-        try { openaiKey = decrypt(oaiConfig.apiKeyEnc) } catch {}
+    if (campaign.openaiApiKeyEnc) {
+        try { openaiKey = decrypt(campaign.openaiApiKeyEnc) } catch {}
+    }
+    if (!openaiKey) {
+        const oaiConfig = await (prisma as any).openAIConfig.findUnique({ where: { userId: user.id } })
+        if (oaiConfig?.isValid && oaiConfig.apiKeyEnc) {
+            try { openaiKey = decrypt(oaiConfig.apiKeyEnc) } catch {}
+        }
     }
     if (!openaiKey) {
         openaiKey = (await getGlobalOpenAIKey()) ?? ''

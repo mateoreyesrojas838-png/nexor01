@@ -7,7 +7,7 @@ import {
     ArrowLeft, Play, Pause, Users, CheckCircle2, XCircle,
     Clock, Loader2, AlertCircle, RefreshCw,
     Image as ImageIcon, Calendar, Smartphone, Wifi, WifiOff, Film, Mic,
-    Plus, Pencil, Trash2, Phone, X, Square, Save, Copy, Upload
+    Plus, Pencil, Trash2, Phone, X, Square, Save, Copy, Upload, KeyRound
 } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -68,6 +68,9 @@ export default function CrmCampaignDetailPage() {
     // Edit mode (nombre, prompt, delay, scheduledAt)
     const [isEditing, setIsEditing] = useState(false)
     const [editForm, setEditForm] = useState({ name: '', prompt: '', messageExample: '', delayValue: '30', delayUnit: 'seconds', scheduledAt: '' })
+    // Key de OpenAI propia de la campaña — estado separado: '' en el input = no tocar, salvo que se marque "quitar"
+    const [editOpenaiKey, setEditOpenaiKey] = useState('')
+    const [removeOpenaiKey, setRemoveOpenaiKey] = useState(false)
     const [savingEdit, setSavingEdit] = useState(false)
 
     // Image / audio management
@@ -203,16 +206,24 @@ export default function CrmCampaignDetailPage() {
             delayUnit: campaign.delayUnit,
             scheduledAt: campaign.scheduledAt ? new Date(campaign.scheduledAt).toISOString().slice(0, 16) : '',
         })
+        setEditOpenaiKey('')
+        setRemoveOpenaiKey(false)
         setIsEditing(true)
     }
 
     async function saveEdit() {
         setSavingEdit(true)
         try {
+            // openaiApiKey: solo lo mandamos si el usuario lo cambió.
+            //   '' (quitar) → borra la key propia y usa la global · valor → guarda key nueva · ausente → no toca
+            const body: Record<string, unknown> = { ...editForm }
+            if (removeOpenaiKey) body.openaiApiKey = ''
+            else if (editOpenaiKey.trim()) body.openaiApiKey = editOpenaiKey.trim()
+
             const res = await fetch(`/api/crm/campaigns/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm),
+                body: JSON.stringify(body),
             })
             if (res.ok) {
                 setIsEditing(false)
@@ -591,6 +602,46 @@ export default function CrmCampaignDetailPage() {
                                 campaign.messageExample
                                     ? <p className="text-sm text-white/70 leading-relaxed">{campaign.messageExample}</p>
                                     : <p className="text-sm text-white/25 italic">Sin ejemplar</p>
+                            )}
+                        </div>
+
+                        {/* API Key de OpenAI propia de la campaña */}
+                        <div className="mt-4 pt-4 border-t border-white/8">
+                            <p className="text-xs font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-2">
+                                <KeyRound size={11} /> API Key de OpenAI
+                            </p>
+                            {isEditing ? (
+                                <div>
+                                    <p className="text-[11px] text-white/25 mb-2">
+                                        {campaign.hasOwnOpenaiKey
+                                            ? 'Esta campaña usa una key propia. Pegá una nueva para reemplazarla, o quitala para volver a la key de tu cuenta / del sistema.'
+                                            : 'Vacío = usa la key de tu cuenta o del sistema. Pegá una key para que esta campaña use una propia.'}
+                                    </p>
+                                    <input
+                                        type="password"
+                                        value={editOpenaiKey}
+                                        onChange={e => { setEditOpenaiKey(e.target.value); if (e.target.value) setRemoveOpenaiKey(false) }}
+                                        placeholder={campaign.hasOwnOpenaiKey ? '•••••••• (key propia configurada)' : 'sk-...'}
+                                        autoComplete="off"
+                                        disabled={removeOpenaiKey}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 resize-none font-mono disabled:opacity-40"
+                                    />
+                                    {campaign.hasOwnOpenaiKey && (
+                                        <label className="flex items-center gap-2 mt-2 text-[11px] text-white/50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={removeOpenaiKey}
+                                                onChange={e => { setRemoveOpenaiKey(e.target.checked); if (e.target.checked) setEditOpenaiKey('') }}
+                                                className="accent-red-500"
+                                            />
+                                            Quitar la key propia (usar la de la cuenta / sistema)
+                                        </label>
+                                    )}
+                                </div>
+                            ) : (
+                                campaign.hasOwnOpenaiKey
+                                    ? <p className="text-sm text-green-400/80 flex items-center gap-1.5"><CheckCircle2 size={13} /> Key propia configurada</p>
+                                    : <p className="text-sm text-white/25 italic">Usa la key de tu cuenta o del sistema</p>
                             )}
                         </div>
                     </div>
