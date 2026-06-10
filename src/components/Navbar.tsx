@@ -11,6 +11,7 @@ const navItems = [
   { href: '/dashboard/credits', iconClass: 'fa-solid fa-bolt', label: 'Créditos' },
   { href: '/dashboard/services/social', iconClass: 'fa-solid fa-satellite-dish', label: 'Publisher' },
   { href: '/dashboard/services/ads', iconClass: 'fa-solid fa-chart-line', label: 'Ads' },
+  { href: '/dashboard/services/image-studio', iconClass: 'fa-solid fa-wand-magic-sparkles', label: 'Imágenes' },
 ]
 
 async function logout() {

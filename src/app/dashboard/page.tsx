@@ -63,6 +63,15 @@ const services = [
     color: '#22D3EE',
     glow: 'rgba(34,211,238,0.12)',
   },
+  {
+    href: '/dashboard/services/image-studio',
+    icon: 'fa-solid fa-wand-magic-sparkles',
+    title: 'Generador de Imágenes',
+    sub: 'IA · Imágenes similares',
+    description: 'Subí una imagen de referencia y generá variantes similares con IA (gpt-image-2) según tus instrucciones.',
+    color: '#E879F9',
+    glow: 'rgba(232,121,249,0.12)',
+  },
 ]
 
 export default function DashboardPage() {
