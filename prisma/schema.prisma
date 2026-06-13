@@ -157,6 +157,8 @@ model User {
   adminOtpCodes        AdminOtpCode[]
   aiUsageLogs          AiUsageLog[]
   broadcastCampaigns   BroadcastCampaign[]
+  courseEnrollments    CourseEnrollment[]
+  lessonProgress       LessonProgress[]
 
   @@map("users")
 }
@@ -959,4 +961,98 @@ model AuditLog {
   user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+// ─── CURSOS ───────────────────────────────────────────────────────────────────
+
+enum CourseEnrollmentStatus {
+  PENDING
+  PENDING_VERIFICATION
+  APPROVED
+  REJECTED
+}
+
+model Course {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String
+  slug         String   @unique
+  subtitle     String?
+  description  String   @db.Text
+  coverUrl     String?  @map("cover_url")
+  price        Decimal  @db.Decimal(10, 2)
+  freeForPlan  Boolean  @default(false) @map("free_for_plan")
+  active       Boolean  @default(true)
+  whatYouLearn String?  @db.Text @map("what_you_learn") // una línea por ítem
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  modules     CourseModule[]
+  enrollments CourseEnrollment[]
+
+  @@map("courses")
+}
+
+model CourseModule {
+  id        String   @id @default(uuid()) @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  title     String
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons CourseLesson[]
+
+  @@index([courseId, order])
+  @@map("course_modules")
+}
+
+model CourseLesson {
+  id          String   @id @default(uuid()) @db.Uuid
+  moduleId    String   @map("module_id") @db.Uuid
+  title       String
+  videoPath   String?  @map("video_path") // ruta en el bucket PRIVADO course-videos
+  durationSec Int      @default(0) @map("duration_sec")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  module   CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+
+  @@index([moduleId, order])
+  @@map("course_lessons")
+}
+
+model CourseEnrollment {
+  id            String                 @id @default(uuid()) @db.Uuid
+  userId        String                 @map("user_id") @db.Uuid
+  courseId      String                 @map("course_id") @db.Uuid
+  status        CourseEnrollmentStatus @default(PENDING)
+  paymentMethod String                 @default("MANUAL") @map("payment_method")
+  proofUrl      String?                @map("proof_url")
+  txHash        String?                @unique @map("tx_hash")
+  blockNumber   BigInt?                @map("block_number")
+  notes         String?
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([status])
+  @@map("course_enrollments")
+}
+
+model LessonProgress {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  lessonId  String   @map("lesson_id") @db.Uuid
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@map("lesson_progress")
 }

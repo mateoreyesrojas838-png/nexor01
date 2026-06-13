@@ -17,6 +17,7 @@ import {
   Coins,
   FileText,
   Package,
+  GraduationCap,
 } from 'lucide-react'
 
 const NAV = [
@@ -25,6 +26,7 @@ const NAV = [
   { href: '/admin/purchases', label: 'Compras', icon: ShoppingBag },
   { href: '/admin/credits', label: 'Créditos AI', icon: Coins },
   { href: '/admin/products', label: 'Productos', icon: Package },
+  { href: '/admin/cursos', label: 'Cursos', icon: GraduationCap },
   { href: '/admin/prompt-templates', label: 'Plantillas Prompt', icon: FileText },
   { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
   { href: '/admin/settings', label: 'Configuración', icon: Settings },
