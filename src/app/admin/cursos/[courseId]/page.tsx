@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Save, Plus, Trash2, Upload, Film, CheckCircle2,
-  Layers, X, AlertCircle, Image as ImageIcon, Eye, EyeOff
+  Layers, X, AlertCircle, Image as ImageIcon, Eye, EyeOff, FileText, FileDown
 } from 'lucide-react'
 
 export default function AdminCourseEditor() {
@@ -26,6 +26,12 @@ export default function AdminCourseEditor() {
   const [newModuleTitle, setNewModuleTitle] = useState('')
   const [addingModule, setAddingModule] = useState(false)
   const [lessonForms, setLessonForms] = useState<Record<string, { title: string; file: File | null; uploading: boolean }>>({})
+
+  // Materiales (PDF / imágenes)
+  const [resTitle, setResTitle] = useState('')
+  const [resFile, setResFile] = useState<File | null>(null)
+  const [resUploading, setResUploading] = useState(false)
+  const resFileRef = useRef<HTMLInputElement>(null)
 
   const fetchCourse = useCallback(async () => {
     try {
@@ -97,7 +103,10 @@ export default function AdminCourseEditor() {
   }
 
   function setLF(moduleId: string, patch: Partial<{ title: string; file: File | null; uploading: boolean }>) {
-    setLessonForms(prev => ({ ...prev, [moduleId]: { title: '', file: null, uploading: false, ...prev[moduleId], ...patch } }))
+    setLessonForms(prev => {
+      const curr = prev[moduleId] || { title: '', file: null, uploading: false }
+      return { ...prev, [moduleId]: { ...curr, ...patch } }
+    })
   }
 
   async function addLesson(moduleId: string) {
@@ -127,6 +136,32 @@ export default function AdminCourseEditor() {
   async function deleteLesson(id: string) {
     if (!confirm('¿Eliminar esta lección y su video?')) return
     await fetch(`/api/admin/courses/lessons/${id}`, { method: 'DELETE' })
+    fetchCourse()
+  }
+
+  async function addResource() {
+    if (!resTitle.trim()) { setError('Poné un título al material'); return }
+    if (!resFile) { setError('Elegí un PDF o imagen'); return }
+    setResUploading(true); setError(null)
+    try {
+      const fd = new FormData(); fd.append('file', resFile)
+      const up = await fetch('/api/admin/courses/upload-file', { method: 'POST', body: fd })
+      const upData = await up.json()
+      if (!up.ok) { setError(upData.error || 'Error al subir el archivo'); return }
+      const res = await fetch(`/api/admin/courses/${courseId}/resources`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: resTitle.trim(), filePath: upData.filePath, kind: upData.kind }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Error al guardar el material'); return }
+      setResTitle(''); setResFile(null); if (resFileRef.current) resFileRef.current.value = ''
+      fetchCourse()
+    } catch { setError('Error al agregar el material') }
+    finally { setResUploading(false) }
+  }
+
+  async function deleteResource(id: string) {
+    if (!confirm('¿Eliminar este material?')) return
+    await fetch(`/api/admin/courses/resources/${id}`, { method: 'DELETE' })
     fetchCourse()
   }
 
@@ -247,6 +282,40 @@ export default function AdminCourseEditor() {
             })}
           </div>
         )}
+      </div>
+
+      {/* ── Materiales (PDF / imágenes) ── */}
+      <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 mt-5">
+        <h2 className="font-black text-white flex items-center gap-2 mb-1"><FileText size={17} className="text-amber-400" /> Materiales <span className="text-white/30 text-xs font-normal">(opcional)</span></h2>
+        <p className="text-[11px] text-white/30 mb-4">PDFs e imágenes descargables para los alumnos del curso.</p>
+
+        {(course.resources || []).length > 0 && (
+          <div className="space-y-2 mb-4">
+            {course.resources.map((r: any) => (
+              <div key={r.id} className="flex items-center gap-2 text-sm bg-white/[0.02] rounded-lg px-3 py-2">
+                {r.kind === 'IMAGE' ? <ImageIcon size={14} className="text-amber-400/70 shrink-0" /> : <FileDown size={14} className="text-amber-400/70 shrink-0" />}
+                <span className="text-white/70 flex-1 truncate">{r.title}</span>
+                <span className="text-[10px] text-white/30">{r.kind}</span>
+                <button onClick={() => deleteResource(r.id)} className="text-white/25 hover:text-red-400"><Trash2 size={12} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <input value={resTitle} onChange={e => setResTitle(e.target.value)} placeholder="Título del material (ej: Guía PDF Módulo 1)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50" />
+          <div className="flex items-center gap-2">
+            <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-white/10 hover:border-amber-500/30 cursor-pointer text-xs text-white/40">
+              <Upload size={13} />
+              {resFile ? <span className="text-white/70 truncate">{resFile.name}</span> : 'Elegir PDF o imagen'}
+              <input ref={resFileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={e => setResFile(e.target.files?.[0] || null)} />
+            </label>
+            <button onClick={addResource} disabled={resUploading} className="px-3 py-2 rounded-lg text-xs font-bold text-black disabled:opacity-50" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+              {resUploading ? <Loader2 size={13} className="animate-spin" /> : 'Agregar'}
+            </button>
+          </div>
+          {resUploading && <p className="text-[10px] text-amber-400/70">Subiendo archivo...</p>}
+        </div>
       </div>
     </div>
   )

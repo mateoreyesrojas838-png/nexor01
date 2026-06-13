@@ -15,6 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: { courseId: s
         orderBy: { order: 'asc' },
         include: { lessons: { orderBy: { order: 'asc' } } },
       },
+      resources: { orderBy: { order: 'asc' } },
       _count: { select: { enrollments: true } },
     },
   })

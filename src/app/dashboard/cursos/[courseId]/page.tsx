@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Loader2, Lock, CheckCircle2, PlayCircle, Film, ChevronDown, Clock, AlertCircle
+  ArrowLeft, Loader2, Lock, CheckCircle2, PlayCircle, Film, ChevronDown, Clock, AlertCircle,
+  FileDown, Image as ImageIcon
 } from 'lucide-react'
 import { CourseBuyBox } from '@/components/CourseBuyBox'
 
@@ -13,6 +14,7 @@ interface Module { id: string; title: string; order: number; lessons: Lesson[] }
 interface CourseData {
   id: string; title: string; subtitle: string | null; description: string; coverUrl: string | null
   price: number; freeForPlan: boolean; whatYouLearn: string | null; modules: Module[]
+  resources: { id: string; title: string; kind: string }[]
 }
 
 function fmtDur(s: number) {
@@ -59,6 +61,15 @@ export default function CoursePlayerPage() {
       setVideoUrl(data.url)
     } catch { setError('Error al cargar el video') }
     finally { setLoadingVideo(false) }
+  }
+
+  async function openResource(resourceId: string) {
+    try {
+      const res = await fetch(`/api/courses/${courseId}/resources/${resourceId}/file`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'No se pudo abrir el material'); return }
+      window.open(data.url, '_blank', 'noopener')
+    } catch { setError('Error al abrir el material') }
   }
 
   async function markComplete(lessonId: string) {
@@ -188,6 +199,22 @@ export default function CoursePlayerPage() {
                     <CheckCircle2 size={14} /> Marcar como vista
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Materiales del curso */}
+            {course.resources?.length > 0 && (
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-3">Materiales</p>
+                <div className="space-y-2">
+                  {course.resources.map(r => (
+                    <button key={r.id} onClick={() => openResource(r.id)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] text-left transition-all">
+                      {r.kind === 'IMAGE' ? <ImageIcon size={15} className="text-amber-400/70 shrink-0" /> : <FileDown size={15} className="text-amber-400/70 shrink-0" />}
+                      <span className="text-sm text-white/70 flex-1 truncate">{r.title}</span>
+                      <span className="text-[10px] text-white/30">{r.kind === 'IMAGE' ? 'Imagen' : 'PDF'}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

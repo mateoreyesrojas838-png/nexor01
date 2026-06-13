@@ -988,8 +988,29 @@ model Course {
 
   modules     CourseModule[]
   enrollments CourseEnrollment[]
+  resources   CourseResource[]
 
   @@map("courses")
+}
+
+enum CourseResourceKind {
+  PDF
+  IMAGE
+}
+
+model CourseResource {
+  id        String             @id @default(uuid()) @db.Uuid
+  courseId  String             @map("course_id") @db.Uuid
+  title     String
+  filePath  String             @map("file_path") // ruta en el bucket PRIVADO course-files
+  kind      CourseResourceKind @default(PDF)
+  order     Int                @default(0)
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, order])
+  @@map("course_resources")
 }
 
 model CourseModule {

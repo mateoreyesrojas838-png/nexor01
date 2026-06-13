@@ -24,6 +24,7 @@ export async function GET(_req: NextRequest, { params }: { params: { courseId: s
           },
         },
       },
+      resources: { orderBy: { order: 'asc' }, select: { id: true, title: true, kind: true } },
     },
   })
   if (!course) return NextResponse.json({ error: 'Curso no encontrado' }, { status: 404 })
@@ -69,6 +70,7 @@ export async function GET(_req: NextRequest, { params }: { params: { courseId: s
       freeForPlan: course.freeForPlan,
       whatYouLearn: course.whatYouLearn,
       modules,
+      resources: (course.resources || []).map((r: any) => ({ id: r.id, title: r.title, kind: r.kind })),
     },
     hasAccess,
     enrollmentStatus: enrollment?.status ?? null,
