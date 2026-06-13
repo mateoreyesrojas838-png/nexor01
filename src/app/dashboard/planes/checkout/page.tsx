@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, Clock, ShieldCheck, QrCode, ExternalLink, Loader2, AlertCircle, Zap, Sparkles, Crown, Upload, X } from 'lucide-react'
 import { PaymentGateway } from '@/components/PaymentGateway'
+import { CryptoPaymentGateway } from '@/components/CryptoPaymentGateway'
 
 const PLAN_LABELS: Record<string, string> = {
   BASIC: 'Pack Básico',
@@ -45,7 +46,8 @@ function CheckoutContent() {
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const [manualAvailable, setManualAvailable] = useState(true)
   const [hgwAvailable, setHgwAvailable] = useState(false)
-  const [payMethod, setPayMethod] = useState<'libelula' | 'manual' | 'hgw'>('libelula')
+  const [cryptoAvailable, setCryptoAvailable] = useState(true)
+  const [payMethod, setPayMethod] = useState<'libelula' | 'manual' | 'hgw' | 'usdt'>('libelula')
 
   // HGW state
   const [hgwCode, setHgwCode] = useState('')
@@ -113,11 +115,14 @@ function CheckoutContent() {
         const hasLibelula = map['LIBELULA_AVAILABLE'] === 'true'
         const hasManual = map['STORE_PAYMENT_MANUAL'] !== 'false'
         const hasHgw = map['HGW_ENABLED'] === 'true'
+        const hasCrypto = map['CRYPTO_ENABLED'] !== 'false'
         setLibelulaAvailable(hasLibelula)
         setManualAvailable(hasManual)
         setHgwAvailable(hasHgw)
+        setCryptoAvailable(hasCrypto)
         if (!hasLibelula && hasManual) setPayMethod('manual')
-        else if (!hasLibelula && !hasManual && hasHgw) setPayMethod('hgw')
+        else if (!hasLibelula && !hasManual && hasCrypto) setPayMethod('usdt')
+        else if (!hasLibelula && !hasManual && !hasCrypto && hasHgw) setPayMethod('hgw')
 
         if (hasLibelula && autoStart) triggerLibelula(usdPrice)
       })
@@ -325,7 +330,7 @@ function CheckoutContent() {
                 </div>
 
                 {/* Method tabs — only show if more than one method active */}
-                {[libelulaAvailable, manualAvailable, hgwAvailable].filter(Boolean).length > 1 && (
+                {[libelulaAvailable, manualAvailable, hgwAvailable, cryptoAvailable].filter(Boolean).length > 1 && (
                 <div className="flex rounded-xl overflow-hidden border border-white/10 mb-5">
                   {libelulaAvailable && (
                     <button
@@ -342,6 +347,15 @@ function CheckoutContent() {
                       className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'manual' ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/60'}`}
                     >
                       Comprobante
+                    </button>
+                  )}
+                  {cryptoAvailable && (
+                    <button
+                      onClick={() => setPayMethod('usdt')}
+                      className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${payMethod === 'usdt' ? 'text-black' : 'text-white/40 hover:text-white/60'}`}
+                      style={payMethod === 'usdt' ? { background: 'linear-gradient(135deg, #ca8a04, #facc15)' } : { background: 'transparent' }}
+                    >
+                      USDT
                     </button>
                   )}
                   {hgwAvailable && (
@@ -437,6 +451,17 @@ function CheckoutContent() {
                     plan={PLAN_LABELS[planId] ?? planId}
                     price={price}
                     onSubmitPayment={handleSubmitPayment}
+                    onSuccess={handleSuccess}
+                    onCancel={() => router.push('/dashboard/planes')}
+                  />
+                )}
+
+                {/* USDT (cripto BEP-20) flow */}
+                {payMethod === 'usdt' && cryptoAvailable && (
+                  <CryptoPaymentGateway
+                    plan={planId}
+                    price={price}
+                    isRenewal={isRenewal}
                     onSuccess={handleSuccess}
                     onCancel={() => router.push('/dashboard/planes')}
                   />
@@ -542,6 +567,8 @@ function CheckoutContent() {
             <ShieldCheck size={11} />
             {payMethod === 'libelula' && libelulaAvailable
               ? 'Pago procesado por Libélula · Banco Mercantil Santa Cruz'
+              : payMethod === 'usdt'
+              ? 'Pago verificado on-chain · USDT BEP-20 (BNB Smart Chain)'
               : payMethod === 'hgw'
               ? 'Verificación de recompra HGW revisada manualmente · menos de 24 h'
               : 'Proceso verificado manualmente por el equipo Nexor'}

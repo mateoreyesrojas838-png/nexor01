@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { WalletProvider } from '@/context/WalletProvider'
 
 export const metadata: Metadata = {
   title: 'NEXOR',
@@ -25,7 +26,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
       </head>
       <body className="min-h-screen" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-        {children}
+        <WalletProvider>{children}</WalletProvider>
       </body>
     </html>
   )
