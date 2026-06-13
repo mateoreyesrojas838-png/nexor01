@@ -6,6 +6,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Lock, CheckCircle2, PlayCircle, Film, ChevronDown, Clock, AlertCircle
 } from 'lucide-react'
+import { CourseBuyBox } from '@/components/CourseBuyBox'
 
 interface Lesson { id: string; title: string; durationSec: number; order: number; hasVideo: boolean; completed: boolean }
 interface Module { id: string; title: string; order: number; lessons: Lesson[] }
@@ -146,12 +147,7 @@ export default function CoursePlayerPage() {
               </div>
             ) : (
               <>
-                <p className="text-3xl font-black text-white">${course.price.toFixed(2)} <span className="text-sm text-white/30 font-normal">USDT</span></p>
-                <p className="text-xs text-white/40 mt-1 mb-4">Acceso de por vida al curso.</p>
-                {/* La compra se habilita en la Fase 3 */}
-                <button disabled className="w-full py-3 rounded-xl text-sm font-black text-black opacity-60 cursor-not-allowed" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
-                  Comprar (próximamente)
-                </button>
+                <CourseBuyBox courseId={course.id} courseTitle={course.title} price={course.price} onPurchased={fetchCourse} />
                 {course.freeForPlan && <p className="text-[11px] text-amber-300/80 mt-3 text-center">💡 Este curso es gratis si tenés un plan activo.</p>}
               </>
             )}

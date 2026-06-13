@@ -20,6 +20,8 @@ interface CryptoPaymentGatewayProps {
   price: number
   isRenewal?: boolean
   receiverAddress?: string
+  // Si se pasa, se llama con el txHash en vez del POST por defecto a /api/pack-requests
+  onSubmitTx?: (txHash: string) => Promise<'approved' | 'pending_verification'>
   onSuccess?: (status: 'approved' | 'pending_verification') => void
   onCancel?: () => void
 }
@@ -39,6 +41,7 @@ export function CryptoPaymentGateway({
   price,
   isRenewal = false,
   receiverAddress: receiverProp,
+  onSubmitTx,
   onSuccess,
   onCancel,
 }: CryptoPaymentGatewayProps) {
@@ -108,14 +111,19 @@ export function CryptoPaymentGateway({
       const tx = await contract.transfer(receiverAddress, amount)
       setTxHash(tx.hash)
 
-      const res = await fetch('/api/pack-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, isRenewal, paymentMethod: 'CRYPTO', txHash: tx.hash }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error al registrar el pago')
-      const status: 'approved' | 'pending_verification' = data.status === 'approved' ? 'approved' : 'pending_verification'
+      let status: 'approved' | 'pending_verification'
+      if (onSubmitTx) {
+        status = await onSubmitTx(tx.hash)
+      } else {
+        const res = await fetch('/api/pack-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan, isRenewal, paymentMethod: 'CRYPTO', txHash: tx.hash }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Error al registrar el pago')
+        status = data.status === 'approved' ? 'approved' : 'pending_verification'
+      }
 
       setStep('success')
       onSuccess?.(status)

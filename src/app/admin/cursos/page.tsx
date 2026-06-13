@@ -66,9 +66,14 @@ export default function AdminCoursesPage() {
           <h1 className="text-xl font-black text-white flex items-center gap-2"><GraduationCap size={20} className="text-amber-400" /> Cursos</h1>
           <p className="text-xs text-white/30 mt-0.5">Creá cursos por módulos y subí los videos.</p>
         </div>
-        <button onClick={() => setShowNew(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-black" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
-          <Plus size={15} /> Nuevo curso
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/cursos/inscripciones" className="px-4 py-2.5 rounded-xl text-sm font-bold border border-white/10 bg-white/5 text-white/60 hover:text-amber-400 hover:border-amber-500/40 transition-all">
+            Inscripciones
+          </Link>
+          <button onClick={() => setShowNew(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-black" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+            <Plus size={15} /> Nuevo curso
+          </button>
+        </div>
       </div>
 
       {error && (

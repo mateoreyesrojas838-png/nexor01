@@ -118,5 +118,49 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, ...results })
+  // ── Inscripciones a cursos pagadas con cripto ──────────────────────────────
+  let pendingEnrollments: any[] = []
+  try {
+    pendingEnrollments = await (prisma as any).courseEnrollment.findMany({
+      where: { status: 'PENDING_VERIFICATION', paymentMethod: 'CRYPTO', txHash: { not: null } },
+      include: { course: { select: { price: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    })
+  } catch (err) {
+    console.error('[cron/verify] Error fetching course enrollments:', err)
+    return NextResponse.json({ success: true, ...results, enrollments: { verified: 0, failed: 0 } })
+  }
+
+  const enrollResults = { verified: 0, failed: 0 }
+  for (const enr of pendingEnrollments) {
+    const verification = await verifyBscTransaction(enr.txHash!, Number(enr.course.price))
+    if (!verification.success) {
+      const ageMinutes = (Date.now() - enr.createdAt.getTime()) / 60000
+      if (ageMinutes > 30) {
+        await (prisma as any).courseEnrollment.update({
+          where: { id: enr.id },
+          data: { status: 'REJECTED', notes: `Timeout verificación: ${verification.error}` },
+        })
+        enrollResults.failed++
+      }
+      continue
+    }
+    try {
+      await (prisma as any).courseEnrollment.update({
+        where: { id: enr.id },
+        data: {
+          status: 'APPROVED',
+          blockNumber: verification.blockNumber ?? null,
+          notes: `Auto-aprobado por cron. USDT: ${verification.amountUsdt?.toFixed(2)}`,
+        },
+      })
+      enrollResults.verified++
+    } catch (err) {
+      console.error('[cron/verify] Error aprobando inscripción:', enr.id, err)
+      enrollResults.failed++
+    }
+  }
+
+  return NextResponse.json({ success: true, ...results, enrollments: enrollResults })
 }
