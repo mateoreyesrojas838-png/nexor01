@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Save, Plus, Trash2, Upload, Film, CheckCircle2,
-  Layers, X, AlertCircle, Image as ImageIcon, Eye, EyeOff, FileText, FileDown, ChevronUp, ChevronDown
+  Layers, X, AlertCircle, Image as ImageIcon, Eye, EyeOff, FileText, FileDown, ChevronUp, ChevronDown,
+  Link2, Copy, ExternalLink, Check
 } from 'lucide-react'
 
 export default function AdminCourseEditor() {
@@ -32,6 +33,13 @@ export default function AdminCourseEditor() {
   const [resFile, setResFile] = useState<File | null>(null)
   const [resUploading, setResUploading] = useState(false)
   const resFileRef = useRef<HTMLInputElement>(null)
+  const [copied, setCopied] = useState(false)
+
+  const landingUrl = course?.slug && typeof window !== 'undefined' ? `${window.location.origin}/cursos/${course.slug}` : ''
+  function copyLanding() {
+    if (!landingUrl) return
+    navigator.clipboard.writeText(landingUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+  }
 
   const fetchCourse = useCallback(async () => {
     try {
@@ -260,6 +268,23 @@ export default function AdminCourseEditor() {
           <button onClick={saveCourse} disabled={saving} className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Guardar cambios
           </button>
+        </div>
+      </div>
+
+      {/* ── Página de ventas (landing) — link para compartir ── */}
+      <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 mb-5">
+        <h2 className="font-black text-white flex items-center gap-2 mb-1"><Link2 size={17} className="text-amber-400" /> Página de ventas</h2>
+        <p className="text-[11px] text-white/30 mb-3">
+          La landing pública se genera sola. Compartí este link para vender este curso{!form.active && <span className="text-amber-400"> (activá el curso para que sea visible)</span>}.
+        </p>
+        <div className="flex items-center gap-2">
+          <input readOnly value={landingUrl} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white/70 font-mono focus:outline-none" />
+          <button onClick={copyLanding} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-black" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+            {copied ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
+          </button>
+          <a href={landingUrl || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-white/60 hover:text-amber-400">
+            <ExternalLink size={13} /> Ver
+          </a>
         </div>
       </div>
 
