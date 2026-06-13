@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+
+function safeRedirect(r: string | null): string {
+  return r && r.startsWith('/') && !r.startsWith('//') && !r.startsWith('/\\') ? r : ''
+}
 import { Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react'
 import TurnstileWidget from '@/components/TurnstileWidget'
 
@@ -13,8 +17,13 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [redirect, setRedirect] = useState('')
   const handleTurnstile = useCallback((token: string) => setTurnstileToken(token), [])
   const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), [])
+
+  useEffect(() => {
+    setRedirect(safeRedirect(new URLSearchParams(window.location.search).get('redirect')))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,7 +37,7 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
-      window.location.href = '/dashboard'
+      window.location.href = redirect || '/dashboard'
     } catch {
       setError('Error de conexión. Intenta de nuevo.')
     } finally {
@@ -166,7 +175,7 @@ export default function LoginPage() {
 
         <p className="text-center text-white/25 text-[11px] mt-5">
           ¿Sin cuenta?{' '}
-          <Link href="/register" className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
+          <Link href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
             Registrarse
           </Link>
         </p>

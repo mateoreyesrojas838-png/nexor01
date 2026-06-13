@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useCallback, Suspense } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react'
 import TurnstileWidget from '@/components/TurnstileWidget'
+
+function safeRedirect(r: string | null): string {
+  return r && r.startsWith('/') && !r.startsWith('//') && !r.startsWith('/\\') ? r : ''
+}
 
 export default function RegisterPage() {
   return (
@@ -26,8 +30,13 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [redirect, setRedirect] = useState('')
   const handleTurnstile = useCallback((token: string) => setTurnstileToken(token), [])
   const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), [])
+
+  useEffect(() => {
+    setRedirect(safeRedirect(new URLSearchParams(window.location.search).get('redirect')))
+  }, [])
 
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '', acceptTerms: false,
@@ -95,7 +104,7 @@ function RegisterForm() {
               <p className="text-xs text-white/40 mt-1">Tu cuenta está lista para usar</p>
             </div>
             <button
-              onClick={() => { router.refresh(); router.push('/dashboard') }}
+              onClick={() => { window.location.href = redirect || '/dashboard' }}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.97] hover:brightness-110"
               style={{
                 background: 'linear-gradient(135deg, #B45309, #D97706, #FFD700)',
@@ -104,7 +113,7 @@ function RegisterForm() {
                 boxShadow: '0 6px 24px rgba(217,119,6,0.3)',
               }}
             >
-              Ir a mi panel <ArrowRight size={13} />
+              {redirect ? 'Continuar' : 'Ir a mi panel'} <ArrowRight size={13} />
             </button>
           </div>
         </div>
@@ -276,7 +285,7 @@ function RegisterForm() {
 
         <p className="text-center text-white/25 text-xs mt-5">
           ¿Ya tienes cuenta?{' '}
-          <Link href="/login" className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
+          <Link href={`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
             Iniciar sesión
           </Link>
         </p>

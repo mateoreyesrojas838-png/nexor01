@@ -50,14 +50,21 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Rutas protegidas — requieren sesión
+  // Solo permitimos redirects internos (evita open-redirect a sitios externos)
+  const safeRedirect = (r: string | null): string | null =>
+    r && r.startsWith('/') && !r.startsWith('//') && !r.startsWith('/\\') ? r : null
+
+  // Rutas protegidas — requieren sesión. Guardamos a dónde iba para volver tras login.
   if (!token && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Si ya tiene sesión y va a login/registro → dashboard
+  // Si ya tiene sesión y va a login/registro → al destino guardado o al dashboard
   if (token && (pathname === '/login' || pathname === '/register')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    const dest = safeRedirect(request.nextUrl.searchParams.get('redirect')) ?? '/dashboard'
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
   // Rate limiting en todas las rutas /api/ autenticadas

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { GraduationCap, Lock, CheckCircle2, PlayCircle, Layers } from 'lucide-react'
@@ -39,7 +40,11 @@ export default async function CourseLandingPage({ params }: { params: { slug: st
   const price = Number(course.price)
   const learnItems = (course.whatYouLearn || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
   const totalLessons = course.modules.reduce((acc: number, m: any) => acc + m.lessons.length, 0)
-  const goUrl = `/dashboard/cursos/${course.id}`
+
+  // Si no hay sesión, el CTA manda a registrarse y vuelve solo al curso después
+  const isLogged = !!cookies().get('auth_token')?.value
+  const courseUrl = `/dashboard/cursos/${course.id}`
+  const goUrl = isLogged ? courseUrl : `/register?redirect=${encodeURIComponent(courseUrl)}`
 
   return (
     <div className="min-h-screen text-white" style={{ background: '#0B0B12' }}>
