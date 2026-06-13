@@ -40,11 +40,13 @@ const nextConfig = {
                 value: [
                     "default-src 'self'",
                     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
-                    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+                    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com",
                     "img-src 'self' data: blob: https:",
-                    "connect-src 'self' https:",
-                    "frame-src https://challenges.cloudflare.com",
-                    "font-src 'self' data: https://cdnjs.cloudflare.com",
+                    // wss: necesario para el relay de WalletConnect (QR de pago USDT)
+                    "connect-src 'self' https: wss:",
+                    // iframes de verificación de WalletConnect/Reown + Cloudflare Turnstile
+                    "frame-src 'self' https://challenges.cloudflare.com https://*.walletconnect.org https://*.walletconnect.com",
+                    "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com",
                 ].join('; '),
             },
         ]
