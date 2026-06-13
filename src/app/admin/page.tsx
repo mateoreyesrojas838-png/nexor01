@@ -11,6 +11,7 @@ import {
   Clock,
   ArrowRight,
   Loader2,
+  GraduationCap,
 } from 'lucide-react'
 
 interface Stats {
@@ -20,6 +21,9 @@ interface Stats {
   pendingWithdrawals: number
   totalCommissions: number
   totalRevenue: number
+  coursesCount?: number
+  courseSales?: number
+  pendingEnrollments?: number
 }
 
 interface PendingPurchase {
@@ -115,6 +119,23 @@ export default function AdminOverviewPage() {
       icon: DollarSign,
       color: 'text-green-400',
       bg: 'bg-green-500/8 border-green-500/20',
+    },
+    {
+      label: 'Cursos Activos',
+      value: stats?.coursesCount ?? 0,
+      icon: GraduationCap,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/8 border-emerald-500/20',
+      href: '/admin/cursos',
+    },
+    {
+      label: 'Ventas de Cursos',
+      value: stats?.courseSales ?? 0,
+      icon: GraduationCap,
+      color: 'text-teal-400',
+      bg: 'bg-teal-500/8 border-teal-500/20',
+      href: '/admin/cursos/inscripciones',
+      alert: (stats?.pendingEnrollments ?? 0) > 0,
     },
   ]
 

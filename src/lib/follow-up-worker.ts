@@ -65,6 +65,18 @@ export async function processFollowUps() {
     }
 }
 
+/**
+ * Reprograma un seguimiento hacia el futuro para EVITAR reintentos cada 60s
+ * (que queman saldo de OpenAI cuando el bot está caído o la key sin cuota).
+ */
+async function reschedule(conversationId: string, type: 1 | 2, minutes: number) {
+    const next = new Date(Date.now() + minutes * 60 * 1000)
+    await prisma.conversation.update({
+        where: { id: conversationId },
+        data: type === 1 ? { followUp1At: next } : { followUp2At: next, followUp2Sent: false },
+    }).catch(() => {})
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function executeFollowUp(conv: any, type: 1 | 2) {
     const { bot, userPhone, userName, messages, id: conversationId } = conv
@@ -72,9 +84,21 @@ async function executeFollowUp(conv: any, type: 1 | 2) {
     console.log(`[WORKER] Ejecutando seguimiento ${type} para ${userPhone} (${userName})`)
 
     try {
+        // No gastar OpenAI si no vamos a poder entregar (bot Baileys desconectado).
+        // Reprogramamos +1h en vez de reintentar cada minuto.
+        if (bot.type === 'BAILEYS') {
+            const st = BaileysManager.getStatus(bot.id)
+            if (st.status !== 'connected') {
+                console.warn(`[WORKER] Bot ${bot.id} desconectado — reprogramando seguimiento ${type} +60min`)
+                await reschedule(conversationId, type, 60)
+                return
+            }
+        }
+
         const resolvedKey = await resolveOpenAIKey(bot.id)
         if (!resolvedKey) {
             console.warn(`[WORKER] Bot ${bot.id} sin API key de OpenAI (sin key propia ni saldo global), omitiendo seguimiento`)
+            await reschedule(conversationId, type, 360) // sin key: reintentar en 6h, no cada minuto
             return
         }
         const openaiKey = resolvedKey.key
@@ -218,9 +242,12 @@ IMPORTANTE: Responde únicamente en formato JSON con este schema exacto:
             console.log(`[WORKER] Seguimiento ${type} enviado con éxito a ${userPhone}`)
         } else {
             console.warn(`[WORKER] No se pudo enviar seguimiento a ${userPhone} (Bot desconectado o error)`)
+            await reschedule(conversationId, type, 60)
         }
 
     } catch (err) {
         console.error(`[WORKER] Error en seguimiento ${type} para ${userPhone}:`, err)
+        // Backoff: si falló (ej. OpenAI 429 sin cuota), no reintentar cada minuto
+        await reschedule(conversationId, type, 360)
     }
 }

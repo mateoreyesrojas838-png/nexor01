@@ -77,7 +77,7 @@ function RegisterForm() {
   }
 
   const handleGoogle = () => {
-    window.location.href = '/api/auth/google'
+    window.location.href = '/api/auth/google' + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
   }
 
   const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/15 transition-colors'

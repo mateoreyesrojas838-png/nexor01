@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyBscTransaction } from '@/lib/blockchain'
-import { sendPlanPurchaseConfirmedEmail } from '@/lib/email'
+import { sendPlanPurchaseConfirmedEmail, sendCourseEnrollmentEmail } from '@/lib/email'
+import { createNotification } from '@/lib/notifications'
 
 const PLAN_RANK: Record<string, number> = { NONE: 0, BASIC: 1, PRO: 2, ELITE: 3 }
 
@@ -123,7 +124,10 @@ export async function GET(request: NextRequest) {
   try {
     pendingEnrollments = await (prisma as any).courseEnrollment.findMany({
       where: { status: 'PENDING_VERIFICATION', paymentMethod: 'CRYPTO', txHash: { not: null } },
-      include: { course: { select: { price: true } } },
+      include: {
+        course: { select: { price: true, title: true } },
+        user: { select: { email: true, fullName: true } },
+      },
       orderBy: { createdAt: 'asc' },
       take: 20,
     })
@@ -155,6 +159,11 @@ export async function GET(request: NextRequest) {
           notes: `Auto-aprobado por cron. USDT: ${verification.amountUsdt?.toFixed(2)}`,
         },
       })
+      // Avisar al alumno: email + notificación in-app
+      sendCourseEnrollmentEmail(enr.user.email, enr.user.fullName || enr.user.email, {
+        courseTitle: enr.course.title, price: Number(enr.course.price), paymentMethod: 'CRYPTO', status: 'approved',
+      }).catch(() => {})
+      createNotification(enr.userId, 'Curso desbloqueado', `Tu pago se confirmó. Ya tenés acceso a "${enr.course.title}".`, `/dashboard/cursos/${enr.courseId}`).catch(() => {})
       enrollResults.verified++
     } catch (err) {
       console.error('[cron/verify] Error aprobando inscripción:', enr.id, err)

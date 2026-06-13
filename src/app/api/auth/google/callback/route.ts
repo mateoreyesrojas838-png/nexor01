@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const errorParam = searchParams.get('error')
+  const stateRaw = searchParams.get('state')
+  const dest = stateRaw && stateRaw.startsWith('/') && !stateRaw.startsWith('//') && !stateRaw.startsWith('/\\') ? stateRaw : '/dashboard'
 
   if (errorParam || !code) {
     return NextResponse.redirect(`${APP_URL}/login?error=google_cancelled`)
@@ -95,7 +97,7 @@ export async function GET(request: NextRequest) {
       email: user.email,
     })
 
-    const response = NextResponse.redirect(`${APP_URL}/dashboard`)
+    const response = NextResponse.redirect(`${APP_URL}${dest}`)
     response.cookies.set('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

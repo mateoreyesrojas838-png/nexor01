@@ -7,7 +7,7 @@ export async function GET() {
   const admin = await getAdminUser()
   if (!admin) return unauthorizedAdmin()
 
-  const [totalUsers, activeUsers, pendingPurchases, recentPurchases, revenueAgg] = await Promise.all([
+  const [totalUsers, activeUsers, pendingPurchases, recentPurchases, revenueAgg, coursesCount, courseSales, pendingEnrollments] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { isActive: true } }),
     prisma.packPurchaseRequest.count({ where: { status: 'PENDING' } }),
@@ -21,6 +21,9 @@ export async function GET() {
       where: { status: 'APPROVED' },
       _sum: { price: true },
     }),
+    (prisma as any).course.count({ where: { active: true } }),
+    (prisma as any).courseEnrollment.count({ where: { status: 'APPROVED' } }),
+    (prisma as any).courseEnrollment.count({ where: { status: { in: ['PENDING', 'PENDING_VERIFICATION'] } } }),
   ])
 
   const totalRevenue = Number(revenueAgg._sum.price ?? 0)
@@ -33,6 +36,9 @@ export async function GET() {
       pendingWithdrawals: 0,
       totalCommissions: 0,
       totalRevenue,
+      coursesCount,
+      courseSales,
+      pendingEnrollments,
     },
     recentPurchases: recentPurchases.map(r => ({ ...r, price: Number(r.price) })),
     recentWithdrawals: [],

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Save, Plus, Trash2, Upload, Film, CheckCircle2,
-  Layers, X, AlertCircle, Image as ImageIcon, Eye, EyeOff, FileText, FileDown
+  Layers, X, AlertCircle, Image as ImageIcon, Eye, EyeOff, FileText, FileDown, ChevronUp, ChevronDown
 } from 'lucide-react'
 
 export default function AdminCourseEditor() {
@@ -25,7 +25,7 @@ export default function AdminCourseEditor() {
   // Estado para agregar módulo / lección
   const [newModuleTitle, setNewModuleTitle] = useState('')
   const [addingModule, setAddingModule] = useState(false)
-  const [lessonForms, setLessonForms] = useState<Record<string, { title: string; file: File | null; uploading: boolean }>>({})
+  const [lessonForms, setLessonForms] = useState<Record<string, { title: string; file: File | null; uploading: boolean; progress?: number }>>({})
 
   // Materiales (PDF / imágenes)
   const [resTitle, setResTitle] = useState('')
@@ -102,7 +102,26 @@ export default function AdminCourseEditor() {
     fetchCourse()
   }
 
-  function setLF(moduleId: string, patch: Partial<{ title: string; file: File | null; uploading: boolean }>) {
+  // Sube el video con progreso real (XHR expone onprogress; fetch no)
+  function uploadVideoWithProgress(file: File, onProgress: (pct: number) => void): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData(); fd.append('file', file)
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', '/api/admin/courses/upload-video')
+      xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)) }
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300 && data.videoPath) resolve(data.videoPath)
+          else reject(new Error(data.error || 'Error al subir el video'))
+        } catch { reject(new Error('Error al subir el video')) }
+      }
+      xhr.onerror = () => reject(new Error('Error de conexión al subir'))
+      xhr.send(fd)
+    })
+  }
+
+  function setLF(moduleId: string, patch: Partial<{ title: string; file: File | null; uploading: boolean; progress: number }>) {
     setLessonForms(prev => {
       const curr = prev[moduleId] || { title: '', file: null, uploading: false }
       return { ...prev, [moduleId]: { ...curr, ...patch } }
@@ -113,23 +132,20 @@ export default function AdminCourseEditor() {
     const lf = lessonForms[moduleId]
     if (!lf?.title?.trim()) { setError('Poné un título a la lección'); return }
     if (!lf?.file) { setError('Subí el video de la lección'); return }
-    setLF(moduleId, { uploading: true }); setError(null)
+    setLF(moduleId, { uploading: true, progress: 0 }); setError(null)
     try {
-      // 1. Subir video al bucket privado
-      const fd = new FormData(); fd.append('file', lf.file)
-      const upRes = await fetch('/api/admin/courses/upload-video', { method: 'POST', body: fd })
-      const upData = await upRes.json()
-      if (!upRes.ok) { setError(upData.error || 'Error al subir el video'); setLF(moduleId, { uploading: false }); return }
+      // 1. Subir video al bucket privado (con progreso real)
+      const videoPath = await uploadVideoWithProgress(lf.file, pct => setLF(moduleId, { progress: pct }))
 
       // 2. Crear la lección con la ruta del video
       const res = await fetch(`/api/admin/courses/modules/${moduleId}/lessons`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: lf.title.trim(), videoPath: upData.videoPath }),
+        body: JSON.stringify({ title: lf.title.trim(), videoPath }),
       })
       if (!res.ok) { const d = await res.json(); setError(d.error || 'Error al crear la lección'); return }
       setLessonForms(prev => ({ ...prev, [moduleId]: { title: '', file: null, uploading: false } }))
       fetchCourse()
-    } catch { setError('Error al agregar la lección') }
+    } catch (e: any) { setError(e?.message || 'Error al agregar la lección') }
     finally { setLF(moduleId, { uploading: false }) }
   }
 
@@ -162,6 +178,29 @@ export default function AdminCourseEditor() {
   async function deleteResource(id: string) {
     if (!confirm('¿Eliminar este material?')) return
     await fetch(`/api/admin/courses/resources/${id}`, { method: 'DELETE' })
+    fetchCourse()
+  }
+
+  // Reordenar: intercambia el "order" con el vecino y refresca
+  async function moveModule(mi: number, dir: -1 | 1) {
+    const mods = course.modules
+    const j = mi + dir
+    if (j < 0 || j >= mods.length) return
+    await Promise.all([
+      fetch(`/api/admin/courses/modules/${mods[mi].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: mods[j].order }) }),
+      fetch(`/api/admin/courses/modules/${mods[j].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: mods[mi].order }) }),
+    ])
+    fetchCourse()
+  }
+
+  async function moveLesson(mod: any, li: number, dir: -1 | 1) {
+    const lessons = mod.lessons
+    const j = li + dir
+    if (j < 0 || j >= lessons.length) return
+    await Promise.all([
+      fetch(`/api/admin/courses/lessons/${lessons[li].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: lessons[j].order }) }),
+      fetch(`/api/admin/courses/lessons/${lessons[j].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: lessons[li].order }) }),
+    ])
     fetchCourse()
   }
 
@@ -246,7 +285,11 @@ export default function AdminCourseEditor() {
                 <div key={mod.id} className="rounded-xl border border-white/8 bg-white/[0.02]">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
                     <p className="font-bold text-white text-sm">{mi + 1}. {mod.title}</p>
-                    <button onClick={() => deleteModule(mod.id)} className="text-white/30 hover:text-red-400"><Trash2 size={14} /></button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => moveModule(mi, -1)} disabled={mi === 0} className="text-white/25 hover:text-amber-400 disabled:opacity-20"><ChevronUp size={15} /></button>
+                      <button onClick={() => moveModule(mi, 1)} disabled={mi === course.modules.length - 1} className="text-white/25 hover:text-amber-400 disabled:opacity-20"><ChevronDown size={15} /></button>
+                      <button onClick={() => deleteModule(mod.id)} className="text-white/30 hover:text-red-400 ml-1"><Trash2 size={14} /></button>
+                    </div>
                   </div>
 
                   {/* Lecciones */}
@@ -256,6 +299,8 @@ export default function AdminCourseEditor() {
                         <Film size={13} className="text-amber-400/70 shrink-0" />
                         <span className="text-white/70 flex-1 truncate">{li + 1}. {les.title}</span>
                         {les.videoPath ? <CheckCircle2 size={13} className="text-green-400 shrink-0" /> : <span className="text-[10px] text-amber-400">sin video</span>}
+                        <button onClick={() => moveLesson(mod, li, -1)} disabled={li === 0} className="text-white/20 hover:text-amber-400 disabled:opacity-20"><ChevronUp size={13} /></button>
+                        <button onClick={() => moveLesson(mod, li, 1)} disabled={li === mod.lessons.length - 1} className="text-white/20 hover:text-amber-400 disabled:opacity-20"><ChevronDown size={13} /></button>
                         <button onClick={() => deleteLesson(les.id)} className="text-white/25 hover:text-red-400"><Trash2 size={12} /></button>
                       </div>
                     ))}
@@ -274,7 +319,14 @@ export default function AdminCourseEditor() {
                           {lf.uploading ? <Loader2 size={13} className="animate-spin" /> : 'Agregar'}
                         </button>
                       </div>
-                      {lf.uploading && <p className="text-[10px] text-amber-400/70">Subiendo video... no cierres la página.</p>}
+                      {lf.uploading && (
+                        <div>
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${lf.progress ?? 0}%`, background: 'linear-gradient(90deg,#D97706,#FFD700)' }} />
+                          </div>
+                          <p className="text-[10px] text-amber-400/70 mt-1">Subiendo video... {lf.progress ?? 0}% · no cierres la página.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

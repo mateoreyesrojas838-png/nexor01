@@ -3,8 +3,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
 import { verifyBscTransaction } from '@/lib/blockchain'
+import { sendCourseEnrollmentEmail } from '@/lib/email'
+import { createNotification } from '@/lib/notifications'
 
 const TX_HASH_REGEX = /^0x[a-fA-F0-9]{64}$/
+
+async function notifyAdmins(title: string, body: string) {
+  try {
+    const admins = await prisma.user.findMany({ where: { isAdmin: true }, select: { id: true } })
+    await Promise.all(admins.map(a => createNotification(a.id, title, body, '/admin/cursos/inscripciones')))
+  } catch { /* no romper el flujo */ }
+}
 
 /**
  * POST /api/courses/[courseId]/enroll
@@ -16,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
 
   const course = await (prisma as any).course.findFirst({
     where: { id: params.courseId, active: true },
-    select: { id: true, price: true },
+    select: { id: true, price: true, title: true },
   })
   if (!course) return NextResponse.json({ error: 'Curso no encontrado' }, { status: 404 })
 
@@ -63,6 +72,12 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
       },
     })
 
+    // Email al alumno (fire-and-forget)
+    sendCourseEnrollmentEmail(user.email, user.fullName || user.email, {
+      courseTitle: course.title, price, paymentMethod: 'CRYPTO',
+      status: verification.success ? 'approved' : 'pending',
+    }).catch(() => {})
+
     return NextResponse.json({
       success: true,
       status: verification.success ? 'approved' : 'pending_verification',
@@ -81,6 +96,12 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
     create: { userId: user.id, courseId: course.id, status: 'PENDING', paymentMethod: 'MANUAL', proofUrl },
     update: { status: 'PENDING', paymentMethod: 'MANUAL', proofUrl, txHash: null, blockNumber: null },
   })
+
+  // Email al alumno + aviso a los admins para que aprueben (fire-and-forget)
+  sendCourseEnrollmentEmail(user.email, user.fullName || user.email, {
+    courseTitle: course.title, price, paymentMethod: 'MANUAL', status: 'pending',
+  }).catch(() => {})
+  notifyAdmins('Nueva compra de curso', `${user.fullName || user.email} compró "${course.title}" (comprobante manual). Revisá y aprobá.`)
 
   return NextResponse.json({
     success: true,

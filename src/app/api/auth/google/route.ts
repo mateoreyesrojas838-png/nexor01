@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const redirectUri = process.env.GOOGLE_AUTH_REDIRECT_URI
 
@@ -11,6 +11,10 @@ export async function GET() {
     )
   }
 
+  // Preservar a dónde volver tras el login (viaja en el state de OAuth)
+  const r = request.nextUrl.searchParams.get('redirect')
+  const state = r && r.startsWith('/') && !r.startsWith('//') && !r.startsWith('/\\') ? r : ''
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -18,6 +22,7 @@ export async function GET() {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'select_account',
+    ...(state ? { state } : {}),
   })
 
   return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)

@@ -134,7 +134,7 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => window.location.href = '/api/auth/google'}
+              onClick={() => window.location.href = '/api/auth/google' + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')}
               className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl text-sm font-semibold text-white/80 hover:text-white transition-all active:scale-[0.98]"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
             >

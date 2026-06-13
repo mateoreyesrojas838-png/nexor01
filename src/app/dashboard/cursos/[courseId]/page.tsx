@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -34,6 +34,12 @@ export default function CoursePlayerPage() {
   const [loadingVideo, setLoadingVideo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({})
+  const [userEmail, setUserEmail] = useState('')
+  const lastSaveRef = useRef(0)
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.email) setUserEmail(d.email) }).catch(() => {})
+  }, [])
 
   const fetchCourse = useCallback(async () => {
     try {
@@ -50,6 +56,13 @@ export default function CoursePlayerPage() {
   }, [courseId])
 
   useEffect(() => { fetchCourse() }, [fetchCourse])
+
+  // Auto-desbloqueo: si el pago está verificándose, refrescamos cada 10s hasta que se confirme
+  useEffect(() => {
+    if (hasAccess || enrollmentStatus !== 'PENDING_VERIFICATION') return
+    const iv = setInterval(() => { fetchCourse() }, 10000)
+    return () => clearInterval(iv)
+  }, [hasAccess, enrollmentStatus, fetchCourse])
 
   async function playLesson(lesson: Lesson) {
     if (!lesson.hasVideo) { setError('Esta lección aún no tiene video'); return }
@@ -173,17 +186,37 @@ export default function CoursePlayerPage() {
               {loadingVideo ? (
                 <Loader2 className="animate-spin text-amber-400" size={32} />
               ) : videoUrl ? (
-                <video
-                  key={videoUrl}
-                  src={videoUrl}
-                  controls
-                  autoPlay
-                  controlsList="nodownload noplaybackrate"
-                  disablePictureInPicture
-                  onContextMenu={e => e.preventDefault()}
-                  onEnded={() => current && markComplete(current.id)}
-                  className="w-full h-full"
-                />
+                <div className="relative w-full h-full">
+                  <video
+                    key={videoUrl}
+                    src={videoUrl}
+                    controls
+                    autoPlay
+                    controlsList="nodownload noplaybackrate"
+                    disablePictureInPicture
+                    onContextMenu={e => e.preventDefault()}
+                    onLoadedMetadata={e => {
+                      if (!current) return
+                      const saved = parseFloat(localStorage.getItem(`pos-${current.id}`) || '0')
+                      if (saved > 5 && saved < e.currentTarget.duration - 5) e.currentTarget.currentTime = saved
+                    }}
+                    onTimeUpdate={e => {
+                      const now = Date.now()
+                      if (current && now - lastSaveRef.current > 5000) {
+                        lastSaveRef.current = now
+                        localStorage.setItem(`pos-${current.id}`, String(e.currentTarget.currentTime))
+                      }
+                    }}
+                    onEnded={() => current && markComplete(current.id)}
+                    className="w-full h-full"
+                  />
+                  {/* Marca de agua anti-piratería: el email del alumno sobre el video */}
+                  {userEmail && (
+                    <div className="absolute bottom-12 right-3 text-[11px] font-mono text-white/25 pointer-events-none select-none" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                      {userEmail}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="text-center text-white/30">
                   <PlayCircle size={40} className="mx-auto mb-2 text-white/20" />
@@ -229,6 +262,11 @@ export default function CoursePlayerPage() {
               <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#D97706,#FFD700)' }} />
               </div>
+              {pct === 100 && total > 0 && (
+                <Link href={`/dashboard/cursos/${courseId}/certificado`} className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-black text-black" style={{ background: 'linear-gradient(135deg,#D97706,#FFD700)' }}>
+                  🏆 Descargar certificado
+                </Link>
+              )}
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {course.modules.map((m, mi) => {

@@ -3,18 +3,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminUser, unauthorizedAdmin } from '@/lib/admin-auth'
 
-/** PATCH — renombra el módulo */
+/** PATCH — renombra el módulo y/o cambia su orden */
 export async function PATCH(req: NextRequest, { params }: { params: { moduleId: string } }) {
   const admin = await getAdminUser()
   if (!admin) return unauthorizedAdmin()
 
-  const { title } = await req.json()
-  if (!title?.trim()) return NextResponse.json({ error: 'Título requerido' }, { status: 400 })
+  const { title, order } = await req.json()
+  const data: any = {}
+  if (title !== undefined) {
+    if (!String(title).trim()) return NextResponse.json({ error: 'Título requerido' }, { status: 400 })
+    data.title = String(title).trim()
+  }
+  if (order !== undefined) data.order = parseInt(order) || 0
 
-  const courseModule = await (prisma as any).courseModule.update({
-    where: { id: params.moduleId },
-    data: { title: title.trim() },
-  })
+  const courseModule = await (prisma as any).courseModule.update({ where: { id: params.moduleId }, data })
   return NextResponse.json({ module: courseModule })
 }
 

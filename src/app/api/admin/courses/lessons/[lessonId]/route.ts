@@ -11,10 +11,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { lessonId: 
   const admin = await getAdminUser()
   if (!admin) return unauthorizedAdmin()
 
-  const { title, videoPath, durationSec } = await req.json()
+  const { title, videoPath, durationSec, order } = await req.json()
   const data: any = {}
   if (title !== undefined) data.title = String(title).trim()
   if (durationSec !== undefined) data.durationSec = parseInt(durationSec) || 0
+  if (order !== undefined) data.order = parseInt(order) || 0
   if (videoPath !== undefined) {
     // Si se reemplaza el video, borrar el anterior del bucket
     const current = await (prisma as any).courseLesson.findUnique({ where: { id: params.lessonId }, select: { videoPath: true } })
