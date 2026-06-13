@@ -72,6 +72,16 @@ const services = [
     color: '#E879F9',
     glow: 'rgba(232,121,249,0.12)',
   },
+  {
+    href: '/dashboard/cursos',
+    icon: 'fa-solid fa-graduation-cap',
+    title: 'Cursos',
+    sub: 'Aprendé con video',
+    description: 'Cursos en video por módulos con materiales descargables. Comprá con USDT o desbloqueá con tu plan.',
+    color: '#34D399',
+    glow: 'rgba(52,211,153,0.12)',
+    alwaysOpen: true,
+  },
 ]
 
 export default function DashboardPage() {
@@ -266,7 +276,7 @@ export default function DashboardPage() {
       )}
       <div className="grid md:grid-cols-3 gap-4">
         {services.map(svc => {
-          const locked = user?.plan === 'NONE'
+          const locked = user?.plan === 'NONE' && !(svc as any).alwaysOpen
           if (locked) {
             return (
               <div key={svc.href} className="relative overflow-hidden rounded-3xl border border-white/6"
