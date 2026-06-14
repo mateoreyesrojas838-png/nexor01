@@ -197,7 +197,10 @@ export default function AdminUsersPage() {
                               }
                             </button>
                             <button
-                              onClick={() => updateUser(u.id, { isAdmin: !u.isAdmin })}
+                              onClick={() => {
+                                const msg = u.isAdmin ? `¿Quitar el rol de administrador a "${u.username}"?` : `¿Hacer administrador a "${u.username}"?`
+                                if (confirm(msg)) updateUser(u.id, { isAdmin: !u.isAdmin })
+                              }}
                               title={u.isAdmin ? 'Quitar admin' : 'Hacer admin'}
                               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                             >

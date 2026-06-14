@@ -80,6 +80,10 @@ export async function PATCH(
     `
   }
   if (makeAdmin !== undefined) {
+    // Anti-lockout: un admin no puede quitarse a sí mismo el rol (quedaría sin acceso al panel).
+    if (params.id === (admin as any).id && !makeAdmin) {
+      return NextResponse.json({ error: 'No podés quitarte a vos mismo el rol de administrador.' }, { status: 400 })
+    }
     await prisma.$executeRaw`
       UPDATE users SET is_admin = ${makeAdmin} WHERE id = ${params.id}::uuid
     `
