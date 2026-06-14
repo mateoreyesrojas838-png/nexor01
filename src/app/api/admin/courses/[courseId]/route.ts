@@ -30,10 +30,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { courseId: 
   if (!admin) return unauthorizedAdmin()
 
   const body = await req.json()
-  const { title, subtitle, description, coverUrl, price, freeForPlan, active, whatYouLearn } = body
+  const { title, subtitle, description, coverUrl, price, freeForPlan, active, whatYouLearn, landingBlocks } = body
 
   const data: any = {}
   if (title !== undefined) data.title = String(title).trim()
+  if (landingBlocks !== undefined) data.landingBlocks = Array.isArray(landingBlocks) ? landingBlocks : null
   if (subtitle !== undefined) data.subtitle = subtitle?.trim() || null
   if (description !== undefined) data.description = String(description).trim()
   if (coverUrl !== undefined) data.coverUrl = coverUrl?.trim() || null

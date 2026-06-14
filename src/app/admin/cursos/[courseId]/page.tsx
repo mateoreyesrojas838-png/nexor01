@@ -35,6 +35,47 @@ export default function AdminCourseEditor() {
   const resFileRef = useRef<HTMLInputElement>(null)
   const [copied, setCopied] = useState(false)
 
+  // Constructor de landing (bloques: texto / imagen / video)
+  const [blocks, setBlocks] = useState<any[]>([])
+  const [savingBlocks, setSavingBlocks] = useState(false)
+  const [blockUploading, setBlockUploading] = useState(false)
+  const [blockKind, setBlockKind] = useState<'image' | 'video'>('image')
+  const blockFileRef = useRef<HTMLInputElement>(null)
+
+  // ── Bloques de la landing ──
+  function addTextBlock() { setBlocks(b => [...b, { type: 'text', title: '', body: '' }]) }
+  function pickMedia(kind: 'image' | 'video') { setBlockKind(kind); blockFileRef.current?.click() }
+  async function onMediaPicked(file: File | null) {
+    if (!file) return
+    setBlockUploading(true); setError(null)
+    try {
+      const fd = new FormData(); fd.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Error al subir'); return }
+      setBlocks(b => [...b, { type: blockKind, url: data.url }])
+    } catch { setError('Error al subir el archivo') }
+    finally { setBlockUploading(false); if (blockFileRef.current) blockFileRef.current.value = '' }
+  }
+  function updateBlock(i: number, patch: any) { setBlocks(b => b.map((x, idx) => idx === i ? { ...x, ...patch } : x)) }
+  function removeBlock(i: number) { setBlocks(b => b.filter((_, idx) => idx !== i)) }
+  function moveBlock(i: number, dir: -1 | 1) {
+    const j = i + dir
+    if (j < 0 || j >= blocks.length) return
+    setBlocks(b => { const c = [...b];[c[i], c[j]] = [c[j], c[i]]; return c })
+  }
+  async function saveBlocks() {
+    setSavingBlocks(true); setError(null)
+    try {
+      const res = await fetch(`/api/admin/courses/${courseId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ landingBlocks: blocks }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Error al guardar'); return }
+      flash('Landing guardada')
+    } catch { setError('Error al guardar la landing') }
+    finally { setSavingBlocks(false) }
+  }
+
   const landingUrl = course?.slug && typeof window !== 'undefined' ? `${window.location.origin}/cursos/${course.slug}` : ''
   function copyLanding() {
     if (!landingUrl) return
@@ -57,6 +98,7 @@ export default function AdminCourseEditor() {
         freeForPlan: !!data.course.freeForPlan,
         active: !!data.course.active,
       })
+      setBlocks(Array.isArray(data.course.landingBlocks) ? data.course.landingBlocks : [])
     } catch { setError('Error al cargar') }
     finally { setLoading(false) }
   }, [courseId, router])
@@ -285,6 +327,61 @@ export default function AdminCourseEditor() {
           <a href={landingUrl || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-white/60 hover:text-amber-400">
             <ExternalLink size={13} /> Ver
           </a>
+        </div>
+      </div>
+
+      {/* ── Constructor de landing (texto / imagen / video) ── */}
+      <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 mb-5">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-black text-white flex items-center gap-2"><Link2 size={17} className="text-amber-400" /> Constructor de la página de ventas</h2>
+          <button onClick={saveBlocks} disabled={savingBlocks} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-black disabled:opacity-50" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+            {savingBlocks ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Guardar landing
+          </button>
+        </div>
+        <p className="text-[11px] text-white/30 mb-4">Armá la página como quieras: agregá videos, textos y mockups (imágenes). Se muestran en este orden en la landing pública.</p>
+
+        {blocks.length === 0 && <p className="text-center text-white/20 text-sm py-6">Sin contenido todavía. Agregá bloques abajo.</p>}
+
+        <div className="space-y-3">
+          {blocks.map((blk, i) => (
+            <div key={i} className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                  {blk.type === 'text' ? '📝 Texto' : blk.type === 'video' ? '🎬 Video' : '🖼️ Imagen / Mockup'}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => moveBlock(i, -1)} disabled={i === 0} className="text-white/25 hover:text-amber-400 disabled:opacity-20"><ChevronUp size={14} /></button>
+                  <button onClick={() => moveBlock(i, 1)} disabled={i === blocks.length - 1} className="text-white/25 hover:text-amber-400 disabled:opacity-20"><ChevronDown size={14} /></button>
+                  <button onClick={() => removeBlock(i)} className="text-white/30 hover:text-red-400 ml-1"><Trash2 size={13} /></button>
+                </div>
+              </div>
+              {blk.type === 'text' ? (
+                <div className="space-y-2">
+                  <input value={blk.title || ''} onChange={e => updateBlock(i, { title: e.target.value })} placeholder="Título (opcional)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50" />
+                  <textarea value={blk.body || ''} onChange={e => updateBlock(i, { body: e.target.value })} placeholder="Texto..." rows={3} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 resize-none" />
+                </div>
+              ) : blk.type === 'video' ? (
+                <video src={blk.url} controls className="w-full max-h-56 rounded-lg bg-black" />
+              ) : (
+                <img src={blk.url} alt="" className="w-full max-h-72 object-contain rounded-lg" />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Agregar bloques */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button onClick={addTextBlock} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-white/70 hover:border-amber-500/40">
+            <FileText size={13} /> + Texto
+          </button>
+          <button onClick={() => pickMedia('image')} disabled={blockUploading} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-white/70 hover:border-amber-500/40 disabled:opacity-50">
+            <ImageIcon size={13} /> + Imagen / Mockup
+          </button>
+          <button onClick={() => pickMedia('video')} disabled={blockUploading} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-white/70 hover:border-amber-500/40 disabled:opacity-50">
+            <Film size={13} /> + Video
+          </button>
+          {blockUploading && <span className="flex items-center gap-1.5 text-xs text-amber-400/70"><Loader2 size={13} className="animate-spin" /> Subiendo...</span>}
+          <input ref={blockFileRef} type="file" accept={blockKind === 'video' ? 'video/*' : 'image/*'} className="hidden" onChange={e => onMediaPicked(e.target.files?.[0] || null)} />
         </div>
       </div>
 
