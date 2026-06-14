@@ -1,8 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { Loader2, CheckCircle2, AlertCircle, ArrowRight, Lock } from 'lucide-react'
-import { CourseBuyBox } from '@/components/CourseBuyBox'
+
+// Carga diferida: el SDK de wallet solo se descarga cuando se muestra la caja de pago
+const CourseBuyBox = dynamic(() => import('@/components/CourseBuyBox').then(m => m.CourseBuyBox), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center py-8"><Loader2 className="animate-spin text-amber-400" size={22} /></div>,
+})
 
 interface Props {
   courseId: string
