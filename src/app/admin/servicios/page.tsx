@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid, Upload, ExternalLink, Image as ImageIcon, Copy, Check } from 'lucide-react'
 import { SERVICE_UI } from '@/lib/services-ui'
 
@@ -63,9 +64,14 @@ export default function AdminServicesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-black text-white flex items-center gap-2"><LayoutGrid size={20} className="text-amber-400" /> Servicios</h1>
-        <p className="text-xs text-white/30 mt-0.5">Activá o desactivá servicios (desactivado = no se muestra a los usuarios). Configurá precios para venta por separado.</p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-black text-white flex items-center gap-2"><LayoutGrid size={20} className="text-amber-400" /> Servicios</h1>
+          <p className="text-xs text-white/30 mt-0.5">Activá o desactivá servicios (desactivado = no se muestra a los usuarios). Configurá precios para venta por separado.</p>
+        </div>
+        <Link href="/admin/servicios/suscripciones" className="shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold border border-white/10 bg-white/5 text-white/60 hover:text-amber-400 hover:border-amber-500/40 transition-all">
+          Suscripciones
+        </Link>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-2 text-red-400 text-sm"><AlertCircle size={16} /><p className="flex-1">{error}</p><button onClick={() => setError(null)}>✕</button></div>}
