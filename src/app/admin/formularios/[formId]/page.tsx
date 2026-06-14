@@ -21,6 +21,7 @@ const FIELD_TYPES: { type: string; label: string }[] = [
   { type: 'rating', label: 'Escala (estrellas)' },
   { type: 'file', label: 'Subir archivo' },
   { type: 'heading', label: 'Encabezado / sección' },
+  { type: 'button', label: 'Botón con enlace' },
 ]
 const typeLabel = (t: string) => FIELD_TYPES.find(f => f.type === t)?.label ?? t
 const hasOptions = (t: string) => ['radio', 'checkbox', 'dropdown'].includes(t)
@@ -189,7 +190,11 @@ export default function FormBuilder() {
                   <button onClick={() => deleteField(fld.id)} className="text-white/30 hover:text-red-400 ml-1"><Trash2 size={13} /></button>
                 </div>
               </div>
-              <input defaultValue={fld.label} onBlur={e => patchField(fld.id, { label: e.target.value })} placeholder={fld.type === 'heading' ? 'Título de sección' : 'Tu pregunta'} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50" />
+              <input defaultValue={fld.label} onBlur={e => patchField(fld.id, { label: e.target.value })} placeholder={fld.type === 'heading' ? 'Título de sección' : fld.type === 'button' ? 'Texto del botón' : 'Tu pregunta'} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50" />
+
+              {fld.type === 'button' && (
+                <input defaultValue={fld.options?.[0] || ''} onBlur={e => patchField(fld.id, { options: [e.target.value] })} placeholder="Enlace del botón (https://...)" className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 font-mono" />
+              )}
 
               {hasOptions(fld.type) && (
                 <div className="mt-2 space-y-1.5">
@@ -204,7 +209,7 @@ export default function FormBuilder() {
                 </div>
               )}
 
-              {fld.type !== 'heading' && (
+              {fld.type !== 'heading' && fld.type !== 'button' && (
                 <label className="flex items-center gap-2 text-[11px] text-white/50 mt-2 cursor-pointer">
                   <input type="checkbox" checked={fld.required} onChange={e => patchField(fld.id, { required: e.target.checked })} className="accent-amber-500" /> Requerido
                 </label>

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminUser, unauthorizedAdmin } from '@/lib/admin-auth'
 
-const TYPES = ['text', 'paragraph', 'radio', 'checkbox', 'dropdown', 'number', 'email', 'phone', 'date', 'rating', 'file', 'heading']
+const TYPES = ['text', 'paragraph', 'radio', 'checkbox', 'dropdown', 'number', 'email', 'phone', 'date', 'rating', 'file', 'heading', 'button']
 
 /** POST — agrega un campo al formulario */
 export async function POST(req: NextRequest, { params }: { params: { formId: string } }) {
@@ -20,9 +20,10 @@ export async function POST(req: NextRequest, { params }: { params: { formId: str
     data: {
       formId: params.formId,
       type,
-      label: type === 'heading' ? 'Título de sección' : 'Pregunta sin título',
+      label: type === 'heading' ? 'Título de sección' : type === 'button' ? 'Hacé clic acá' : 'Pregunta sin título',
       required: false,
-      options: needsOptions ? ['Opción 1'] : undefined,
+      // En botón guardamos el enlace en options[0]
+      options: needsOptions ? ['Opción 1'] : type === 'button' ? [''] : undefined,
       order: count,
     },
   })

@@ -103,6 +103,10 @@ export default function PublicFormPage() {
           {form.fields.map((f: any) => (
             f.type === 'heading' ? (
               <h2 key={f.id} className="text-lg font-black text-white pt-4">{f.label}</h2>
+            ) : f.type === 'button' ? (
+              <a key={f.id} href={f.options?.[0] || '#'} target="_blank" rel="noreferrer" className="block text-center py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98]" style={{ background: color }}>
+                {f.label}
+              </a>
             ) : (
               <div key={f.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
                 <label className="block text-sm font-bold text-white mb-1">{f.label} {f.required && <span style={{ color }}>*</span>}</label>

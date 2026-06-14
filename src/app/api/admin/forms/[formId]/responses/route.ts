@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { formId: stri
     orderBy: { createdAt: 'desc' },
   })
 
-  const cols = form.fields.filter((f: any) => f.type !== 'heading')
+  const cols = form.fields.filter((f: any) => f.type !== 'heading' && f.type !== 'button')
 
   if (req.nextUrl.searchParams.get('format') === 'csv') {
     const header = ['Fecha', ...cols.map((c: any) => c.label)]
