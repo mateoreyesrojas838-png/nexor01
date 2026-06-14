@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendPlanPurchaseConfirmedEmail } from '@/lib/email'
+import { computeExpiry } from '@/lib/plan-period'
 
 /**
  * GET /api/payments/libelula/callback?transaction_id=UUID
@@ -34,20 +35,11 @@ export async function GET(req: NextRequest) {
   const now = new Date()
 
   try {
-    // For renewal: extend from current expiry (if not expired) or from now
-    // For new plan: 30 days from now
-    let expiresAt: Date
-
-    if (isRenewal) {
-      const userRows = await prisma.$queryRaw<Array<{ plan_expires_at: Date | null }>>`
-        SELECT plan_expires_at FROM users WHERE id = ${packRequest.userId}::uuid LIMIT 1
-      `
-      const currentExpiry = userRows[0]?.plan_expires_at
-      const base = currentExpiry && currentExpiry > now ? currentExpiry : now
-      expiresAt = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000)
-    } else {
-      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    }
+    // Vencimiento según el período comprado; en renovación extiende desde el actual.
+    const userRows = await prisma.$queryRaw<Array<{ plan_expires_at: Date | null }>>`
+      SELECT plan_expires_at FROM users WHERE id = ${packRequest.userId}::uuid LIMIT 1
+    `
+    const expiresAt = computeExpiry((packRequest as any).period, userRows[0]?.plan_expires_at ?? null, isRenewal)
 
     await prisma.$transaction(async (tx) => {
       await tx.packPurchaseRequest.update({

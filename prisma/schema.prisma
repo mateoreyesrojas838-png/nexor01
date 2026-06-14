@@ -336,6 +336,7 @@ model PackPurchaseRequest {
   id              String        @id @default(uuid()) @db.Uuid
   userId          String        @map("user_id") @db.Uuid
   plan            UserPlan
+  period          ServicePeriod @default(MONTHLY)
   price           Decimal       @db.Decimal(10, 2)
   paymentProofUrl String?       @map("payment_proof_url")
   hgwCodeId       String?       @map("hgw_code_id")
@@ -359,6 +360,24 @@ model AppSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_settings")
+}
+
+// ─── CONFIGURACIÓN DE PACKS (bundles) ────────────────────────────────────────
+// Cada pack (BASIC/PRO/ELITE) define qué servicios incluye y sus precios por período.
+model PlanConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  plan           UserPlan @unique
+  name           String
+  tagline        String?
+  services       String[] @default([]) // keys de Service incluidas en el pack
+  priceMonthly   Decimal? @map("price_monthly") @db.Decimal(10, 2)
+  priceQuarterly Decimal? @map("price_quarterly") @db.Decimal(10, 2)
+  priceAnnual    Decimal? @map("price_annual") @db.Decimal(10, 2)
+  active         Boolean  @default(true)
+  order          Int      @default(0)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("plan_configs")
 }
 
 model AiUsageLog {

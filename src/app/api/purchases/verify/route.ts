@@ -5,6 +5,7 @@ import { verifyBscTransaction } from '@/lib/blockchain'
 import { sendPlanPurchaseConfirmedEmail, sendCourseEnrollmentEmail } from '@/lib/email'
 import { createNotification } from '@/lib/notifications'
 import { PERIOD_DAYS } from '@/lib/service-access'
+import { computeExpiry } from '@/lib/plan-period'
 
 const PLAN_RANK: Record<string, number> = { NONE: 0, BASIC: 1, PRO: 2, ELITE: 3 }
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     pending = await (prisma as any).packPurchaseRequest.findMany({
       where: { status: 'PENDING_VERIFICATION', paymentMethod: 'CRYPTO', txHash: { not: null } },
-      include: { user: { select: { id: true, fullName: true, email: true, plan: true } } },
+      include: { user: { select: { id: true, fullName: true, email: true, plan: true, planExpiresAt: true } } },
       orderBy: { createdAt: 'asc' },
       take: 20,
     })
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       const currentRank = PLAN_RANK[currentPlan] ?? 0
       const newRank = PLAN_RANK[newPlan] ?? 0
       const isRenewal = newPlan === currentPlan && currentRank > 0
+      const expiresAt = computeExpiry(req.period, req.user.planExpiresAt ?? null, isRenewal)
 
       await prisma.$transaction(async (tx) => {
         await (tx as any).packPurchaseRequest.update({
@@ -73,16 +75,13 @@ export async function GET(request: NextRequest) {
         if (isRenewal) {
           await tx.$executeRaw`
             UPDATE users
-            SET is_active = true,
-                plan_expires_at = GREATEST(COALESCE(plan_expires_at, NOW()), NOW()) + INTERVAL '30 days'
+            SET is_active = true, plan_expires_at = ${expiresAt}
             WHERE id = ${req.userId}::uuid
           `
         } else if (newRank > currentRank) {
           await tx.$executeRaw`
             UPDATE users
-            SET plan = ${newPlan}::"UserPlan",
-                is_active = true,
-                plan_expires_at = NOW() + INTERVAL '30 days'
+            SET plan = ${newPlan}::"UserPlan", is_active = true, plan_expires_at = ${expiresAt}
             WHERE id = ${req.userId}::uuid
           `
         }

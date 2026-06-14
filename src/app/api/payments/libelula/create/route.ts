@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
+import { normalizePeriod, planPriceFor, PERIOD_LABEL } from '@/lib/plan-period'
 
 const LIBELULA_API_PROD = 'https://api.todotix.com/rest/deuda/registrar'
 const LIBELULA_API_TEST = 'http://www.todotix.com:10888/rest/deuda/registrar'
@@ -11,7 +12,6 @@ const PRICE_DEFAULTS: Record<string, number> = {
   BASIC: 49,
   PRO: 99,
   ELITE: 199,
-  RENEWAL: 19,
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { plan, isRenewal } = await req.json()
+  const reqBody = await req.json()
+  const { plan } = reqBody
+  const period = normalizePeriod(reqBody.period)
+  const isRenewal = (reqBody.plan && (user as any).plan === reqBody.plan)
 
   // Validate plan
   const validPlans = ['BASIC', 'PRO', 'ELITE']
@@ -44,27 +47,21 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Fetch real price from DB (never trust frontend) ──────────────────────────
-  const priceKey = isRenewal ? 'PRICE_RENEWAL' : `PRICE_${plan}`
-  const [priceSetting, rateSetting] = await Promise.all([
-    prisma.appSetting.findUnique({ where: { key: priceKey } }),
-    prisma.appSetting.findUnique({ where: { key: 'USD_TO_BOB_RATE' } }),
-  ])
-  const priceUsd = priceSetting?.value ? parseFloat(priceSetting.value) : PRICE_DEFAULTS[isRenewal ? 'RENEWAL' : plan]
+  // Prioridad: PlanConfig (por período). Fallback solo mensual: setting PRICE_{plan} → default.
+  const rateSetting = await prisma.appSetting.findUnique({ where: { key: 'USD_TO_BOB_RATE' } })
+  let priceUsd = await planPriceFor(plan, period)
+  if (priceUsd == null && period === 'MONTHLY') {
+    const priceSetting = await prisma.appSetting.findUnique({ where: { key: `PRICE_${plan}` } })
+    priceUsd = priceSetting?.value ? parseFloat(priceSetting.value) : PRICE_DEFAULTS[plan]
+  }
   if (!priceUsd || priceUsd <= 0) {
-    return NextResponse.json({ error: 'Precio no configurado. Contacta al administrador.' }, { status: 503 })
+    return NextResponse.json({ error: 'Ese período no está disponible para este plan.' }, { status: 400 })
   }
 
   // Convert USD → BOB for Libélula (admin sets the market rate, default 6.96 official)
   const usdToBobRaw = rateSetting?.value ? parseFloat(rateSetting.value) : NaN
   const usdToBob = isNaN(usdToBobRaw) || usdToBobRaw <= 0 ? 6.96 : usdToBobRaw
   const priceBob = Math.round(priceUsd * usdToBob * 100) / 100
-
-  // Validate renewal — user must have this plan active
-  if (isRenewal) {
-    if (user.plan !== plan) {
-      return NextResponse.json({ error: 'Solo puedes renovar tu plan actual.' }, { status: 400 })
-    }
-  }
 
   // Check for existing pending request (only block manual PENDING, not Libélula awaiting payment)
   const existing = await prisma.packPurchaseRequest.findFirst({
@@ -84,7 +81,7 @@ export async function POST(req: NextRequest) {
   console.log(`[Libélula] callback_url: ${callbackUrl} (env:${!!process.env.NEXT_PUBLIC_APP_URL} fwd:${forwardedHost})`)
   const identificadorDeuda = randomUUID()
 
-  const descripcion = `${isRenewal ? 'Renovación' : PLAN_LABELS[plan]} — Nexor`
+  const descripcion = `${PLAN_LABELS[plan]} · ${PERIOD_LABEL[period]} — Nexor`
   const [firstName, ...rest] = (user.fullName || user.username || 'Cliente').split(' ')
   const lastName = rest.join(' ') || firstName
 
@@ -152,10 +149,11 @@ export async function POST(req: NextRequest) {
   const notes = `LIBELULA:${identificadorDeuda}${isRenewal ? ':RENEWAL' : ''}`
 
   // Use PENDING_VERIFICATION for Libélula — won't block user if they don't pay
-  await prisma.packPurchaseRequest.create({
+  await (prisma.packPurchaseRequest as any).create({
     data: {
       userId: user.id,
       plan: plan as 'BASIC' | 'PRO' | 'ELITE',
+      period,
       price: priceUsd,
       status: 'PENDING_VERIFICATION',
       notes,

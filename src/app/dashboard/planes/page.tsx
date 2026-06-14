@@ -10,15 +10,14 @@ import {
   RefreshCw, ArrowLeft, ChevronRight, MessageSquare,
 } from 'lucide-react'
 
-// ─── Defaults (admin los puede cambiar desde /admin/settings) ─────────────────
-const PRICE_DEFAULTS: Record<string, number> = {
-  PRICE_BASIC: 49,
-  PRICE_PRO: 99,
-  PRICE_ELITE: 199,
-  PRICE_RENEWAL: 19,
-}
-
 const PLAN_RANK: Record<string, number> = { NONE: 0, BASIC: 1, PRO: 2, ELITE: 3 }
+
+const PERIODS = [
+  { key: 'MONTHLY', label: 'Mensual', sub: '30 días' },
+  { key: 'QUARTERLY', label: '3 meses', sub: '90 días' },
+  { key: 'ANNUAL', label: 'Anual', sub: '365 días' },
+] as const
+type Period = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
 
 // ─── Definición de planes ─────────────────────────────────────────────────────
 const PACKS = [
@@ -185,49 +184,53 @@ export default function PlanesPage() {
   const [currentPlan, setCurrentPlan] = useState('NONE')
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null)
   const [pendingPlan, setPendingPlan] = useState<string | null>(null)
-  const [prices, setPrices] = useState<Record<string, number>>(PRICE_DEFAULTS)
+  const [period, setPeriod] = useState<Period>('MONTHLY')
+  // { BASIC: { MONTHLY: 20, QUARTERLY: 51, ANNUAL: 168 }, ... }
+  const [planPrices, setPlanPrices] = useState<Record<string, Record<string, number | null>>>({})
   const [usdToBob, setUsdToBob] = useState<number>(0)
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const countdown = useCountdown(planExpiresAt)
 
   useEffect(() => {
-    // Plan del usuario
     fetch('/api/plan-status')
       .then(r => r.json())
-      .then(d => {
-        if (d.plan) setCurrentPlan(d.plan)
-        if (d.planExpiresAt) setPlanExpiresAt(d.planExpiresAt)
-      })
+      .then(d => { if (d.plan) setCurrentPlan(d.plan); if (d.planExpiresAt) setPlanExpiresAt(d.planExpiresAt) })
       .catch(() => {})
 
-    // Solicitudes pendientes
     fetch('/api/pack-requests')
       .then(r => r.json())
       .then(d => {
-        const pending = (d.requests ?? []).find(
-          (r: { status: string }) => r.status === 'PENDING'  // solo manual, no Libélula
-        )
+        const pending = (d.requests ?? []).find((r: { status: string }) => r.status === 'PENDING')
         if (pending) setPendingPlan(pending.plan)
       })
       .catch(() => {})
 
-    // Precios definidos por el admin
+    // Precios por período definidos por el admin (PlanConfig)
+    fetch('/api/plans')
+      .then(r => r.json())
+      .then(d => {
+        const map: Record<string, Record<string, number | null>> = {}
+        ;(d.plans ?? []).forEach((p: any) => { map[p.plan] = p.prices })
+        setPlanPrices(map)
+      })
+      .catch(() => {})
+
     fetch('/api/settings')
       .then(r => r.json())
       .then(d => {
         const map = d.settings ?? {}
-        setPrices({
-          PRICE_BASIC:   parseFloat(map.PRICE_BASIC)   || PRICE_DEFAULTS.PRICE_BASIC,
-          PRICE_PRO:     parseFloat(map.PRICE_PRO)     || PRICE_DEFAULTS.PRICE_PRO,
-          PRICE_ELITE:   parseFloat(map.PRICE_ELITE)   || PRICE_DEFAULTS.PRICE_ELITE,
-          PRICE_RENEWAL: parseFloat(map.PRICE_RENEWAL) || PRICE_DEFAULTS.PRICE_RENEWAL,
-        })
         const rate = parseFloat(map.USD_TO_BOB_RATE)
         if (rate > 0) setUsdToBob(rate)
         setLibelulaAvailable(map.LIBELULA_AVAILABLE === 'true')
       })
       .catch(() => {})
   }, [])
+
+  // Períodos con al menos un precio configurado en cualquier pack
+  const availablePeriods = (['MONTHLY', 'QUARTERLY', 'ANNUAL'] as Period[]).filter(
+    p => Object.values(planPrices).some(pr => (pr?.[p] ?? 0) > 0)
+  )
+  const periodSub = PERIODS.find(p => p.key === period)?.sub ?? '30 días'
 
   const planLabel: Record<string, string> = {
     BASIC: 'Pack Básico', PRO: 'Pack Pro', ELITE: 'Pack Elite',
@@ -299,15 +302,34 @@ export default function PlanesPage() {
           </div>
         )}
 
+        {/* Selector de período */}
+        {availablePeriods.length > 1 && (
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex rounded-2xl p-1 border border-white/10 bg-white/[0.03]">
+              {PERIODS.filter(p => availablePeriods.includes(p.key as Period)).map(p => {
+                const active = period === p.key
+                return (
+                  <button key={p.key} onClick={() => setPeriod(p.key as Period)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${active ? 'text-black' : 'text-white/40 hover:text-white/70'}`}
+                    style={active ? { background: 'linear-gradient(135deg,#D97706,#FFD700)' } : {}}>
+                    {p.label}
+                    {p.key === 'ANNUAL' && <span className={`ml-1.5 text-[9px] ${active ? 'text-black/60' : 'text-amber-400/70'}`}>ahorro</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Plan cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
           {PACKS.map((pack) => {
             const Icon = pack.icon
-            const price = prices[pack.priceKey]
-            const renewal = prices.PRICE_RENEWAL
+            const price = planPrices[pack.planId]?.[period] ?? null
             const isActive = currentPlan === pack.planId
             const isLower = PLAN_RANK[currentPlan] > PLAN_RANK[pack.planId]
             const isPending = pendingPlan === pack.planId
+            const unavailable = price == null || price <= 0
 
             return (
               <div
@@ -361,16 +383,16 @@ export default function PlanesPage() {
                   <div className="mb-5">
                     <div className="flex items-end gap-1.5">
                       <span className="text-[42px] font-black leading-none text-white">
-                        ${price}
+                        {unavailable ? '—' : `$${price}`}
                       </span>
-                      <span className="text-sm text-white/30 mb-1.5">USD</span>
+                      <span className="text-sm text-white/30 mb-1.5">USDT</span>
                     </div>
-                    {usdToBob > 0 && (
+                    {!unavailable && usdToBob > 0 && (
                       <p className="text-sm font-black mt-0.5" style={{ color: '#FFD700' }}>
-                        Bs. {Math.round(price * usdToBob * 100) / 100}
+                        Bs. {Math.round((price as number) * usdToBob * 100) / 100}
                       </p>
                     )}
-                    <p className="text-[10px] text-white/20 mt-0.5">30 días de acceso · renovable</p>
+                    <p className="text-[10px] text-white/20 mt-0.5">{periodSub} de acceso · renovable</p>
                   </div>
 
                   {/* Divider */}
@@ -428,14 +450,20 @@ export default function PlanesPage() {
                   </div>
 
                   {/* CTA */}
-                  {isActive ? (
+                  {unavailable ? (
+                    <button disabled
+                      className="w-full py-3 rounded-2xl text-sm font-black text-white/20 transition-all"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      No disponible
+                    </button>
+                  ) : isActive ? (
                     <button
-                      onClick={() => router.push(`/dashboard/planes/checkout?plan=${pack.planId}&renewal=true${libelulaAvailable ? '&autostart=1' : ''}`)}
+                      onClick={() => router.push(`/dashboard/planes/checkout?plan=${pack.planId}&period=${period}${libelulaAvailable ? '&autostart=1' : ''}`)}
                       disabled={!!pendingPlan}
                       className="w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                       style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80' }}
                     >
-                      <RefreshCw size={13} /> Renovar — ${renewal}{usdToBob > 0 ? ` · Bs. ${Math.round(renewal * usdToBob * 100) / 100}` : ''}
+                      <RefreshCw size={13} /> Renovar / Extender
                     </button>
                   ) : isLower ? (
                     <button disabled
@@ -451,7 +479,7 @@ export default function PlanesPage() {
                     </button>
                   ) : (
                     <button
-                      onClick={() => router.push(`/dashboard/planes/checkout?plan=${pack.planId}${libelulaAvailable ? '&autostart=1' : ''}`)}
+                      onClick={() => router.push(`/dashboard/planes/checkout?plan=${pack.planId}&period=${period}${libelulaAvailable ? '&autostart=1' : ''}`)}
                       disabled={!!pendingPlan}
                       className="w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
                       style={pack.featured ? {
@@ -520,7 +548,7 @@ export default function PlanesPage() {
             <Layers size={13} style={{ color: '#FFD700' }} />
           </div>
           <div>
-            <p className="text-xs font-bold text-white/40">Proceso manual · 30 días de acceso</p>
+            <p className="text-xs font-bold text-white/40">Elegí tu período · activación verificada</p>
             <p className="text-[11px] text-white/20">
               Envía tu solicitud. Nuestro equipo la revisará y activará tu plan en menos de 24h.
             </p>

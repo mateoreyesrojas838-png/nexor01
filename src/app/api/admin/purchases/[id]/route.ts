@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminUser, unauthorizedAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { sendPlanPurchaseConfirmedEmail } from '@/lib/email'
+import { computeExpiry } from '@/lib/plan-period'
 
 const PLAN_RANK: Record<string, number> = { NONE: 0, BASIC: 1, PRO: 2, ELITE: 3 }
 
@@ -43,8 +44,8 @@ export async function PATCH(
         }
 
         // 2. Leer plan actual con lock para evitar race condition en el rank check
-        const currentUserData = await tx.$queryRaw<Array<{ plan: string }>>`
-          SELECT plan::text FROM users
+        const currentUserData = await tx.$queryRaw<Array<{ plan: string; plan_expires_at: Date | null }>>`
+          SELECT plan::text, plan_expires_at FROM users
           WHERE id = ${purchaseRequest.userId}::uuid
           FOR UPDATE
         `
@@ -57,6 +58,7 @@ export async function PATCH(
         }
 
         const newPlan = purchaseRequest.plan as string
+        const expiresAt = computeExpiry((purchaseRequest as any).period, currentUserData[0]?.plan_expires_at ?? null, isRenewal)
 
         // 3. Marcar solicitud como aprobada
         await tx.packPurchaseRequest.update({
@@ -69,20 +71,17 @@ export async function PATCH(
           },
         })
 
-        // 4. Activar o renovar plan
+        // 4. Activar o renovar plan (vencimiento según el período comprado)
         if (isRenewal) {
           await tx.$executeRaw`
             UPDATE users
-            SET is_active = true,
-                plan_expires_at = GREATEST(COALESCE(plan_expires_at, NOW()), NOW()) + INTERVAL '30 days'
+            SET is_active = true, plan_expires_at = ${expiresAt}
             WHERE id = ${purchaseRequest.userId}::uuid
           `
         } else {
           await tx.$executeRaw`
             UPDATE users
-            SET plan = ${newPlan}::"UserPlan",
-                is_active = true,
-                plan_expires_at = NOW() + INTERVAL '30 days'
+            SET plan = ${newPlan}::"UserPlan", is_active = true, plan_expires_at = ${expiresAt}
             WHERE id = ${purchaseRequest.userId}::uuid
           `
         }

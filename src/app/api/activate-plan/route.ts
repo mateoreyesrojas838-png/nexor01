@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { computeExpiry } from '@/lib/plan-period'
 
 const PACK_CONFIG: Record<string, { price: number; label: string }> = {
   BASIC: { price: 49,  label: 'Pack Básico' },
@@ -64,20 +65,19 @@ export async function POST(request: NextRequest) {
         data: { status: 'PAID' },
       })
 
-      // Activar/renovar plan
+      const expiresAt = computeExpiry((approvedRequest as any).period, currentUser[0].plan_expires_at ?? null, isRenewal)
+
+      // Activar/renovar plan (vencimiento según el período comprado)
       if (isRenewal) {
         await tx.$executeRaw`
           UPDATE users
-          SET is_active = true,
-              plan_expires_at = GREATEST(COALESCE(plan_expires_at, NOW()), NOW()) + INTERVAL '30 days'
+          SET is_active = true, plan_expires_at = ${expiresAt}
           WHERE id = ${user.id}::uuid
         `
       } else {
         await tx.$executeRaw`
           UPDATE users
-          SET plan = ${plan}::"UserPlan",
-              plan_expires_at = NOW() + INTERVAL '30 days',
-              is_active = true
+          SET plan = ${plan}::"UserPlan", plan_expires_at = ${expiresAt}, is_active = true
           WHERE id = ${user.id}::uuid
         `
       }

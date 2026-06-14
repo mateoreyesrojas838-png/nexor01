@@ -19,6 +19,7 @@ interface CryptoPaymentGatewayProps {
   plan: string
   price: number
   isRenewal?: boolean
+  period?: string
   receiverAddress?: string
   // Si se pasa, se llama con el txHash en vez del POST por defecto a /api/pack-requests
   onSubmitTx?: (txHash: string) => Promise<'approved' | 'pending_verification'>
@@ -40,6 +41,7 @@ export function CryptoPaymentGateway({
   plan,
   price,
   isRenewal = false,
+  period = 'MONTHLY',
   receiverAddress: receiverProp,
   onSubmitTx,
   onSuccess,
@@ -118,7 +120,7 @@ export function CryptoPaymentGateway({
         const res = await fetch('/api/pack-requests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan, isRenewal, paymentMethod: 'CRYPTO', txHash: tx.hash }),
+          body: JSON.stringify({ plan, period, paymentMethod: 'CRYPTO', txHash: tx.hash }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Error al registrar el pago')

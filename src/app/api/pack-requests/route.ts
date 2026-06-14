@@ -3,9 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { verifyBscTransaction } from '@/lib/blockchain'
+import { normalizePeriod, planPriceFor, computeExpiry } from '@/lib/plan-period'
 
 const PRICE_DEFAULTS: Record<string, number> = {
-  BASIC: 49, PRO: 99, ELITE: 199, RENEWAL: 19,
+  BASIC: 49, PRO: 99, ELITE: 199,
 }
 
 const TX_HASH_REGEX = /^0x[a-fA-F0-9]{64}$/
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()
-    const { plan, isRenewal, paymentProofUrl, hgwCodeId, isHgw } = body
+    const { plan, paymentProofUrl } = body
+    const period = normalizePeriod(body.period)
     const isCrypto = body.paymentMethod === 'CRYPTO'
     const txHash = (body.txHash as string) ?? null
 
@@ -70,17 +72,12 @@ export async function POST(request: NextRequest) {
     if (!isCrypto && !paymentProofUrl) {
       return NextResponse.json({ error: 'Debes subir tu comprobante de pago.' }, { status: 400 })
     }
-    if (isHgw && !hgwCodeId?.trim()) {
-      return NextResponse.json({ error: 'El código ID de HGW es requerido' }, { status: 400 })
-    }
     if (isCrypto && (!txHash || !TX_HASH_REGEX.test(txHash))) {
       return NextResponse.json({ error: 'Hash de transacción inválido.' }, { status: 400 })
     }
 
-    // Validar renovación — debe tener el plan activo
-    if (isRenewal && user.plan !== plan) {
-      return NextResponse.json({ error: 'Solo puedes renovar tu plan actual.' }, { status: 400 })
-    }
+    // ¿Es renovación? (compra del mismo plan que ya tiene)
+    const isRenewal = user.plan === plan
 
     // No puede haber otra solicitud pendiente (manual o esperando verificación on-chain)
     const existing = await prisma.packPurchaseRequest.findFirst({
@@ -93,10 +90,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Precio real desde la DB — nunca confiar en el frontend
-    const priceKey = isRenewal ? 'PRICE_RENEWAL' : `PRICE_${plan}`
-    const priceSetting = await prisma.appSetting.findUnique({ where: { key: priceKey } })
-    const price = priceSetting?.value ? parseFloat(priceSetting.value) : PRICE_DEFAULTS[isRenewal ? 'RENEWAL' : plan]
+    // Precio real desde la DB — nunca confiar en el frontend.
+    // Prioridad: PlanConfig (por período). Fallback solo para mensual: setting PRICE_{plan} → default.
+    let price = await planPriceFor(plan, period)
+    if (price == null && period === 'MONTHLY') {
+      const s = await prisma.appSetting.findUnique({ where: { key: `PRICE_${plan}` } })
+      price = s?.value ? parseFloat(s.value) : PRICE_DEFAULTS[plan]
+    }
+    if (!price || price <= 0) {
+      return NextResponse.json({ error: 'Ese período no está disponible para este plan.' }, { status: 400 })
+    }
 
     // ─────────────── Pago con CRIPTO (USDT BEP-20) ───────────────
     if (isCrypto) {
@@ -109,12 +112,16 @@ export async function POST(request: NextRequest) {
       const verification = await verifyBscTransaction(txHash!, price)
 
       if (verification.success) {
+        // Vencimiento según el período (renovación extiende desde el vencimiento actual)
+        const expiresAt = computeExpiry(period, user.planExpiresAt ?? null, isRenewal)
+
         // Verificación inmediata exitosa → activar el plan en una transacción
         const req = await prisma.$transaction(async (tx) => {
           const newReq = await (tx as any).packPurchaseRequest.create({
             data: {
               userId: user.id,
               plan,
+              period,
               price,
               paymentMethod: 'CRYPTO',
               txHash,
@@ -128,16 +135,13 @@ export async function POST(request: NextRequest) {
           if (isRenewal) {
             await tx.$executeRaw`
               UPDATE users
-              SET is_active = true,
-                  plan_expires_at = GREATEST(COALESCE(plan_expires_at, NOW()), NOW()) + INTERVAL '30 days'
+              SET is_active = true, plan_expires_at = ${expiresAt}
               WHERE id = ${user.id}::uuid
             `
           } else {
             await tx.$executeRaw`
               UPDATE users
-              SET plan = ${plan}::"UserPlan",
-                  is_active = true,
-                  plan_expires_at = NOW() + INTERVAL '30 days'
+              SET plan = ${plan}::"UserPlan", is_active = true, plan_expires_at = ${expiresAt}
               WHERE id = ${user.id}::uuid
             `
           }
@@ -149,7 +153,7 @@ export async function POST(request: NextRequest) {
               action: 'PURCHASE_CRYPTO_AUTO_APPROVED',
               entityType: 'PackPurchaseRequest',
               entityId: newReq.id,
-              payload: { plan, price, txHash, amountUsdt: verification.amountUsdt, blockNumber: verification.blockNumber?.toString() },
+              payload: { plan, period, price, txHash, amountUsdt: verification.amountUsdt, blockNumber: verification.blockNumber?.toString() },
             },
           })
 
@@ -169,6 +173,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId: user.id,
           plan,
+          period,
           price,
           paymentMethod: 'CRYPTO',
           txHash,
@@ -184,17 +189,17 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ─────────────── Pago MANUAL / HGW (revisión del admin) ───────────────
+    // ─────────────── Pago MANUAL (revisión del admin) ───────────────
     const req = await (prisma.packPurchaseRequest as any).create({
       data: {
         userId: user.id,
         plan,
+        period,
         price,
         paymentProofUrl,
-        hgwCodeId: isHgw ? hgwCodeId.trim() : null,
         paymentMethod: 'MANUAL',
         status: 'PENDING',
-        notes: isHgw ? 'HGW' : isRenewal ? 'RENEWAL' : null,
+        notes: isRenewal ? 'RENEWAL' : null,
       },
     })
 
