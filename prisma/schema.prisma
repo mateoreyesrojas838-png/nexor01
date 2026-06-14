@@ -1079,11 +1079,16 @@ model Form {
   title       String
   description String?    @db.Text
   slug        String     @unique
-  status      FormStatus @default(DRAFT)
-  themeColor  String     @default("#F59E0B") @map("theme_color")
-  coverUrl    String?    @map("cover_url")
-  notifyEmail Boolean    @default(false) @map("notify_email")
-  thankYouMsg String?    @map("thank_you_msg")
+  status         FormStatus @default(DRAFT)
+  themeColor     String     @default("#F59E0B") @map("theme_color")
+  themeColors    Json?      @map("theme_colors") // 2-5 colores para el degradado
+  buttonColor    String?    @map("button_color")
+  coverUrl       String?    @map("cover_url")
+  headerVideoUrl String?    @map("header_video_url")
+  showSubmit     Boolean    @default(true) @map("show_submit")
+  redirectUrl    String?    @map("redirect_url")
+  notifyEmail    Boolean    @default(false) @map("notify_email")
+  thankYouMsg    String?    @map("thank_you_msg")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
@@ -1101,6 +1106,7 @@ model FormField {
   description String?
   required    Boolean  @default(false)
   options     Json? // array de strings para tipos de opción
+  settings    Json? // config extra (ej. botón que envía el formulario)
   order       Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
 

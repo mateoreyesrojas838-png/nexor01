@@ -43,10 +43,10 @@ export default function PublicFormPage() {
     } catch { setError('Error al subir el archivo') } finally { setUploading(null) }
   }
 
-  async function submit() {
+  async function doSubmit(redirectTo?: string) {
     setError(null)
     for (const f of form.fields) {
-      if (f.type === 'heading' || !f.required) continue
+      if (f.type === 'heading' || f.type === 'button' || !f.required) continue
       const v = answers[f.id]
       if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) { setError(`Falta responder: "${f.label}"`); return }
     }
@@ -55,6 +55,8 @@ export default function PublicFormPage() {
       const r = await fetch(`/api/forms/${slug}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al enviar'); return }
+      const dest = redirectTo || form.redirectUrl
+      if (dest) { window.location.href = dest; return }
       setDone(d.thankYouMsg || '¡Gracias por tu respuesta!')
     } catch { setError('Error de conexión') } finally { setSubmitting(false) }
   }
@@ -67,7 +69,10 @@ export default function PublicFormPage() {
     </div>
   )
 
-  const color = form.themeColor || '#F59E0B'
+  const colors: string[] = Array.isArray(form.themeColors) && form.themeColors.length ? form.themeColors : [form.themeColor || '#F59E0B']
+  const color = colors[0]
+  const gradient = colors.length > 1 ? `linear-gradient(135deg, ${colors.join(', ')})` : color
+  const btnColor = form.buttonColor || color
 
   if (done) return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0B0B12' }}>
@@ -88,8 +93,12 @@ export default function PublicFormPage() {
       <div className="max-w-2xl mx-auto">
         {/* Cabecera */}
         <div className="rounded-3xl overflow-hidden border border-white/10 mb-5" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          {form.coverUrl && <img src={form.coverUrl} alt="" className="w-full max-h-52 object-cover" />}
-          <div className="h-1.5" style={{ background: color }} />
+          {form.headerVideoUrl ? (
+            <video src={form.headerVideoUrl} controls playsInline className="w-full max-h-80 bg-black" />
+          ) : form.coverUrl ? (
+            <img src={form.coverUrl} alt="" className="w-full max-h-52 object-cover" />
+          ) : null}
+          <div className="h-1.5" style={{ background: gradient }} />
           <div className="p-6">
             <h1 className="text-2xl font-black text-white">{form.title}</h1>
             {form.description && <p className="text-white/50 text-sm mt-2 whitespace-pre-line">{form.description}</p>}
@@ -104,9 +113,15 @@ export default function PublicFormPage() {
             f.type === 'heading' ? (
               <h2 key={f.id} className="text-lg font-black text-white pt-4">{f.label}</h2>
             ) : f.type === 'button' ? (
-              <a key={f.id} href={f.options?.[0] || '#'} target="_blank" rel="noreferrer" className="block text-center py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98]" style={{ background: color }}>
-                {f.label}
-              </a>
+              f.settings?.submits ? (
+                <button key={f.id} onClick={() => doSubmit(f.options?.[0])} disabled={submitting} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98] disabled:opacity-50" style={{ background: btnColor }}>
+                  {submitting ? <Loader2 size={16} className="animate-spin" /> : f.label}
+                </button>
+              ) : (
+                <a key={f.id} href={f.options?.[0] || '#'} target="_blank" rel="noreferrer" className="block text-center py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98]" style={{ background: btnColor }}>
+                  {f.label}
+                </a>
+              )
             ) : (
               <div key={f.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
                 <label className="block text-sm font-bold text-white mb-1">{f.label} {f.required && <span style={{ color }}>*</span>}</label>
@@ -164,9 +179,11 @@ export default function PublicFormPage() {
           ))}
         </div>
 
-        <button onClick={submit} disabled={submitting} className="w-full mt-5 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98] disabled:opacity-50" style={{ background: color }}>
-          {submitting ? <Loader2 size={16} className="animate-spin" /> : <><Send size={15} /> Enviar</>}
-        </button>
+        {form.showSubmit !== false && (
+          <button onClick={() => doSubmit()} disabled={submitting} className="w-full mt-5 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98] disabled:opacity-50" style={{ background: btnColor }}>
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <><Send size={15} /> Enviar</>}
+          </button>
+        )}
         <p className="text-center text-[10px] text-white/20 mt-4">Formulario creado con Nexor</p>
       </div>
     </div>

@@ -14,6 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { fieldId: s
   if (b.description !== undefined) data.description = b.description || null
   if (b.required !== undefined) data.required = !!b.required
   if (b.options !== undefined) data.options = Array.isArray(b.options) ? b.options : null
+  if (b.settings !== undefined) data.settings = b.settings || null
   if (b.order !== undefined) data.order = parseInt(b.order) || 0
 
   const field = await (prisma as any).formField.update({ where: { id: params.fieldId }, data })

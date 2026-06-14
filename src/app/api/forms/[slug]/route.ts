@@ -19,11 +19,16 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
       title: form.title,
       description: form.description,
       themeColor: form.themeColor,
+      themeColors: form.themeColors,
+      buttonColor: form.buttonColor,
       coverUrl: form.coverUrl,
+      headerVideoUrl: form.headerVideoUrl,
+      showSubmit: form.showSubmit,
+      redirectUrl: form.redirectUrl,
       thankYouMsg: form.thankYouMsg,
       fields: form.fields.map((f: any) => ({
         id: f.id, type: f.type, label: f.label, description: f.description,
-        required: f.required, options: f.options,
+        required: f.required, options: f.options, settings: f.settings,
       })),
     },
   })

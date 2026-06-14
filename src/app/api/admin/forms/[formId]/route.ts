@@ -26,7 +26,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { formId: st
   if (b.title !== undefined) data.title = String(b.title).trim()
   if (b.description !== undefined) data.description = b.description || null
   if (b.themeColor !== undefined) data.themeColor = b.themeColor || '#F59E0B'
+  if (b.themeColors !== undefined) data.themeColors = Array.isArray(b.themeColors) ? b.themeColors.slice(0, 5) : null
+  if (b.buttonColor !== undefined) data.buttonColor = b.buttonColor || null
   if (b.coverUrl !== undefined) data.coverUrl = b.coverUrl || null
+  if (b.headerVideoUrl !== undefined) data.headerVideoUrl = b.headerVideoUrl || null
+  if (b.showSubmit !== undefined) data.showSubmit = !!b.showSubmit
+  if (b.redirectUrl !== undefined) data.redirectUrl = b.redirectUrl || null
   if (b.notifyEmail !== undefined) data.notifyEmail = !!b.notifyEmail
   if (b.thankYouMsg !== undefined) data.thankYouMsg = b.thankYouMsg || null
   if (b.status !== undefined && ['DRAFT', 'PUBLISHED', 'CLOSED'].includes(b.status)) data.status = b.status
