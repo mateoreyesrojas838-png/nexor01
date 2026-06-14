@@ -75,23 +75,6 @@ export default async function CourseLandingPage({ params }: { params: { slug: st
 
       <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-8">
-          {/* Bloques armados por el admin (video / texto / mockups) */}
-          {Array.isArray(course.landingBlocks) && course.landingBlocks.length > 0 && (
-            <div className="space-y-6">
-              {course.landingBlocks.map((blk: any, i: number) => (
-                blk.type === 'text' ? (
-                  <div key={i}>
-                    {blk.title && <h2 className="text-xl font-black mb-2">{blk.title}</h2>}
-                    {blk.body && <p className="text-white/60 leading-relaxed whitespace-pre-line">{blk.body}</p>}
-                  </div>
-                ) : blk.type === 'video' ? (
-                  <video key={i} src={blk.url} controls className="w-full rounded-2xl bg-black border border-white/10" />
-                ) : (
-                  <img key={i} src={blk.url} alt="" className="w-full rounded-2xl border border-white/10" />
-                )
-              ))}
-            </div>
-          )}
           {course.description && (
             <div>
               <h2 className="text-lg font-black mb-3">Descripción</h2>
