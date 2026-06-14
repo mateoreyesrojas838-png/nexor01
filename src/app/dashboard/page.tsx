@@ -39,8 +39,8 @@ const CURSOS_CARD = {
   glow: 'rgba(52,211,153,0.12)',
   alwaysOpen: true,
 }
-// Servicios de acceso libre (no requieren plan)
-const ALWAYS_OPEN = new Set(['formularios'])
+// Servicios de acceso libre (no requieren plan). Vacío: todos requieren acceso.
+const ALWAYS_OPEN = new Set<string>([])
 
 export default function DashboardPage() {
   const router = useRouter()

@@ -6,6 +6,9 @@ export const GATED_API_PREFIXES: Record<string, string> = {
   '/api/social': 'social',
   '/api/crm': 'crm',
   '/api/image-studio': 'image-studio',
+  // Solo la gestión del dueño. El formulario público (/api/forms/[slug]) queda
+  // abierto para que cualquiera pueda llenarlo y enviarlo sin cuenta.
+  '/api/my-forms': 'formularios',
 }
 
 /** Devuelve la key del servicio que protege esta ruta de API, o null si no está gateada. */
