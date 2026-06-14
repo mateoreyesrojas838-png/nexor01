@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, ClipboardList, MessageSquare, ListChecks, X, AlertCircle } from 'lucide-react'
+import { Plus, Loader2, ClipboardList, MessageSquare, ListChecks, X, AlertCircle, Link2, Check } from 'lucide-react'
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: 'Borrador', cls: 'bg-white/10 text-white/50' },
@@ -19,6 +19,12 @@ export default function AdminFormsPage() {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  function copyLink(f: any) {
+    const url = `${window.location.origin}/f/${f.slug}`
+    navigator.clipboard.writeText(url).then(() => { setCopiedId(f.id); setTimeout(() => setCopiedId(null), 2000) }).catch(() => {})
+  }
 
   useEffect(() => { load() }, [])
   async function load() {
@@ -73,7 +79,11 @@ export default function AdminFormsPage() {
               <div className="flex gap-2">
                 <Link href={`/admin/formularios/${f.id}`} className="flex-1 text-center py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold transition-all">Editar</Link>
                 <Link href={`/admin/formularios/${f.id}/respuestas`} className="flex-1 text-center py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold transition-all">Respuestas</Link>
+                <button onClick={() => copyLink(f)} title="Copiar enlace del formulario" className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${copiedId === f.id ? 'bg-green-500/15 text-green-400' : 'bg-white/5 hover:bg-white/10 text-white/60'}`}>
+                  {copiedId === f.id ? <><Check size={13} /> Copiado</> : <Link2 size={13} />}
+                </button>
               </div>
+              {f.status !== 'PUBLISHED' && <p className="text-[10px] text-amber-400/60 mt-2">Publicá el formulario para que el enlace funcione.</p>}
             </div>
           ))}
         </div>
