@@ -701,8 +701,9 @@ export async function sendCourseEnrollmentEmail(
 }
 
 export async function sendFormResponseEmail(
-  email: string, formTitle: string, formId: string
+  email: string, formTitle: string, formId: string, area: 'admin' | 'dashboard' = 'dashboard'
 ): Promise<boolean> {
+  const link = `${APP_URL}/${area}/formularios/${formId}/respuestas`
   const content = `
     <p style="color:#fff;font-size:20px;font-weight:800;margin:0 0 8px;">Nueva respuesta 📩</p>
     <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 24px;">Recibiste una respuesta nueva en tu formulario:</p>
@@ -713,7 +714,7 @@ export async function sendFormResponseEmail(
     </table>
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="border-radius:10px;background:linear-gradient(135deg,#D97706,#FFD700);">
-        <a href="${APP_URL}/admin/formularios/${formId}/respuestas" style="display:inline-block;padding:12px 28px;color:#000;font-size:14px;font-weight:800;text-decoration:none;">Ver respuestas</a>
+        <a href="${link}" style="display:inline-block;padding:12px 28px;color:#000;font-size:14px;font-weight:800;text-decoration:none;">Ver respuestas</a>
       </td>
     </tr></table>
   `
