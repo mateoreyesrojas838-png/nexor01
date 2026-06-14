@@ -1067,6 +1067,28 @@ model CourseEnrollment {
   @@map("course_enrollments")
 }
 
+// ─── CATÁLOGO DE SERVICIOS (activar/desactivar, venta por separado) ───────────
+
+model Service {
+  id             String   @id @default(uuid()) @db.Uuid
+  key            String   @unique
+  name           String
+  slug           String   @unique
+  description    String?  @db.Text
+  coverUrl       String?  @map("cover_url")
+  features       String?  @db.Text // una línea por ítem
+  active         Boolean  @default(true)
+  sellSeparately Boolean  @default(false) @map("sell_separately")
+  priceMonthly   Decimal? @db.Decimal(10, 2) @map("price_monthly")
+  priceQuarterly Decimal? @db.Decimal(10, 2) @map("price_quarterly")
+  priceAnnual    Decimal? @db.Decimal(10, 2) @map("price_annual")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("services")
+}
+
 // ─── FORMULARIOS (constructor tipo Google Forms) ─────────────────────────────
 
 enum FormStatus {

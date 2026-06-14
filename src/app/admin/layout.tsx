@@ -19,6 +19,7 @@ import {
   Package,
   GraduationCap,
   ClipboardList,
+  LayoutGrid,
 } from 'lucide-react'
 
 const NAV = [
@@ -27,6 +28,7 @@ const NAV = [
   { href: '/admin/purchases', label: 'Compras', icon: ShoppingBag },
   { href: '/admin/credits', label: 'Créditos AI', icon: Coins },
   { href: '/admin/products', label: 'Productos', icon: Package },
+  { href: '/admin/servicios', label: 'Servicios', icon: LayoutGrid },
   { href: '/admin/cursos', label: 'Cursos', icon: GraduationCap },
   { href: '/admin/formularios', label: 'Formularios', icon: ClipboardList },
   { href: '/admin/prompt-templates', label: 'Plantillas Prompt', icon: FileText },

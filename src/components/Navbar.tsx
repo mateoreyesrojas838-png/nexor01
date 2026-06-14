@@ -1,19 +1,20 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import NotificationBell from './NotificationBell'
 
-const navItems = [
+const navItems: { href: string; iconClass: string; label: string; serviceKey?: string }[] = [
   { href: '/dashboard', iconClass: 'fa-solid fa-house', label: 'Inicio' },
-  { href: '/dashboard/services/whatsapp', iconClass: 'fa-solid fa-robot', label: 'Agentes AI' },
-  { href: '/dashboard/crm', iconClass: 'fa-solid fa-bullhorn', label: 'CRM' },
+  { href: '/dashboard/services/whatsapp', iconClass: 'fa-solid fa-robot', label: 'Agentes AI', serviceKey: 'whatsapp' },
+  { href: '/dashboard/crm', iconClass: 'fa-solid fa-bullhorn', label: 'CRM', serviceKey: 'crm' },
   { href: '/dashboard/cursos', iconClass: 'fa-solid fa-graduation-cap', label: 'Cursos' },
-  { href: '/dashboard/formularios', iconClass: 'fa-solid fa-clipboard-list', label: 'Formularios' },
+  { href: '/dashboard/formularios', iconClass: 'fa-solid fa-clipboard-list', label: 'Formularios', serviceKey: 'formularios' },
   { href: '/dashboard/credits', iconClass: 'fa-solid fa-bolt', label: 'Créditos' },
-  { href: '/dashboard/services/social', iconClass: 'fa-solid fa-satellite-dish', label: 'Publisher' },
-  { href: '/dashboard/services/ads', iconClass: 'fa-solid fa-chart-line', label: 'Ads' },
-  { href: '/dashboard/services/image-studio', iconClass: 'fa-solid fa-wand-magic-sparkles', label: 'Imágenes' },
+  { href: '/dashboard/services/social', iconClass: 'fa-solid fa-satellite-dish', label: 'Publisher', serviceKey: 'social' },
+  { href: '/dashboard/services/ads', iconClass: 'fa-solid fa-chart-line', label: 'Ads', serviceKey: 'ads' },
+  { href: '/dashboard/services/image-studio', iconClass: 'fa-solid fa-wand-magic-sparkles', label: 'Imágenes', serviceKey: 'image-studio' },
 ]
 
 async function logout() {
@@ -23,6 +24,16 @@ async function logout() {
 
 export default function Navbar() {
   const pathname = usePathname()
+  const [activeKeys, setActiveKeys] = useState<Set<string> | null>(null)
+
+  useEffect(() => {
+    fetch('/api/services').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.services) setActiveKeys(new Set(d.services.map((s: any) => s.key)))
+    }).catch(() => {})
+  }, [])
+
+  // Mientras carga (null) mostramos todo; ya cargado, ocultamos los servicios desactivados
+  const items = navItems.filter(it => !it.serviceKey || !activeKeys || activeKeys.has(it.serviceKey))
 
   return (
     <>
@@ -40,7 +51,7 @@ export default function Navbar() {
         </Link>
 
         <nav className="sidebar__nav" aria-label="Menú">
-          {navItems.map(item => {
+          {items.map(item => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
             return (
               <Link
@@ -78,7 +89,7 @@ export default function Navbar() {
 
       {/* ── BARRA MÓVIL ── */}
       <nav className="bottom-nav lg:hidden" aria-label="Navegación principal">
-        {navItems.map(item => {
+        {items.map(item => {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
           return (
             <Link

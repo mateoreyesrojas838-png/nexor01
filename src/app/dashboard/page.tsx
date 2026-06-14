@@ -6,6 +6,7 @@ import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import NotificationBell from '@/components/NotificationBell'
 import PushPermission from '@/components/PushPermission'
+import { SERVICE_UI } from '@/lib/services-ui'
 
 interface User {
   fullName: string
@@ -26,73 +27,20 @@ const PLAN_COLORS: Record<string, string> = {
   NONE:  '#6B7280',
 }
 
-const services = [
-  {
-    href: '/dashboard/services/whatsapp',
-    icon: 'fa-solid fa-robot',
-    title: 'Agentes AI',
-    sub: 'WhatsApp · Ventas automáticas',
-    description: 'Bots con IA que atienden clientes, responden preguntas y cierran ventas las 24 h.',
-    color: '#F59E0B',
-    glow: 'rgba(245,158,11,0.12)',
-  },
-  {
-    href: '/dashboard/services/social',
-    icon: 'fa-solid fa-satellite-dish',
-    title: 'Publisher',
-    sub: 'Redes sociales · Programación',
-    description: 'Programa y publica contenido en Facebook, Instagram, TikTok y YouTube.',
-    color: '#818CF8',
-    glow: 'rgba(129,140,248,0.12)',
-  },
-  {
-    href: '/dashboard/services/ads',
-    icon: 'fa-solid fa-chart-line',
-    title: 'Ads Manager',
-    sub: 'Meta Ads · IA',
-    description: 'Crea y lanza campañas publicitarias en Facebook e Instagram impulsadas por IA.',
-    color: '#34D399',
-    glow: 'rgba(52,211,153,0.12)',
-  },
-  {
-    href: '/dashboard/crm',
-    icon: 'fa-solid fa-paper-plane',
-    title: 'CRM Broadcast',
-    sub: 'WhatsApp · Envíos masivos',
-    description: 'Envía mensajes masivos por WhatsApp con mensajes únicos generados por IA para cada contacto.',
-    color: '#22D3EE',
-    glow: 'rgba(34,211,238,0.12)',
-  },
-  {
-    href: '/dashboard/services/image-studio',
-    icon: 'fa-solid fa-wand-magic-sparkles',
-    title: 'Generador de Imágenes',
-    sub: 'IA · Imágenes similares',
-    description: 'Subí una imagen de referencia y generá variantes similares con IA (gpt-image-2) según tus instrucciones.',
-    color: '#E879F9',
-    glow: 'rgba(232,121,249,0.12)',
-  },
-  {
-    href: '/dashboard/cursos',
-    icon: 'fa-solid fa-graduation-cap',
-    title: 'Cursos',
-    sub: 'Aprendé con video',
-    description: 'Cursos en video por módulos con materiales descargables. Comprá con USDT o desbloqueá con tu plan.',
-    color: '#34D399',
-    glow: 'rgba(52,211,153,0.12)',
-    alwaysOpen: true,
-  },
-  {
-    href: '/dashboard/formularios',
-    icon: 'fa-solid fa-clipboard-list',
-    title: 'Formularios',
-    sub: 'Encuestas y registros',
-    description: 'Creá formularios a tu medida (video, colores, campos), compartí el link y recibí las respuestas en Excel.',
-    color: '#60A5FA',
-    glow: 'rgba(96,165,250,0.12)',
-    alwaysOpen: true,
-  },
-]
+// Cursos es un sistema aparte (no está en el catálogo de servicios)
+const CURSOS_CARD = {
+  key: 'cursos',
+  href: '/dashboard/cursos',
+  icon: 'fa-solid fa-graduation-cap',
+  title: 'Cursos',
+  sub: 'Aprendé con video',
+  description: 'Cursos en video por módulos con materiales descargables. Comprá con USDT o desbloqueá con tu plan.',
+  color: '#34D399',
+  glow: 'rgba(52,211,153,0.12)',
+  alwaysOpen: true,
+}
+// Servicios de acceso libre (no requieren plan)
+const ALWAYS_OPEN = new Set(['formularios'])
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -102,7 +50,25 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false)
   const [creditsData, setCreditsData] = useState<CreditsData | null>(null)
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+  const [services, setServices] = useState<any[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Servicios activos desde el catálogo (el admin los activa/desactiva)
+  useEffect(() => {
+    fetch('/api/services').then(r => r.ok ? r.json() : null).then(d => {
+      const cards = (d?.services || []).map((s: any) => {
+        const ui = SERVICE_UI[s.key] || {}
+        return {
+          key: s.key, href: ui.href || '#', icon: ui.icon || 'fa-solid fa-cube',
+          title: s.name, sub: ui.sub || '', description: s.description || '',
+          color: ui.color || '#888', glow: ui.glow || 'rgba(136,136,136,0.12)',
+          alwaysOpen: ALWAYS_OPEN.has(s.key),
+        }
+      })
+      cards.push(CURSOS_CARD)
+      setServices(cards)
+    }).catch(() => setServices([CURSOS_CARD]))
+  }, [])
 
   useEffect(() => {
     if (searchParams.get('payment') === 'success') {
