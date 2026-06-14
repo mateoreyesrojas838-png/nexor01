@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid, Upload, ExternalLink, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid, Upload, ExternalLink, Image as ImageIcon, Copy, Check } from 'lucide-react'
 import { SERVICE_UI } from '@/lib/services-ui'
 
 export default function AdminServicesPage() {
@@ -10,6 +10,12 @@ export default function AdminServicesPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  function copyUrl(svc: any) {
+    const url = `${window.location.origin}/servicios/${svc.slug}`
+    navigator.clipboard.writeText(url).then(() => { setCopiedId(svc.id); setTimeout(() => setCopiedId(null), 2000) }).catch(() => {})
+  }
 
   useEffect(() => { load() }, [])
   async function load() {
@@ -101,10 +107,15 @@ export default function AdminServicesPage() {
 
               {svc.sellSeparately && (
                 <div className="mt-3 pt-3 border-t border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] uppercase tracking-widest text-white/30">Landing de venta</p>
-                    {svc.active && <a href={`/servicios/${svc.slug}`} target="_blank" rel="noreferrer" className="text-[11px] text-amber-400 underline flex items-center gap-1">Ver landing <ExternalLink size={10} /></a>}
+                  <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Landing de venta · link para compartir</p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input readOnly value={typeof window !== 'undefined' ? `${window.location.origin}/servicios/${svc.slug}` : ''} className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white/60 font-mono focus:outline-none" />
+                    <button onClick={() => copyUrl(svc)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-black shrink-0" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+                      {copiedId === svc.id ? <><Check size={11} /> Copiado</> : <><Copy size={11} /> Copiar</>}
+                    </button>
+                    {svc.active && <a href={`/servicios/${svc.slug}`} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-white/10 bg-white/5 text-white/60 hover:text-amber-400 flex items-center gap-1 shrink-0"><ExternalLink size={11} /> Ver</a>}
                   </div>
+                  {!svc.active && <p className="text-[10px] text-amber-400/70 mb-2">Activá el servicio para que la landing sea visible.</p>}
                   <div className="flex gap-3">
                     <div className="w-28 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center">
                       {svc.coverUrl ? <img src={svc.coverUrl} alt="" className="w-full h-full object-cover" /> : <ImageIcon size={16} className="text-white/15" />}
