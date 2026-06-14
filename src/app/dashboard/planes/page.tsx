@@ -528,7 +528,7 @@ export default function PlanesPage() {
               </div>
             </div>
             <a
-              href="https://wa.me/74320237"
+              href="https://wa.me/59174320137"
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-[0.98] text-black"
