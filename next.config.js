@@ -42,6 +42,8 @@ const nextConfig = {
                     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
                     "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com",
                     "img-src 'self' data: blob: https:",
+                    // media-src: videos/audio servidos desde Supabase (lecciones y landing) — sin esto el navegador los bloquea
+                    "media-src 'self' https: blob: data:",
                     // wss: necesario para el relay de WalletConnect (QR de pago USDT)
                     "connect-src 'self' https: wss:",
                     // iframes de verificación de WalletConnect/Reown + Cloudflare Turnstile
