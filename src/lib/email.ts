@@ -730,3 +730,20 @@ export async function sendFormResponseEmail(
     return false
   }
 }
+
+/** Email genérico (texto del admin) a un destinatario, con el wrapper de marca. */
+export async function sendCustomEmail(to: string, subject: string, message: string): Promise<boolean> {
+  const safe = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+  const content = `<div style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.7;">${safe}</div>`
+  try {
+    await transporter.sendMail({
+      from: `"NEXOR" <${process.env.GMAIL_USER}>`,
+      to, subject,
+      html: emailWrapper(content),
+    })
+    return true
+  } catch (err) {
+    console.error('[EMAIL] Custom email error:', err)
+    return false
+  }
+}
