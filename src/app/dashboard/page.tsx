@@ -82,6 +82,16 @@ const services = [
     glow: 'rgba(52,211,153,0.12)',
     alwaysOpen: true,
   },
+  {
+    href: '/dashboard/formularios',
+    icon: 'fa-solid fa-clipboard-list',
+    title: 'Formularios',
+    sub: 'Encuestas y registros',
+    description: 'Creá formularios a tu medida (video, colores, campos), compartí el link y recibí las respuestas en Excel.',
+    color: '#60A5FA',
+    glow: 'rgba(96,165,250,0.12)',
+    alwaysOpen: true,
+  },
 ]
 
 export default function DashboardPage() {

@@ -9,6 +9,7 @@ const navItems = [
   { href: '/dashboard/services/whatsapp', iconClass: 'fa-solid fa-robot', label: 'Agentes AI' },
   { href: '/dashboard/crm', iconClass: 'fa-solid fa-bullhorn', label: 'CRM' },
   { href: '/dashboard/cursos', iconClass: 'fa-solid fa-graduation-cap', label: 'Cursos' },
+  { href: '/dashboard/formularios', iconClass: 'fa-solid fa-clipboard-list', label: 'Formularios' },
   { href: '/dashboard/credits', iconClass: 'fa-solid fa-bolt', label: 'Créditos' },
   { href: '/dashboard/services/social', iconClass: 'fa-solid fa-satellite-dish', label: 'Publisher' },
   { href: '/dashboard/services/ads', iconClass: 'fa-solid fa-chart-line', label: 'Ads' },
