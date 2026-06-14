@@ -42,6 +42,29 @@ export default function AdminCourseEditor() {
   const [blockKind, setBlockKind] = useState<'image' | 'video'>('image')
   const blockFileRef = useRef<HTMLInputElement>(null)
 
+  // Video de introducción del curso
+  const [introUploading, setIntroUploading] = useState(false)
+  const [introProgress, setIntroProgress] = useState(0)
+  const introFileRef = useRef<HTMLInputElement>(null)
+
+  // ── Video de introducción ──
+  async function uploadIntro(file: File | null) {
+    if (!file) return
+    setIntroUploading(true); setIntroProgress(0); setError(null)
+    try {
+      const videoPath = await uploadVideoWithProgress(file, pct => setIntroProgress(pct))
+      const res = await fetch(`/api/admin/courses/${courseId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ introVideoPath: videoPath }) })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Error al guardar la intro'); return }
+      flash('Video de introducción cargado'); fetchCourse()
+    } catch (e: any) { setError(e?.message || 'Error al subir la intro') }
+    finally { setIntroUploading(false); if (introFileRef.current) introFileRef.current.value = '' }
+  }
+  async function removeIntro() {
+    if (!confirm('¿Quitar el video de introducción?')) return
+    await fetch(`/api/admin/courses/${courseId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ introVideoPath: '' }) })
+    fetchCourse()
+  }
+
   // ── Bloques de la landing ──
   function addTextBlock() { setBlocks(b => [...b, { type: 'text', title: '', body: '' }]) }
   function pickMedia(kind: 'image' | 'video') { setBlockKind(kind); blockFileRef.current?.click() }
@@ -311,6 +334,31 @@ export default function AdminCourseEditor() {
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Guardar cambios
           </button>
         </div>
+      </div>
+
+      {/* ── Video de introducción ── */}
+      <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 mb-5">
+        <h2 className="font-black text-white flex items-center gap-2 mb-1"><Film size={17} className="text-amber-400" /> Video de introducción <span className="text-white/30 text-xs font-normal">(opcional)</span></h2>
+        <p className="text-[11px] text-white/30 mb-3">Se reproduce primero cuando el alumno entra al curso. Va al bucket privado (protegido).</p>
+        {course.introVideoPath ? (
+          <div className="flex items-center gap-2 text-sm bg-green-500/5 border border-green-500/15 rounded-xl px-3 py-2.5">
+            <CheckCircle2 size={15} className="text-green-400 shrink-0" />
+            <span className="text-white/70 flex-1">Introducción cargada</span>
+            <button onClick={() => introFileRef.current?.click()} disabled={introUploading} className="text-xs text-amber-400 hover:text-amber-300 font-bold disabled:opacity-50">Reemplazar</button>
+            <button onClick={removeIntro} className="text-white/30 hover:text-red-400"><Trash2 size={14} /></button>
+          </div>
+        ) : (
+          <button onClick={() => introFileRef.current?.click()} disabled={introUploading} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 text-white/40 hover:text-amber-400 disabled:opacity-50">
+            <Upload size={15} /> Subir video de introducción
+          </button>
+        )}
+        {introUploading && (
+          <div className="mt-2">
+            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${introProgress}%`, background: 'linear-gradient(90deg,#D97706,#FFD700)' }} /></div>
+            <p className="text-[10px] text-amber-400/70 mt-1">Subiendo... {introProgress}%</p>
+          </div>
+        )}
+        <input ref={introFileRef} type="file" accept="video/*" className="hidden" onChange={e => uploadIntro(e.target.files?.[0] || null)} />
       </div>
 
       {/* ── Página de ventas (landing) — link para compartir ── */}

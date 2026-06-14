@@ -984,6 +984,7 @@ model Course {
   active       Boolean  @default(true)
   whatYouLearn String?  @db.Text @map("what_you_learn") // una línea por ítem
   landingBlocks Json?   @map("landing_blocks") // bloques de la landing (texto/imagen/video) editables por el admin
+  introVideoPath String? @map("intro_video_path") // video de introducción (bucket privado, URL firmada)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

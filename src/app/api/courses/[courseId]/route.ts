@@ -69,6 +69,7 @@ export async function GET(_req: NextRequest, { params }: { params: { courseId: s
       price: Number(course.price),
       freeForPlan: course.freeForPlan,
       whatYouLearn: course.whatYouLearn,
+      hasIntro: !!course.introVideoPath,
       modules,
       resources: (course.resources || []).map((r: any) => ({ id: r.id, title: r.title, kind: r.kind })),
     },

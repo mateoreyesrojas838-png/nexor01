@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Lock, CheckCircle2, PlayCircle, Film, ChevronDown, Clock, AlertCircle,
-  FileDown, Image as ImageIcon
+  FileDown, Image as ImageIcon, Maximize, Sparkles
 } from 'lucide-react'
 import { CourseBuyBox } from '@/components/CourseBuyBox'
 
@@ -15,6 +15,7 @@ interface CourseData {
   id: string; title: string; subtitle: string | null; description: string; coverUrl: string | null
   price: number; freeForPlan: boolean; whatYouLearn: string | null; modules: Module[]
   resources: { id: string; title: string; kind: string }[]
+  hasIntro?: boolean
 }
 
 function fmtDur(s: number) {
@@ -35,7 +36,18 @@ export default function CoursePlayerPage() {
   const [error, setError] = useState<string | null>(null)
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({})
   const [userEmail, setUserEmail] = useState('')
+  const [playingIntro, setPlayingIntro] = useState(false)
+  const [currentTitle, setCurrentTitle] = useState('')
   const lastSaveRef = useRef(0)
+  const playerWrapRef = useRef<HTMLDivElement>(null)
+  const autoStartedRef = useRef(false)
+
+  function goFullscreen() {
+    const el = playerWrapRef.current as any
+    if (!el) return
+    if (el.requestFullscreen) el.requestFullscreen()
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+  }
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.email) setUserEmail(d.email) }).catch(() => {})
@@ -66,7 +78,7 @@ export default function CoursePlayerPage() {
 
   async function playLesson(lesson: Lesson) {
     if (!lesson.hasVideo) { setError('Esta lección aún no tiene video'); return }
-    setCurrent(lesson); setVideoUrl(null); setLoadingVideo(true); setError(null)
+    setPlayingIntro(false); setCurrent(lesson); setCurrentTitle(lesson.title); setVideoUrl(null); setLoadingVideo(true); setError(null)
     try {
       const res = await fetch(`/api/courses/${courseId}/lessons/${lesson.id}/play`, { method: 'POST' })
       const data = await res.json()
@@ -75,6 +87,27 @@ export default function CoursePlayerPage() {
     } catch { setError('Error al cargar el video') }
     finally { setLoadingVideo(false) }
   }
+
+  async function playIntro() {
+    setPlayingIntro(true); setCurrent(null); setCurrentTitle('Introducción del curso'); setVideoUrl(null); setLoadingVideo(true); setError(null)
+    try {
+      const res = await fetch(`/api/courses/${courseId}/intro/play`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'No se pudo cargar la introducción'); return }
+      setVideoUrl(data.url)
+    } catch { setError('Error al cargar la introducción') }
+    finally { setLoadingVideo(false) }
+  }
+
+  // Auto-seleccionar al abrir: intro si hay, si no la primera lección con video
+  useEffect(() => {
+    if (!hasAccess || autoStartedRef.current || !course) return
+    autoStartedRef.current = true
+    if (course.hasIntro) { playIntro(); return }
+    const first = course.modules.flatMap(m => m.lessons).find(l => l.hasVideo)
+    if (first) playLesson(first)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAccess, course])
 
   async function openResource(resourceId: string) {
     try {
@@ -186,7 +219,7 @@ export default function CoursePlayerPage() {
               {loadingVideo ? (
                 <Loader2 className="animate-spin text-amber-400" size={32} />
               ) : videoUrl ? (
-                <div className="relative w-full h-full">
+                <div ref={playerWrapRef} className="relative w-full h-full bg-black flex items-center justify-center">
                   <video
                     key={videoUrl}
                     src={videoUrl}
@@ -208,7 +241,7 @@ export default function CoursePlayerPage() {
                       }
                     }}
                     onEnded={() => current && markComplete(current.id)}
-                    className="w-full h-full"
+                    className="w-full h-full object-contain"
                   />
                   {/* Marca de agua anti-piratería: el email del alumno sobre el video */}
                   {userEmail && (
@@ -224,14 +257,21 @@ export default function CoursePlayerPage() {
                 </div>
               )}
             </div>
-            {current && (
-              <div className="flex items-center justify-between">
-                <p className="font-bold text-white">{current.title}</p>
-                {!current.completed && videoUrl && (
-                  <button onClick={() => markComplete(current.id)} className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1">
-                    <CheckCircle2 size={14} /> Marcar como vista
+            {(current || playingIntro) && videoUrl && (
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-bold text-white truncate flex items-center gap-1.5">
+                  {playingIntro && <Sparkles size={14} className="text-amber-400 shrink-0" />}{currentTitle}
+                </p>
+                <div className="flex items-center gap-3 shrink-0">
+                  {current && !current.completed && (
+                    <button onClick={() => markComplete(current.id)} className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                      <CheckCircle2 size={14} /> Marcar vista
+                    </button>
+                  )}
+                  <button onClick={goFullscreen} className="text-xs font-bold text-white/60 hover:text-white flex items-center gap-1">
+                    <Maximize size={14} /> Pantalla completa
                   </button>
-                )}
+                </div>
               </div>
             )}
 
@@ -269,6 +309,12 @@ export default function CoursePlayerPage() {
               )}
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
+              {course.hasIntro && (
+                <button onClick={playIntro} className={`w-full flex items-center gap-2 px-4 py-3 text-left text-sm border-b border-white/5 transition-all ${playingIntro ? 'bg-amber-500/10 text-amber-300' : 'text-white/60 hover:bg-white/[0.03]'}`}>
+                  <Sparkles size={15} className="shrink-0 text-amber-400" />
+                  <span className="flex-1 font-bold">Introducción al curso</span>
+                </button>
+              )}
               {course.modules.map((m, mi) => {
                 const open = openModules[m.id]
                 return (
