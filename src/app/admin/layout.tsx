@@ -18,6 +18,7 @@ import {
   FileText,
   Package,
   GraduationCap,
+  ClipboardList,
 } from 'lucide-react'
 
 const NAV = [
@@ -27,6 +28,7 @@ const NAV = [
   { href: '/admin/credits', label: 'Créditos AI', icon: Coins },
   { href: '/admin/products', label: 'Productos', icon: Package },
   { href: '/admin/cursos', label: 'Cursos', icon: GraduationCap },
+  { href: '/admin/formularios', label: 'Formularios', icon: ClipboardList },
   { href: '/admin/prompt-templates', label: 'Plantillas Prompt', icon: FileText },
   { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
   { href: '/admin/settings', label: 'Configuración', icon: Settings },

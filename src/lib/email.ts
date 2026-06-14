@@ -699,3 +699,34 @@ export async function sendCourseEnrollmentEmail(
     return false
   }
 }
+
+export async function sendFormResponseEmail(
+  email: string, formTitle: string, formId: string
+): Promise<boolean> {
+  const content = `
+    <p style="color:#fff;font-size:20px;font-weight:800;margin:0 0 8px;">Nueva respuesta 📩</p>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 24px;">Recibiste una respuesta nueva en tu formulario:</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr><td style="background:rgba(255,215,0,0.04);border:1px solid rgba(255,215,0,0.12);border-radius:12px;padding:16px 18px;">
+        <p style="color:#fff;font-size:16px;font-weight:700;margin:0;">${formTitle}</p>
+      </td></tr>
+    </table>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="border-radius:10px;background:linear-gradient(135deg,#D97706,#FFD700);">
+        <a href="${APP_URL}/admin/formularios/${formId}/respuestas" style="display:inline-block;padding:12px 28px;color:#000;font-size:14px;font-weight:800;text-decoration:none;">Ver respuestas</a>
+      </td>
+    </tr></table>
+  `
+  try {
+    await transporter.sendMail({
+      from: `"NEXOR" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: `Nueva respuesta: ${formTitle}`,
+      html: emailWrapper(content),
+    })
+    return true
+  } catch (err) {
+    console.error('[EMAIL] Form response error:', err)
+    return false
+  }
+}
