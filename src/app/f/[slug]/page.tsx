@@ -43,6 +43,17 @@ export default function PublicFormPage() {
     } catch { setError('Error al subir el archivo') } finally { setUploading(null) }
   }
 
+  // Normaliza un destino de redirección. Devuelve una URL navegable o null si no
+  // parece una URL (así un texto suelto como "INF." no rompe la navegación).
+  function resolveRedirect(raw?: string): string | null {
+    const dest = (raw || '').trim()
+    if (!dest) return null
+    if (/^https?:\/\//i.test(dest)) return dest          // ya es absoluta
+    if (dest.startsWith('/')) return dest                 // ruta interna
+    if (/^[a-z0-9-]+(\.[a-z0-9-]+)+(\/.*)?$/i.test(dest)) return 'https://' + dest // dominio sin protocolo
+    return null                                           // texto que no es URL → no redirigir
+  }
+
   async function doSubmit(redirectTo?: string) {
     setError(null)
     for (const f of form.fields) {
@@ -55,7 +66,7 @@ export default function PublicFormPage() {
       const r = await fetch(`/api/forms/${slug}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al enviar'); return }
-      const dest = redirectTo || form.redirectUrl
+      const dest = resolveRedirect(redirectTo || form.redirectUrl)
       if (dest) { window.location.href = dest; return }
       setDone(d.thankYouMsg || '¡Gracias por tu respuesta!')
     } catch { setError('Error de conexión') } finally { setSubmitting(false) }
@@ -118,7 +129,7 @@ export default function PublicFormPage() {
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : f.label}
                 </button>
               ) : (
-                <a key={f.id} href={f.options?.[0] || '#'} target="_blank" rel="noreferrer" className="block text-center py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98]" style={{ background: btnColor }}>
+                <a key={f.id} href={resolveRedirect(f.options?.[0]) || '#'} target="_blank" rel="noreferrer" className="block text-center py-3.5 rounded-2xl text-sm font-black text-black transition-all active:scale-[0.98]" style={{ background: btnColor }}>
                   {f.label}
                 </a>
               )
