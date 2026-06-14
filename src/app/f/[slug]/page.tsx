@@ -105,7 +105,7 @@ export default function PublicFormPage() {
         {/* Cabecera */}
         <div className="rounded-3xl overflow-hidden border border-white/10 mb-5" style={{ background: 'rgba(255,255,255,0.03)' }}>
           {form.headerVideoUrl ? (
-            <video src={form.headerVideoUrl} controls playsInline className="w-full max-h-80 bg-black" />
+            <video src={form.headerVideoUrl} controls playsInline controlsList="nodownload noplaybackrate" disablePictureInPicture onContextMenu={e => e.preventDefault()} className="w-full max-h-80 bg-black" />
           ) : form.coverUrl ? (
             <img src={form.coverUrl} alt="" className="w-full max-h-52 object-cover" />
           ) : null}

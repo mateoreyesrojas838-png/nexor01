@@ -186,7 +186,7 @@ export default function FormBuilder() {
           <div>
             <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1.5">Video de cabecera</p>
             <div className="rounded-xl overflow-hidden bg-black border border-white/10 flex items-center justify-center mb-2" style={{ minHeight: 80 }}>
-              {meta.headerVideoUrl ? <video src={meta.headerVideoUrl} className="w-full max-h-40" controls playsInline preload="metadata" /> : <Film size={20} className="text-white/15" />}
+              {meta.headerVideoUrl ? <video src={meta.headerVideoUrl} className="w-full max-h-40" controls playsInline preload="metadata" controlsList="nodownload noplaybackrate" disablePictureInPicture onContextMenu={e => e.preventDefault()} /> : <Film size={20} className="text-white/15" />}
             </div>
             <div className="flex gap-1">
               <button onClick={() => videoRef.current?.click()} disabled={uploadingVideo} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:bg-white/10 flex-1 justify-center">
