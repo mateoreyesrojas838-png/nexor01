@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid } from 'lucide-react'
+import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid, Upload, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { SERVICE_UI } from '@/lib/services-ui'
 
 export default function AdminServicesPage() {
@@ -24,6 +24,7 @@ export default function AdminServicesPage() {
     try {
       const body = extra ?? {
         name: svc.name, description: svc.description, sellSeparately: svc.sellSeparately,
+        coverUrl: svc.coverUrl, features: svc.features,
         priceMonthly: svc.priceMonthly, priceQuarterly: svc.priceQuarterly, priceAnnual: svc.priceAnnual,
       }
       const r = await fetch(`/api/admin/services/${svc.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -38,6 +39,18 @@ export default function AdminServicesPage() {
     const active = !svc.active
     setField(svc.id, { active })
     save(svc, { active })
+  }
+
+  async function uploadCover(svc: any, file: File) {
+    setSavingId(svc.id)
+    try {
+      const fd = new FormData(); fd.append('file', file)
+      const r = await fetch('/api/upload', { method: 'POST', body: fd })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Error al subir'); return }
+      setField(svc.id, { coverUrl: d.url })
+      await save({ ...svc, coverUrl: d.url })
+    } catch { setError('Error al subir') } finally { setSavingId(null) }
   }
 
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-amber-400" size={28} /></div>
@@ -85,6 +98,27 @@ export default function AdminServicesPage() {
                   {savingId === svc.id ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Guardar
                 </button>
               </div>
+
+              {svc.sellSeparately && (
+                <div className="mt-3 pt-3 border-t border-white/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] uppercase tracking-widest text-white/30">Landing de venta</p>
+                    {svc.active && <a href={`/servicios/${svc.slug}`} target="_blank" rel="noreferrer" className="text-[11px] text-amber-400 underline flex items-center gap-1">Ver landing <ExternalLink size={10} /></a>}
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-28 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center">
+                      {svc.coverUrl ? <img src={svc.coverUrl} alt="" className="w-full h-full object-cover" /> : <ImageIcon size={16} className="text-white/15" />}
+                    </div>
+                    <div className="flex-1">
+                      <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/60 cursor-pointer hover:bg-white/10 mb-2">
+                        <Upload size={12} /> Portada
+                        <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadCover(svc, f) }} />
+                      </label>
+                      <textarea value={svc.features || ''} onChange={e => setField(svc.id, { features: e.target.value })} onBlur={() => save(svc)} placeholder="Qué incluye (una línea por ítem)" rows={3} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 resize-none" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )
         })}

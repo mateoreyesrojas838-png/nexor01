@@ -63,6 +63,8 @@ export default function DashboardPage() {
           title: s.name, sub: ui.sub || '', description: s.description || '',
           color: ui.color || '#888', glow: ui.glow || 'rgba(136,136,136,0.12)',
           alwaysOpen: ALWAYS_OPEN.has(s.key),
+          hasAccess: !!s.hasAccess, slug: s.slug, sellSeparately: !!s.sellSeparately,
+          buyHref: s.sellSeparately ? `/servicios/${s.slug}` : '/dashboard/planes',
         }
       })
       cards.push(CURSOS_CARD)
@@ -252,7 +254,7 @@ export default function DashboardPage() {
       )}
       <div className="grid md:grid-cols-3 gap-4">
         {services.map(svc => {
-          const locked = user?.plan === 'NONE' && !(svc as any).alwaysOpen
+          const locked = !(svc as any).alwaysOpen && !(svc as any).hasAccess
           if (locked) {
             return (
               <div key={svc.href} className="relative overflow-hidden rounded-3xl border border-white/6"
@@ -266,11 +268,11 @@ export default function DashboardPage() {
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <i className="fa-solid fa-lock text-white/40 text-base" />
                   </div>
-                  <span className="text-[11px] font-bold text-white/35">Requiere plan</span>
-                  <Link href="/dashboard/planes"
+                  <span className="text-[11px] font-bold text-white/35">{(svc as any).sellSeparately ? 'Activá este servicio' : 'Requiere plan'}</span>
+                  <Link href={(svc as any).buyHref || '/dashboard/planes'}
                     className="mt-1 text-[11px] font-bold px-3 py-1.5 rounded-xl text-black transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
-                    Activar
+                    {(svc as any).sellSeparately ? 'Ver / Comprar' : 'Activar'}
                   </Link>
                 </div>
                 {/* Card content (desaturada debajo) */}

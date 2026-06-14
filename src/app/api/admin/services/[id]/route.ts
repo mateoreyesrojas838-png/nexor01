@@ -12,6 +12,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const data: any = {}
   if (b.name !== undefined) data.name = String(b.name).trim()
   if (b.description !== undefined) data.description = b.description || null
+  if (b.coverUrl !== undefined) data.coverUrl = b.coverUrl || null
+  if (b.features !== undefined) data.features = b.features || null
   if (b.active !== undefined) data.active = !!b.active
   if (b.sellSeparately !== undefined) data.sellSeparately = !!b.sellSeparately
   const num = (v: any) => (v === '' || v == null ? null : (isNaN(parseFloat(v)) ? undefined : parseFloat(v)))

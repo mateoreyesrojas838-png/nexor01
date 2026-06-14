@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyBscTransaction } from '@/lib/blockchain'
 import { sendPlanPurchaseConfirmedEmail, sendCourseEnrollmentEmail } from '@/lib/email'
 import { createNotification } from '@/lib/notifications'
+import { PERIOD_DAYS } from '@/lib/service-access'
 
 const PLAN_RANK: Record<string, number> = { NONE: 0, BASIC: 1, PRO: 2, ELITE: 3 }
 
@@ -171,5 +172,44 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, ...results, enrollments: enrollResults })
+  // ── Suscripciones a servicios pagadas con cripto ───────────────────────────
+  let pendingSubs: any[] = []
+  try {
+    pendingSubs = await (prisma as any).serviceSubscription.findMany({
+      where: { status: 'PENDING_VERIFICATION', paymentMethod: 'CRYPTO', txHash: { not: null } },
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    })
+  } catch (err) {
+    console.error('[cron/verify] Error fetching service subs:', err)
+    return NextResponse.json({ success: true, ...results, enrollments: enrollResults, services: { verified: 0, failed: 0 } })
+  }
+
+  const subResults = { verified: 0, failed: 0 }
+  for (const sub of pendingSubs) {
+    const verification = await verifyBscTransaction(sub.txHash!, Number(sub.price))
+    if (!verification.success) {
+      const ageMinutes = (Date.now() - sub.createdAt.getTime()) / 60000
+      if (ageMinutes > 30) {
+        await (prisma as any).serviceSubscription.update({ where: { id: sub.id }, data: { status: 'REJECTED', notes: `Timeout: ${verification.error}` } })
+        subResults.failed++
+      }
+      continue
+    }
+    try {
+      const expiresAt = new Date(Date.now() + (PERIOD_DAYS[sub.period] || 30) * 24 * 60 * 60 * 1000)
+      await (prisma as any).serviceSubscription.update({
+        where: { id: sub.id },
+        data: { status: 'APPROVED', expiresAt, blockNumber: verification.blockNumber ?? null, notes: `Auto-aprobado por cron. USDT: ${verification.amountUsdt?.toFixed(2)}` },
+      })
+      createNotification(sub.userId, 'Servicio activado', `Tu pago se confirmó. Ya podés usar el servicio.`, '/dashboard').catch(() => {})
+      subResults.verified++
+    } catch (err) {
+      console.error('[cron/verify] Error aprobando sub:', sub.id, err)
+      subResults.failed++
+    }
+  }
+
+  return NextResponse.json({ success: true, ...results, enrollments: enrollResults, services: subResults })
 }

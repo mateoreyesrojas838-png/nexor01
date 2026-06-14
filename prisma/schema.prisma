@@ -160,6 +160,7 @@ model User {
   courseEnrollments    CourseEnrollment[]
   lessonProgress       LessonProgress[]
   forms                Form[]
+  serviceSubscriptions ServiceSubscription[]
 
   @@map("users")
 }
@@ -1087,6 +1088,42 @@ model Service {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@map("services")
+}
+
+enum ServicePeriod {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum ServiceSubStatus {
+  PENDING
+  PENDING_VERIFICATION
+  APPROVED
+  REJECTED
+}
+
+model ServiceSubscription {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  serviceKey    String           @map("service_key")
+  period        ServicePeriod    @default(MONTHLY)
+  status        ServiceSubStatus @default(PENDING)
+  paymentMethod String           @default("MANUAL") @map("payment_method")
+  proofUrl      String?          @map("proof_url")
+  txHash        String?          @unique @map("tx_hash")
+  blockNumber   BigInt?          @map("block_number")
+  price         Decimal          @db.Decimal(10, 2)
+  expiresAt     DateTime?        @map("expires_at")
+  notes         String?
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, serviceKey])
+  @@index([status])
+  @@map("service_subscriptions")
 }
 
 // ─── FORMULARIOS (constructor tipo Google Forms) ─────────────────────────────
