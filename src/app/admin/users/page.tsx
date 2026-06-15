@@ -17,6 +17,7 @@ import {
   X,
   ExternalLink,
   RefreshCw,
+  Eye,
 } from 'lucide-react'
 
 interface UserRow {
@@ -83,6 +84,16 @@ export default function AdminUsersPage() {
     })
     await fetchUsers()
     setUpdating(null)
+  }
+
+  async function impersonate(u: UserRow) {
+    if (!confirm(`Vas a ver el panel COMO "${u.username}" con acceso completo. Vas a poder operar como ese usuario. Una barra arriba te deja volver a admin.\n\n¿Continuar?`)) return
+    setUpdating(u.id)
+    try {
+      const r = await fetch(`/api/admin/users/${u.id}/impersonate`, { method: 'POST' })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo iniciar'); setUpdating(null); return }
+      window.location.href = '/dashboard'
+    } catch { setUpdating(null) }
   }
 
   async function confirmDelete() {
@@ -186,6 +197,13 @@ export default function AdminUsersPage() {
                           <Loader2 size={14} className="animate-spin text-white/40" />
                         ) : (
                           <>
+                            <button
+                              onClick={() => impersonate(u)}
+                              title="Ver como este usuario (acceso completo)"
+                              className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                            >
+                              <Eye size={13} className="text-amber-400" />
+                            </button>
                             <button
                               onClick={() => updateUser(u.id, { isActive: !u.isActive })}
                               title={u.isActive ? 'Desactivar' : 'Activar'}

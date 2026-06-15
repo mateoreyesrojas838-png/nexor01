@@ -3,6 +3,7 @@ import PlanGuard from '@/components/PlanGuard'
 import InactivityLogout from '@/components/InactivityLogout'
 import PermissionsModal from '@/components/PermissionsModal'
 import ScreenshotGuard from '@/components/ScreenshotGuard'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import './dashboard.css'
 
 export default function DashboardLayout({
@@ -12,6 +13,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="dashboard-root" style={{ background: '#0B0B12' }}>
+      <ImpersonationBanner />
       <PlanGuard />
       <InactivityLogout />
       <PermissionsModal />

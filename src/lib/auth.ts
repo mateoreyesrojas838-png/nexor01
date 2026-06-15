@@ -9,6 +9,18 @@ export interface JWTPayload {
   userId: string
   username: string
   email: string
+  imp?: string // id del admin que está impersonando (si la sesión es "Ver como usuario")
+}
+
+/** Claims crudos del token de sesión (incluye `imp` si es impersonación). */
+export function getSessionClaims(): JWTPayload | null {
+  try {
+    const token = cookies().get('auth_token')?.value
+    if (!token) return null
+    return verifyToken(token)
+  } catch {
+    return null
+  }
 }
 
 export async function hashPassword(password: string): Promise<string> {

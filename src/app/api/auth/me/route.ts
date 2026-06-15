@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, getSessionClaims } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(_req: NextRequest) {
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const claims = getSessionClaims()
   return NextResponse.json({
     id: user.id,
     username: user.username,
@@ -14,6 +15,7 @@ export async function GET(_req: NextRequest) {
     plan: user.plan,
     planExpiresAt: user.planExpiresAt,
     isAdmin: user.isAdmin,
+    impersonating: !!claims?.imp, // sesión "Ver como usuario" iniciada por un admin
   })
 }
 
