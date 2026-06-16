@@ -23,6 +23,9 @@ export async function GET() {
 
   const [packs, subs, enrolls, services] = await Promise.all([
     prisma.packPurchaseRequest.findMany({
+      // Ocultar QR de Libélula generados y nunca pagados (quedan "Verificando" para siempre).
+      // Los pagados pasan a APPROVED y sí se muestran.
+      where: { NOT: { status: 'PENDING_VERIFICATION', notes: { startsWith: 'LIBELULA' } } },
       orderBy: { createdAt: 'desc' }, take: 400,
       include: { user: { select: { fullName: true, email: true, username: true } } },
     }),

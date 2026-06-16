@@ -47,7 +47,9 @@ export default function PaymentBucketPage() {
     if (action === 'reject' && !confirm('¿Rechazar este pago?')) return
     setActing(id)
     try {
-      await fetch(ACTION_URL[kind](id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+      const r = await fetch(ACTION_URL[kind](id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { alert(d.error || 'No se pudo procesar el pago.'); return }
       await load()
     } finally { setActing(null) }
   }
