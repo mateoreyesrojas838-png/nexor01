@@ -49,7 +49,7 @@ export async function GET() {
   })))
 
   const servicesRows = sortRows(subs.map((s: any) => ({
-    id: s.id, kind: 'service', label: svcName[s.serviceKey] || s.serviceKey,
+    id: s.id, kind: 'service', serviceKey: s.serviceKey, label: svcName[s.serviceKey] || s.serviceKey,
     method: s.paymentMethod, status: s.status, amount: num(s.price), period: PERIOD_LABEL[s.period] || null,
     proofUrl: s.proofUrl, txHash: s.txHash, user: s.user, createdAt: s.createdAt,
   })))
@@ -70,13 +70,21 @@ export async function GET() {
   }
   const sPlans = summarize(plans), sServices = summarize(servicesRows), sCourses = summarize(courses)
 
+  // Resumen por cada servicio (para las tarjetas/páginas separadas)
+  const byService: Record<string, any> = {}
+  services.forEach((s: any) => {
+    byService[s.key] = { name: s.name, ...summarize(servicesRows.filter((r: any) => r.serviceKey === s.key)) }
+  })
+
   return NextResponse.json({
     plans, services: servicesRows, courses,
+    serviceList: services, // [{ key, name }]
     summary: {
       pendingTotal: sPlans.pending + sServices.pending + sCourses.pending,
       revenueTotal: sPlans.revenue + sServices.revenue + sCourses.revenue,
       revenueMonth: sPlans.revenueMonth + sServices.revenueMonth + sCourses.revenueMonth,
       byKind: { plan: sPlans, service: sServices, course: sCourses },
+      byService,
     },
   })
 }
