@@ -19,18 +19,25 @@ export async function GET() {
     services.forEach((s: any) => { nameByKey[s.key] = s.name })
 
     return NextResponse.json({
-      plans: plans.map((p: any) => ({
-        plan: p.plan,
-        name: p.name,
-        tagline: p.tagline,
-        services: p.services,
-        serviceNames: (p.services || []).map((k: string) => nameByKey[k]).filter(Boolean),
-        prices: {
-          MONTHLY: num(p.priceMonthly),
-          QUARTERLY: num(p.priceQuarterly),
-          ANNUAL: num(p.priceAnnual),
-        },
-      })),
+      plans: plans.map((p: any) => {
+        // Servicios incluidos (solo los activos), con key + nombre legible
+        const included = (p.services || [])
+          .filter((k: string) => nameByKey[k])
+          .map((k: string) => ({ key: k, name: nameByKey[k] }))
+        return {
+          plan: p.plan,
+          name: p.name,
+          tagline: p.tagline,
+          services: p.services,
+          serviceNames: included.map((s: any) => s.name),
+          includedServices: included, // [{ key, name }]
+          prices: {
+            MONTHLY: num(p.priceMonthly),
+            QUARTERLY: num(p.priceQuarterly),
+            ANNUAL: num(p.priceAnnual),
+          },
+        }
+      }),
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (err) {
     console.error('[GET /api/plans]', err)

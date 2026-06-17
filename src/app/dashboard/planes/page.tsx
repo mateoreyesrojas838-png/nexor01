@@ -187,6 +187,8 @@ export default function PlanesPage() {
   const [period, setPeriod] = useState<Period>('MONTHLY')
   // { BASIC: { MONTHLY: 20, QUARTERLY: 51, ANNUAL: 168 }, ... }
   const [planPrices, setPlanPrices] = useState<Record<string, Record<string, number | null>>>({})
+  // { BASIC: [{key,name}, ...], ... } — servicios reales incluidos en cada pack
+  const [planServices, setPlanServices] = useState<Record<string, { key: string; name: string }[]>>({})
   const [usdToBob, setUsdToBob] = useState<number>(0)
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const countdown = useCountdown(planExpiresAt)
@@ -210,8 +212,10 @@ export default function PlanesPage() {
       .then(r => r.json())
       .then(d => {
         const map: Record<string, Record<string, number | null>> = {}
-        ;(d.plans ?? []).forEach((p: any) => { map[p.plan] = p.prices })
+        const svc: Record<string, { key: string; name: string }[]> = {}
+        ;(d.plans ?? []).forEach((p: any) => { map[p.plan] = p.prices; svc[p.plan] = p.includedServices || [] })
         setPlanPrices(map)
+        setPlanServices(svc)
       })
       .catch(() => {})
 
@@ -399,53 +403,25 @@ export default function PlanesPage() {
                   <div className="h-px mb-5"
                     style={{ background: pack.featured ? 'rgba(255,215,0,0.12)' : 'rgba(255,255,255,0.05)' }} />
 
-                  {/* Features */}
-                  <div className="flex-1 space-y-4 mb-6">
-                    {pack.sections.map((section, si) => {
-                      const SIcon = section.icon
-                      return (
-                        <div key={si}>
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <SIcon size={10} style={{ color: '#FBBF24' }} />
-                            <p className="text-[10px] font-black uppercase tracking-widest"
-                              style={{ color: '#FBBF24' }}>
-                              {section.title}
-                            </p>
-                          </div>
-                          <ul className="space-y-1.5">
-                            {section.features.map((feat, fi) => (
-                              <li key={fi} className="flex items-start gap-2">
-                                <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                                  style={{ background: 'rgba(255,215,0,0.1)' }}>
-                                  <Check size={8} style={{ color: '#FFD700' }} />
-                                </div>
-                                <span className="text-[11px] leading-snug text-white/55">{feat}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )
-                    })}
-
-                    {pack.notIncluded.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <X size={10} className="text-white/15" />
-                          <p className="text-[10px] font-black uppercase tracking-widest text-white/15">
-                            No incluido
-                          </p>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {pack.notIncluded.map((feat, fi) => (
-                            <li key={fi} className="flex items-start gap-2">
-                              <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-white/3">
-                                <X size={7} className="text-white/15" />
-                              </div>
-                              <span className="text-[11px] leading-snug text-white/20 line-through">{feat}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                  {/* Servicios incluidos (dinámico, desde la config del pack) */}
+                  <div className="flex-1 mb-6">
+                    <p className="text-[10px] font-black uppercase tracking-widest mb-2.5" style={{ color: '#FBBF24' }}>
+                      Servicios incluidos
+                    </p>
+                    {(planServices[pack.planId] || []).length === 0 ? (
+                      <p className="text-[11px] text-white/30">Acceso a la plataforma.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {(planServices[pack.planId] || []).map(s => (
+                          <li key={s.key} className="flex items-start gap-2">
+                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                              style={{ background: 'rgba(255,215,0,0.1)' }}>
+                              <Check size={8} style={{ color: '#FFD700' }} />
+                            </div>
+                            <span className="text-[11px] leading-snug text-white/60">{s.name}</span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
 
