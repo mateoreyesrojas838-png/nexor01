@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Settings, LogOut, Shield, Bell, Moon, Globe, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { Settings, LogOut, Shield, Bell, Moon, Globe, ChevronRight, IdCard } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -50,6 +51,25 @@ export default function SettingsPage() {
 
       {/* Línea decorativa */}
       <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,215,0,0.2), transparent)' }} />
+
+      {/* Mis datos → Perfil */}
+      <Link href="/dashboard/profile"
+        className="flex items-center justify-between p-4 rounded-2xl transition-all group"
+        style={{ background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.18)' }}>
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.25)' }}>
+            <IdCard className="w-5 h-5" style={{ color: '#FFD700' }} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">Mis datos</p>
+            <p className="text-[11px] font-light" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              Nombre, correo, documento, plan, créditos y más
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 transition-all group-hover:translate-x-1" style={{ color: 'rgba(255,215,0,0.5)' }} />
+      </Link>
 
       {/* Secciones */}
       <div className="relative rounded-2xl p-5 sm:p-6 overflow-hidden space-y-6"

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Mail, MapPin, Calendar, FileText, Shield, UserCircle } from 'lucide-react'
+import { User, Mail, MapPin, Calendar, FileText, Shield, UserCircle, Cake, Gift, Layers, Coins } from 'lucide-react'
 
 interface UserProfile {
   fullName: string
@@ -14,7 +14,12 @@ interface UserProfile {
   referralCode: string
   isActive: boolean
   createdAt: string
+  plan: string
+  planExpiresAt: string | null
+  aiCreditsUsd: number
 }
+
+const PLAN_LABEL: Record<string, string> = { NONE: 'Sin plan', BASIC: 'Pack Básico', PRO: 'Pack Pro', ELITE: 'Pack Elite' }
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -41,12 +46,19 @@ export default function ProfilePage() {
 
   if (!user) return null
 
+  const planValue = PLAN_LABEL[user.plan] || user.plan
+    + (user.planExpiresAt ? ` · vence ${new Date(user.planExpiresAt).toLocaleDateString()}` : '')
+
   const fields = [
     { icon: User,     label: 'Usuario',            value: `@${user.username}`,         color: '#FFD700' },
-    { icon: Mail,     label: 'Correo Electrónico',  value: user.email,                  color: '#FF2DF7' },
-    { icon: MapPin,   label: 'Ubicación',           value: user.city && user.country ? `${user.city}, ${user.country}` : 'No especificada', color: '#FFB800' },
-    { icon: Calendar, label: 'Miembro desde',       value: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-', color: '#00FF88' },
+    { icon: Mail,     label: 'Correo Electrónico',  value: user.email || '-',           color: '#FF2DF7' },
+    { icon: MapPin,   label: 'Ubicación',           value: user.city && user.country ? `${user.city}, ${user.country}` : (user.country || 'No especificada'), color: '#FFB800' },
     { icon: Shield,   label: 'Documento de Identidad', value: user.identityDocument || '-', color: '#B45309' },
+    { icon: Cake,     label: 'Fecha de Nacimiento', value: user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : '-', color: '#FF8FB1' },
+    { icon: Gift,     label: 'Código de Referido',  value: user.referralCode || '-',    color: '#22d3ee' },
+    { icon: Layers,   label: 'Plan',                value: planValue,                   color: '#FFD700' },
+    { icon: Coins,    label: 'Créditos AI',         value: `$${(user.aiCreditsUsd ?? 0).toFixed(2)}`, color: '#00FF88' },
+    { icon: Calendar, label: 'Miembro desde',       value: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-', color: '#00FF88' },
   ]
 
   return (

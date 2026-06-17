@@ -4,17 +4,24 @@ import { getAuthUser, getSessionClaims } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(_req: NextRequest) {
-  const user = await getAuthUser()
-  if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const auth = await getAuthUser()
+  if (!auth) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const claims = getSessionClaims()
+
+  // Datos completos del usuario (los que muestra Perfil/Configuración)
+  const u = await prisma.user.findUnique({
+    where: { id: auth.id },
+    select: {
+      id: true, username: true, fullName: true, email: true, avatarUrl: true,
+      country: true, city: true, identityDocument: true, dateOfBirth: true,
+      referralCode: true, isActive: true, isAdmin: true,
+      plan: true, planExpiresAt: true, aiCreditsUsd: true, extraBots: true, createdAt: true,
+    },
+  })
+  if (!u) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
   return NextResponse.json({
-    id: user.id,
-    username: user.username,
-    fullName: user.fullName,
-    avatarUrl: user.avatarUrl,
-    plan: user.plan,
-    planExpiresAt: user.planExpiresAt,
-    isAdmin: user.isAdmin,
+    ...u,
     impersonating: !!claims?.imp, // sesión "Ver como usuario" iniciada por un admin
   })
 }
