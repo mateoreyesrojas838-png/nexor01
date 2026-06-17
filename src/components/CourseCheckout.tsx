@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Loader2, CheckCircle2, AlertCircle, ArrowRight, Lock } from 'lucide-react'
+import { COUNTRIES } from '@/lib/countries'
 
 // Carga diferida: el SDK de wallet solo se descarga cuando se muestra la caja de pago
 const CourseBuyBox = dynamic(() => import('@/components/CourseBuyBox').then(m => m.CourseBuyBox), {
@@ -21,7 +22,7 @@ type Step = 'loading' | 'register' | 'buy' | 'has-access'
 
 export function CourseCheckout({ courseId, courseTitle, price, freeForPlan }: Props) {
   const [step, setStep] = useState<Step>('loading')
-  const [reg, setReg] = useState({ fullName: '', email: '', password: '', confirmPassword: '', acceptTerms: false })
+  const [reg, setReg] = useState({ fullName: '', email: '', password: '', confirmPassword: '', acceptTerms: false, countryName: 'Bolivia', dial: '+591', phone: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,6 +42,7 @@ export function CourseCheckout({ courseId, courseTitle, price, freeForPlan }: Pr
 
   async function doRegister() {
     if (!reg.fullName.trim() || !reg.email.trim() || !reg.password) { setError('Completá todos los campos'); return }
+    if (!reg.phone.trim() || reg.phone.replace(/\D/g, '').length < 6) { setError('Ingresá un teléfono válido'); return }
     if (reg.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return }
     if (reg.password !== reg.confirmPassword) { setError('Las contraseñas no coinciden'); return }
     if (!reg.acceptTerms) { setError('Tenés que aceptar los términos'); return }
@@ -48,7 +50,7 @@ export function CourseCheckout({ courseId, courseTitle, price, freeForPlan }: Pr
     try {
       const r = await fetch('/api/auth/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...reg, turnstileToken: '' }),
+        body: JSON.stringify({ ...reg, phone: `${reg.dial} ${reg.phone.trim()}`, country: reg.countryName, turnstileToken: '' }),
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al crear la cuenta'); return }
@@ -87,6 +89,12 @@ export function CourseCheckout({ courseId, courseTitle, price, freeForPlan }: Pr
       <div className="space-y-2.5">
         <input className={inputCls} placeholder="Nombre completo" value={reg.fullName} onChange={e => setReg(r => ({ ...r, fullName: e.target.value }))} autoComplete="name" />
         <input className={inputCls} placeholder="Correo electrónico" type="email" value={reg.email} onChange={e => setReg(r => ({ ...r, email: e.target.value }))} autoComplete="email" />
+        <div className="flex gap-2">
+          <select value={reg.countryName} onChange={e => { const c = COUNTRIES.find(x => x.name === e.target.value); if (c) setReg(r => ({ ...r, countryName: c.name, dial: c.dial })) }} className="bg-white/5 border border-white/10 rounded-xl px-2 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 [&>option]:bg-[#0d0d15] shrink-0" style={{ maxWidth: 120 }}>
+            {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.flag} {c.dial}</option>)}
+          </select>
+          <input className={`${inputCls} flex-1`} placeholder="Teléfono (WhatsApp)" type="tel" inputMode="numeric" value={reg.phone} onChange={e => setReg(r => ({ ...r, phone: e.target.value.replace(/[^\d\s]/g, '') }))} autoComplete="tel" />
+        </div>
         <input className={inputCls} placeholder="Contraseña" type="password" value={reg.password} onChange={e => setReg(r => ({ ...r, password: e.target.value }))} autoComplete="new-password" />
         <input className={inputCls} placeholder="Repetir contraseña" type="password" value={reg.confirmPassword} onChange={e => setReg(r => ({ ...r, confirmPassword: e.target.value }))} autoComplete="new-password" />
         <label className="flex items-start gap-2 text-[11px] text-white/40 cursor-pointer pt-1">

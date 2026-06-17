@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid, Upload, ExternalLink, Image as ImageIcon, Copy, Check } from 'lucide-react'
+import { Loader2, Save, Eye, EyeOff, AlertCircle, CheckCircle2, LayoutGrid, Upload, ExternalLink, Image as ImageIcon, Copy, Check, Download } from 'lucide-react'
 import { SERVICE_UI } from '@/lib/services-ui'
 
 export default function AdminServicesPage() {
@@ -90,6 +90,9 @@ export default function AdminServicesPage() {
                   <input value={svc.name} onChange={e => setField(svc.id, { name: e.target.value })} className="w-full bg-transparent text-white font-black text-base focus:outline-none border-b border-transparent focus:border-amber-500/40" />
                   <textarea value={svc.description || ''} onChange={e => setField(svc.id, { description: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white/60 placeholder-white/20 focus:outline-none focus:border-amber-500/50 resize-none mt-2" placeholder="Descripción" />
                 </div>
+                <a href={`/api/admin/users/export?service=${svc.key}`} title="Descargar usuarios de este servicio (Excel)" className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 bg-white/5 text-white/60 hover:text-green-400 border border-white/10">
+                  <Download size={14} /> Excel
+                </a>
                 <button onClick={() => toggleActive(svc)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 ${svc.active ? 'bg-green-500/15 text-green-400' : 'bg-white/10 text-white/40'}`}>
                   {svc.active ? <Eye size={14} /> : <EyeOff size={14} />} {svc.active ? 'Activo' : 'Oculto'}
                 </button>
