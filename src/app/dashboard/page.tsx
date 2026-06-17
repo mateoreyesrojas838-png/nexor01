@@ -63,7 +63,7 @@ export default function DashboardPage() {
           title: s.name, sub: ui.sub || '', description: s.description || '',
           color: ui.color || '#888', glow: ui.glow || 'rgba(136,136,136,0.12)',
           alwaysOpen: ALWAYS_OPEN.has(s.key),
-          hasAccess: !!s.hasAccess, slug: s.slug, sellSeparately: !!s.sellSeparately,
+          hasAccess: !!s.hasAccess, slug: s.slug, sellSeparately: !!s.sellSeparately, sellable: !!s.sellable,
           buyHref: s.sellSeparately ? `/servicios/${s.slug}` : '/dashboard/planes',
         }
       })
@@ -268,18 +268,22 @@ export default function DashboardPage() {
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <i className="fa-solid fa-lock text-white/40 text-base" />
                   </div>
-                  <span className="text-[11px] font-bold text-white/35 mb-1">{(svc as any).sellSeparately ? 'Activá este servicio' : 'Requiere plan'}</span>
+                  <span className="text-[11px] font-bold text-white/35 mb-1">{(svc as any).sellable ? 'Activá este servicio' : 'Requiere plan'}</span>
                   <div className="flex flex-col gap-1.5 w-full px-5">
-                    {(svc as any).sellSeparately && (svc as any).slug && (
+                    {(svc as any).sellable && (svc as any).slug && (
                       <Link href={`/servicios/${(svc as any).slug}`}
                         className="text-center text-[11px] font-bold px-3 py-1.5 rounded-xl text-black transition-opacity hover:opacity-90"
                         style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
                         Comprar suelto
                       </Link>
                     )}
+                    {/* Si está marcado como venta suelta pero sin precio configurado */}
+                    {(svc as any).sellSeparately && !(svc as any).sellable && (
+                      <span className="text-center text-[10px] text-white/30">Compra individual no disponible</span>
+                    )}
                     <Link href="/dashboard/planes"
-                      className={`text-center text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all ${(svc as any).sellSeparately ? 'border border-amber-500/30 bg-white/5 text-amber-300 hover:bg-amber-500/10' : 'text-black'}`}
-                      style={(svc as any).sellSeparately ? {} : { background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+                      className={`text-center text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all ${(svc as any).sellable ? 'border border-amber-500/30 bg-white/5 text-amber-300 hover:bg-amber-500/10' : 'text-black'}`}
+                      style={(svc as any).sellable ? {} : { background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
                       Ver planes
                     </Link>
                   </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { Loader2, CheckCircle2, AlertCircle, ArrowRight, Lock } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, ArrowRight, Lock, Layers } from 'lucide-react'
 import { COUNTRIES } from '@/lib/countries'
 
 const ServiceBuyBox = dynamic(() => import('@/components/ServiceBuyBox').then(m => m.ServiceBuyBox), {
@@ -66,6 +66,16 @@ export function ServiceCheckout({ serviceKey, serviceSlug, serviceName, serviceH
       <CheckCircle2 size={28} className="mx-auto text-green-400 mb-2" />
       <p className="text-sm font-bold text-white mb-3">Ya tenés acceso a este servicio</p>
       <a href={serviceHref} className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-black text-black" style={{ background: 'linear-gradient(135deg,#B45309,#D97706,#FFD700)' }}>Ir al servicio <ArrowRight size={15} /></a>
+    </div>
+  )
+
+  // Sin precio configurado por el admin → no disponible para compra individual
+  if (step !== 'has-access' && minPrice == null) return (
+    <div className="text-center py-2">
+      <AlertCircle size={26} className="mx-auto text-white/30 mb-2" />
+      <p className="text-sm font-bold text-white/60 mb-1">No disponible</p>
+      <p className="text-xs text-white/30 mb-4">La compra individual de este servicio no está disponible por ahora.</p>
+      <a href="/dashboard/planes" className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-bold border border-amber-500/30 bg-white/5 text-amber-300 hover:bg-amber-500/10"><Layers size={15} /> Ver planes</a>
     </div>
   )
 
