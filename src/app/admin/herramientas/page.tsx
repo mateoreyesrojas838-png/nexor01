@@ -146,10 +146,10 @@ export default function AdminToolsPage() {
 
             {/* Uploads condicionales */}
             <div className="grid grid-cols-2 gap-2">
-              {f.cover && <UploadBox label="Portada (imagen)" icon={ImageIcon} value={editor.coverUrl} busy={uploading === 'coverUrl'} accept="image/*" onPick={file => uploadTo('coverUrl', file, 'image')} onClear={() => setEditor({ ...editor, coverUrl: '' })} />}
-              {f.image && <UploadBox label="Imagen" icon={ImageIcon} value={editor.imageUrl} busy={uploading === 'imageUrl'} accept="image/*" onPick={file => uploadTo('imageUrl', file, 'image')} onClear={() => setEditor({ ...editor, imageUrl: '' })} />}
-              {f.video && <UploadBox label="Video" icon={Film} value={editor.videoUrl} busy={uploading === 'videoUrl'} accept="video/*" onPick={file => uploadTo('videoUrl', file, 'video')} onClear={() => setEditor({ ...editor, videoUrl: '' })} />}
-              {f.file && <UploadBox label="Archivo (PDF)" icon={FileText} value={editor.fileUrl} busy={uploading === 'fileUrl'} accept="application/pdf" onPick={file => uploadTo('fileUrl', file, 'pdf')} onClear={() => setEditor({ ...editor, fileUrl: '' })} />}
+              {f.cover && <UploadBox label="Portada (imagen)" icon={ImageIcon} value={editor.coverUrl} busy={uploading === 'coverUrl'} accept="image/*" onPick={(file: File) => uploadTo('coverUrl', file, 'image')} onClear={() => setEditor({ ...editor, coverUrl: '' })} />}
+              {f.image && <UploadBox label="Imagen" icon={ImageIcon} value={editor.imageUrl} busy={uploading === 'imageUrl'} accept="image/*" onPick={(file: File) => uploadTo('imageUrl', file, 'image')} onClear={() => setEditor({ ...editor, imageUrl: '' })} />}
+              {f.video && <UploadBox label="Video" icon={Film} value={editor.videoUrl} busy={uploading === 'videoUrl'} accept="video/*" onPick={(file: File) => uploadTo('videoUrl', file, 'video')} onClear={() => setEditor({ ...editor, videoUrl: '' })} />}
+              {f.file && <UploadBox label="Archivo (PDF)" icon={FileText} value={editor.fileUrl} busy={uploading === 'fileUrl'} accept="application/pdf" onPick={(file: File) => uploadTo('fileUrl', file, 'pdf')} onClear={() => setEditor({ ...editor, fileUrl: '' })} />}
             </div>
 
             {f.button && (
