@@ -117,9 +117,10 @@ export default function RuletaPage() {
     const segCenter = wIdx * seg + seg / 2
     let target = (TWO_PI * 0.75) - segCenter // puntero arriba (270°)
     const current = rotationRef.current
-    // normalizar target por encima del actual + vueltas
+    // normalizar target por encima del actual (preservando el ángulo exacto, sin fracción)
     target += Math.ceil((current - target) / TWO_PI) * TWO_PI
-    target += TWO_PI * (6 + Math.random())
+    // sumar SOLO vueltas enteras para no desalinear al ganador
+    target += TWO_PI * (6 + Math.floor(Math.random() * 4))
 
     setSpinning(true)
     const start = current; const delta = target - start; const dur = 4600; const t0 = performance.now()

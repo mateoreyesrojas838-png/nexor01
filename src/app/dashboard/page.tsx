@@ -268,12 +268,21 @@ export default function DashboardPage() {
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <i className="fa-solid fa-lock text-white/40 text-base" />
                   </div>
-                  <span className="text-[11px] font-bold text-white/35">{(svc as any).sellSeparately ? 'Activá este servicio' : 'Requiere plan'}</span>
-                  <Link href={(svc as any).buyHref || '/dashboard/planes'}
-                    className="mt-1 text-[11px] font-bold px-3 py-1.5 rounded-xl text-black transition-opacity hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
-                    {(svc as any).sellSeparately ? 'Ver / Comprar' : 'Activar'}
-                  </Link>
+                  <span className="text-[11px] font-bold text-white/35 mb-1">{(svc as any).sellSeparately ? 'Activá este servicio' : 'Requiere plan'}</span>
+                  <div className="flex flex-col gap-1.5 w-full px-5">
+                    {(svc as any).sellSeparately && (svc as any).slug && (
+                      <Link href={`/servicios/${(svc as any).slug}`}
+                        className="text-center text-[11px] font-bold px-3 py-1.5 rounded-xl text-black transition-opacity hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+                        Comprar suelto
+                      </Link>
+                    )}
+                    <Link href="/dashboard/planes"
+                      className={`text-center text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all ${(svc as any).sellSeparately ? 'border border-amber-500/30 bg-white/5 text-amber-300 hover:bg-amber-500/10' : 'text-black'}`}
+                      style={(svc as any).sellSeparately ? {} : { background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
+                      Ver planes
+                    </Link>
+                  </div>
                 </div>
                 {/* Card content (desaturada debajo) */}
                 <div className="relative p-5 md:p-6 opacity-30 pointer-events-none select-none">
