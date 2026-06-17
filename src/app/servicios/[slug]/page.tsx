@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
-import { CheckCircle2, ShieldCheck, Zap } from 'lucide-react'
+import { CheckCircle2, ShieldCheck, Zap, Layers, ArrowRight } from 'lucide-react'
 import { SERVICE_UI } from '@/lib/services-ui'
 import { ServiceCheckout } from '@/components/ServiceCheckout'
 
@@ -83,6 +84,15 @@ export default async function ServiceLandingPage({ params }: { params: { slug: s
         <div className="md:col-span-1">
           <div id="comprar" className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5 sticky top-6 scroll-mt-6">
             <ServiceCheckout serviceKey={s.key} serviceSlug={s.slug} serviceName={s.name} serviceHref={ui.href} prices={prices} />
+
+            {/* Segunda opción: conseguirlo dentro de un plan/pack */}
+            <div className="mt-4 pt-4 border-t border-white/8">
+              <p className="text-[11px] text-white/40 mb-2 text-center">¿Querés más servicios? Conseguilo dentro de un pack:</p>
+              <Link href="/dashboard/planes" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-2xl text-sm font-bold border border-amber-500/30 bg-white/[0.03] text-amber-300 hover:bg-amber-500/10 transition-all">
+                <Layers size={15} /> Ver planes <ArrowRight size={14} />
+              </Link>
+            </div>
+
             <div className="mt-4 pt-4 border-t border-white/8 space-y-2">
               <p className="flex items-center gap-2 text-[11px] text-white/40"><ShieldCheck size={13} className="text-amber-400" /> Pago seguro (USDT BEP-20 o comprobante)</p>
               <p className="flex items-center gap-2 text-[11px] text-white/40"><Zap size={13} className="text-amber-400" /> Activación al confirmar el pago</p>
