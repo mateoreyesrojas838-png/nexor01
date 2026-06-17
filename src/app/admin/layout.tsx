@@ -24,6 +24,7 @@ import {
   Wallet,
   Wrench,
   ChevronDown,
+  Trophy,
 } from 'lucide-react'
 
 const TOOLS_SECTIONS = [
@@ -44,6 +45,7 @@ const NAV = [
   { href: '/admin/servicios', label: 'Servicios', icon: LayoutGrid },
   { href: '/admin/herramientas', label: 'Herramientas', icon: Wrench },
   { href: '/admin/planes', label: 'Packs / Planes', icon: Layers },
+  { href: '/admin/ruleta', label: 'Ruleta Sorteos', icon: Trophy },
   { href: '/admin/cursos', label: 'Cursos', icon: GraduationCap },
   { href: '/admin/formularios', label: 'Formularios', icon: ClipboardList },
   { href: '/admin/prompt-templates', label: 'Plantillas Prompt', icon: FileText },
