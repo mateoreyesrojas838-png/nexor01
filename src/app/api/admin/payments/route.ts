@@ -21,7 +21,7 @@ export async function GET() {
   const admin = await getAdminUser()
   if (!admin) return unauthorizedAdmin()
 
-  const [packs, subs, enrolls, services] = await Promise.all([
+  const [packs, subs, enrolls, services, topups] = await Promise.all([
     prisma.packPurchaseRequest.findMany({
       // Ocultar QR de Libélula generados y nunca pagados (quedan "Verificando" para siempre).
       // Los pagados pasan a APPROVED y sí se muestran.
@@ -38,6 +38,10 @@ export async function GET() {
       include: { user: { select: { fullName: true, email: true, username: true } }, course: { select: { title: true, price: true } } },
     }),
     (prisma as any).service.findMany({ select: { key: true, name: true } }),
+    (prisma as any).creditTopup.findMany({
+      orderBy: { createdAt: 'desc' }, take: 400,
+      include: { user: { select: { fullName: true, email: true, username: true } } },
+    }),
   ])
 
   const svcName: Record<string, string> = {}
@@ -63,6 +67,12 @@ export async function GET() {
     proofUrl: e.proofUrl, txHash: e.txHash, user: e.user, createdAt: e.createdAt,
   })))
 
+  const credits = sortRows(topups.map((t: any) => ({
+    id: t.id, kind: 'credit', label: 'Recarga de créditos',
+    method: t.paymentMethod, status: t.status, amount: num(t.amountUsd), period: null,
+    proofUrl: t.proofUrl, txHash: t.txHash, user: t.user, createdAt: t.createdAt,
+  })))
+
   // Resumen
   const ms = monthStart()
   function summarize(rows: any[]) {
@@ -71,7 +81,7 @@ export async function GET() {
     const revenueMonth = rows.filter(r => isRevenue(r.status) && new Date(r.createdAt) >= ms).reduce((a, r) => a + r.amount, 0)
     return { pending, revenue, revenueMonth }
   }
-  const sPlans = summarize(plans), sServices = summarize(servicesRows), sCourses = summarize(courses)
+  const sPlans = summarize(plans), sServices = summarize(servicesRows), sCourses = summarize(courses), sCredits = summarize(credits)
 
   // Resumen por cada servicio (para las tarjetas/páginas separadas)
   const byService: Record<string, any> = {}
@@ -80,13 +90,13 @@ export async function GET() {
   })
 
   return NextResponse.json({
-    plans, services: servicesRows, courses,
+    plans, services: servicesRows, courses, credits,
     serviceList: services, // [{ key, name }]
     summary: {
-      pendingTotal: sPlans.pending + sServices.pending + sCourses.pending,
-      revenueTotal: sPlans.revenue + sServices.revenue + sCourses.revenue,
-      revenueMonth: sPlans.revenueMonth + sServices.revenueMonth + sCourses.revenueMonth,
-      byKind: { plan: sPlans, service: sServices, course: sCourses },
+      pendingTotal: sPlans.pending + sServices.pending + sCourses.pending + sCredits.pending,
+      revenueTotal: sPlans.revenue + sServices.revenue + sCourses.revenue + sCredits.revenue,
+      revenueMonth: sPlans.revenueMonth + sServices.revenueMonth + sCourses.revenueMonth + sCredits.revenueMonth,
+      byKind: { plan: sPlans, service: sServices, course: sCourses, credit: sCredits },
       byService,
     },
   })

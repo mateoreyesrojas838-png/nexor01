@@ -9,6 +9,7 @@ const ACTION_URL: Record<string, (id: string) => string> = {
   plan: id => `/api/admin/purchases/${id}`,
   service: id => `/api/admin/services/subscriptions/${id}`,
   course: id => `/api/admin/courses/enrollments/${id}`,
+  credit: id => `/api/admin/credits/topups/${id}`,
 }
 
 const STATUS_UI: Record<string, { label: string; cls: string }> = {
@@ -70,6 +71,7 @@ export default function PaymentBucketPage() {
     if (!data) return { title: '', baseRows: [] as any[] }
     if (bucket === 'plan') return { title: 'Planes (Grupal)', baseRows: data.plans || [] }
     if (bucket === 'course') return { title: 'Cursos', baseRows: data.courses || [] }
+    if (bucket === 'credit') return { title: 'Recargas de créditos', baseRows: data.credits || [] }
     const name = (data.serviceList || []).find((s: any) => s.key === bucket)?.name || bucket
     return { title: name, baseRows: (data.services || []).filter((r: any) => r.serviceKey === bucket) }
   }, [data, bucket])

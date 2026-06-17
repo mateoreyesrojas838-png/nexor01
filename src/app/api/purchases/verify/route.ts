@@ -210,5 +210,45 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, ...results, enrollments: enrollResults, services: subResults })
+  // ── Recargas de créditos pagadas con cripto ────────────────────────────────
+  let pendingTopups: any[] = []
+  try {
+    pendingTopups = await (prisma as any).creditTopup.findMany({
+      where: { status: 'PENDING_VERIFICATION', paymentMethod: 'CRYPTO', txHash: { not: null } },
+      orderBy: { createdAt: 'asc' }, take: 20,
+    })
+  } catch (err) {
+    console.error('[cron/verify] Error fetching credit topups:', err)
+    return NextResponse.json({ success: true, ...results, enrollments: enrollResults, services: subResults, credits: { verified: 0, failed: 0 } })
+  }
+
+  const topupResults = { verified: 0, failed: 0 }
+  for (const t of pendingTopups) {
+    const amount = Number(t.amountUsd)
+    const verification = await verifyBscTransaction(t.txHash!, amount)
+    if (!verification.success) {
+      const ageMinutes = (Date.now() - t.createdAt.getTime()) / 60000
+      if (ageMinutes > 30) {
+        await (prisma as any).creditTopup.update({ where: { id: t.id }, data: { status: 'REJECTED', notes: `Timeout: ${verification.error}` } })
+        topupResults.failed++
+      }
+      continue
+    }
+    try {
+      await prisma.$transaction(async (tx) => {
+        await (tx as any).creditTopup.update({
+          where: { id: t.id },
+          data: { status: 'APPROVED', blockNumber: verification.blockNumber ?? null, notes: `Auto-aprobado por cron. USDT: ${verification.amountUsdt?.toFixed(2)}` },
+        })
+        await tx.user.update({ where: { id: t.userId }, data: { aiCreditsUsd: { increment: amount } } })
+      })
+      createNotification(t.userId, 'Créditos acreditados', `Tu pago se confirmó. Se sumaron $${amount.toFixed(2)} a tu saldo.`, '/dashboard/credits').catch(() => {})
+      topupResults.verified++
+    } catch (err) {
+      console.error('[cron/verify] Error acreditando topup:', t.id, err)
+      topupResults.failed++
+    }
+  }
+
+  return NextResponse.json({ success: true, ...results, enrollments: enrollResults, services: subResults, credits: topupResults })
 }

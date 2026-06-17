@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Loader2, Wallet, ChevronRight, Layers, GraduationCap, Boxes } from 'lucide-react'
+import { Loader2, Wallet, ChevronRight, Layers, GraduationCap, Boxes, Coins } from 'lucide-react'
 
 const fmt = (n: number) => `$${(n ?? 0).toFixed(2)}`
 
@@ -61,6 +61,7 @@ export default function PaymentsHubPage() {
       <div className="grid sm:grid-cols-2 gap-3 mb-6">
         <Card href="/admin/pagos/plan" title="Planes (Packs)" icon={<Layers size={18} />} pending={byKind.plan?.pending ?? 0} revenue={byKind.plan?.revenue ?? 0} />
         <Card href="/admin/pagos/course" title="Cursos" icon={<GraduationCap size={18} />} pending={byKind.course?.pending ?? 0} revenue={byKind.course?.revenue ?? 0} />
+        <Card href="/admin/pagos/credit" title="Recargas de créditos" icon={<Coins size={18} />} pending={byKind.credit?.pending ?? 0} revenue={byKind.credit?.revenue ?? 0} />
       </div>
 
       {/* Cada servicio por separado */}

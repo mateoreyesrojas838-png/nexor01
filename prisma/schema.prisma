@@ -140,6 +140,7 @@ model User {
   products             Product[]
   passwordResetTokens  PasswordResetToken[]
   packPurchaseRequests PackPurchaseRequest[]
+  creditTopups         CreditTopup[]
   openaiConfig         OpenAIConfig?
   businessBriefs       BusinessBrief[]
   adCampaignsV2        AdCampaignV2[]
@@ -360,6 +361,25 @@ model AppSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_settings")
+}
+
+// ─── RECARGA DE CRÉDITOS AI (manual / cripto) ─────────────────────────────────
+model CreditTopup {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  amountUsd     Decimal       @map("amount_usd") @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @default(MANUAL) @map("payment_method")
+  proofUrl      String?       @map("proof_url")
+  txHash        String?       @unique @map("tx_hash")
+  blockNumber   BigInt?       @map("block_number")
+  status        RequestStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("credit_topups")
 }
 
 // ─── CONFIGURACIÓN DE PACKS (bundles) ────────────────────────────────────────
