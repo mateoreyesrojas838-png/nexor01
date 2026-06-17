@@ -1,7 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Loader2, Wrench, Search, FileText, Download, Eye, ExternalLink, Quote } from 'lucide-react'
+
+const VALID_SECTIONS = ['CATALOGO', 'TESTIMONIO', 'PROMOCION', 'BIBLIOTECA', 'GUION']
 
 const SECTIONS = [
   { key: 'CATALOGO', label: 'Catálogo' },
@@ -13,12 +16,19 @@ const SECTIONS = [
 
 const dl = (url: string) => url + (url.includes('?') ? '&' : '?') + 'download'
 
-export default function ToolsPage() {
+function ToolsContent() {
+  const sp = useSearchParams()
   const [sections, setSections] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('CATALOGO')
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('TODAS')
+
+  // Abrir en la sección que venga por ?s= (desde el menú colapsable)
+  useEffect(() => {
+    const s = (sp.get('s') || '').toUpperCase()
+    if (VALID_SECTIONS.includes(s)) { setTab(s); setQ(''); setCat('TODAS') }
+  }, [sp])
 
   useEffect(() => {
     fetch('/api/herramientas').then(r => r.ok ? r.json() : null).then(d => setSections(d?.sections || {})).finally(() => setLoading(false))
@@ -135,5 +145,13 @@ export default function ToolsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function ToolsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-amber-400" size={28} /></div>}>
+      <ToolsContent />
+    </Suspense>
   )
 }

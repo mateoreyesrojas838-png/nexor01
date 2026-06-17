@@ -18,6 +18,15 @@ const navItems: { href: string; iconClass: string; label: string; serviceKey?: s
   { href: '/dashboard/herramientas', iconClass: 'fa-solid fa-toolbox', label: 'Herramientas', serviceKey: 'herramientas' },
 ]
 
+// Secciones del servicio Herramientas (menú colapsable)
+const TOOLS_SECTIONS = [
+  { key: 'CATALOGO', label: 'Catálogo', icon: 'fa-solid fa-table-cells-large' },
+  { key: 'TESTIMONIO', label: 'Testimonios', icon: 'fa-solid fa-quote-right' },
+  { key: 'PROMOCION', label: 'Promociones', icon: 'fa-solid fa-bullhorn' },
+  { key: 'BIBLIOTECA', label: 'Biblioteca', icon: 'fa-solid fa-book' },
+  { key: 'GUION', label: 'Guiones', icon: 'fa-solid fa-file-lines' },
+]
+
 async function logout() {
   await fetch('/api/auth/logout', { method: 'POST' })
   window.location.href = '/login'
@@ -26,6 +35,11 @@ async function logout() {
 export default function Navbar() {
   const pathname = usePathname()
   const [activeKeys, setActiveKeys] = useState<Set<string> | null>(null)
+  const [toolsOpen, setToolsOpen] = useState(false)
+
+  useEffect(() => {
+    if (pathname.startsWith('/dashboard/herramientas')) setToolsOpen(true)
+  }, [pathname])
 
   useEffect(() => {
     fetch('/api/services').then(r => r.ok ? r.json() : null).then(d => {
@@ -54,6 +68,34 @@ export default function Navbar() {
         <nav className="sidebar__nav" aria-label="Menú">
           {items.map(item => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+
+            // Herramientas → menú colapsable con sus secciones
+            if (item.serviceKey === 'herramientas') {
+              return (
+                <div key="herramientas">
+                  <button
+                    onClick={() => setToolsOpen(o => !o)}
+                    className={`nav-item ${isActive ? 'nav-item--active' : ''}`}
+                    style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <span className="nav-item__icon"><i className={item.iconClass}></i></span>
+                    <span className="nav-item__label">{item.label}</span>
+                    <i className={`fa-solid fa-chevron-${toolsOpen ? 'up' : 'down'}`} style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.5 }}></i>
+                  </button>
+                  {toolsOpen && (
+                    <div style={{ marginLeft: 14, borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 6, marginTop: 2, marginBottom: 4 }}>
+                      {TOOLS_SECTIONS.map(s => (
+                        <Link key={s.key} href={`/dashboard/herramientas?s=${s.key}`} className="nav-item" style={{ paddingTop: 7, paddingBottom: 7 }}>
+                          <span className="nav-item__icon"><i className={s.icon} style={{ fontSize: 12 }}></i></span>
+                          <span className="nav-item__label" style={{ fontSize: 13 }}>{s.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
             return (
               <Link
                 key={item.href}
