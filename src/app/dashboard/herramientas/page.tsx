@@ -127,8 +127,8 @@ function ToolsContent() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((it: any) => (
             <div key={it.id} className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden flex flex-col">
-              <div className="h-40 bg-black/30 flex items-center justify-center overflow-hidden">
-                {it.coverUrl ? <img src={it.coverUrl} alt="" className="w-full h-full object-cover" /> : <FileText size={32} className="text-white/15" />}
+              <div className="bg-black/20 flex items-center justify-center p-2" style={{ height: 200 }}>
+                {it.coverUrl ? <img src={it.coverUrl} alt="" className="max-w-full max-h-full object-contain" /> : <FileText size={32} className="text-white/15" />}
               </div>
               <div className="p-4 flex flex-col flex-1">
                 {it.category && <p className="text-[10px] uppercase tracking-widest text-amber-400/70 mb-1">{it.category}</p>}

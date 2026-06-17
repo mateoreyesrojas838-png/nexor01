@@ -84,13 +84,14 @@ function AdminToolsContent() {
 
   const list = items.filter(i => i.section === section)
   const f = FIELDS[section]
+  const sectionLabel = SECTIONS.find(s => s.key === section)?.label || ''
 
   return (
     <div>
       <div className="flex items-start justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl font-black text-white flex items-center gap-2"><Wrench size={20} className="text-amber-400" /> Herramientas</h1>
-          <p className="text-xs text-white/30 mt-0.5">Subí plantillas, testimonios, promociones, libros y guiones. Todo desde acá.</p>
+          <h1 className="text-xl font-black text-white flex items-center gap-2"><Wrench size={20} className="text-amber-400" /> Herramientas · {sectionLabel}</h1>
+          <p className="text-xs text-white/30 mt-0.5">{list.length} ítem(s) en esta sección. Elegí otra sección desde el menú lateral.</p>
         </div>
         <button onClick={() => setEditor(empty(section))} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-black" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>
           <Plus size={15} /> Nuevo
@@ -99,16 +100,6 @@ function AdminToolsContent() {
 
       {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-2 text-red-400 text-sm"><X size={16} /><p className="flex-1">{error}</p><button onClick={() => setError(null)}>✕</button></div>}
 
-      {/* Pestañas de sección */}
-      <div className="flex gap-2 mb-5 border-b border-white/8 overflow-x-auto">
-        {SECTIONS.map(s => (
-          <button key={s.key} onClick={() => setSection(s.key)}
-            className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-2 -mb-px ${section === s.key ? 'text-amber-400 border-amber-400' : 'text-white/40 border-transparent hover:text-white/70'}`}>
-            {s.label} <span className="text-[10px] text-white/30">({items.filter(i => i.section === s.key).length})</span>
-          </button>
-        ))}
-      </div>
-
       {/* Lista */}
       {list.length === 0 ? (
         <div className="text-center py-16 text-white/30 text-sm">No hay nada en esta sección todavía.</div>
@@ -116,7 +107,7 @@ function AdminToolsContent() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {list.map(it => (
             <div key={it.id} className={`rounded-2xl border bg-white/[0.03] overflow-hidden ${it.active ? 'border-white/8' : 'border-white/5 opacity-60'}`}>
-              {(it.coverUrl || it.imageUrl) && <img src={it.coverUrl || it.imageUrl} alt="" className="w-full h-28 object-cover" />}
+              {(it.coverUrl || it.imageUrl) && <div className="bg-black/20 flex items-center justify-center p-1.5" style={{ height: 140 }}><img src={it.coverUrl || it.imageUrl} alt="" className="max-w-full max-h-full object-contain" /></div>}
               <div className="p-4">
                 {it.category && <p className="text-[10px] uppercase tracking-widest text-amber-400/70 mb-1">{it.category}</p>}
                 <p className="font-bold text-white text-sm">{it.title}</p>
