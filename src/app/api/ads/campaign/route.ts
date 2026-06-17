@@ -4,6 +4,7 @@ import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AdPlatform } from '@prisma/client'
 import { getPlanLimits, PLAN_NAMES, type UserPlan } from '@/lib/plan-limits'
+import { checkUsage } from '@/lib/usage-limits'
 
 export async function POST(req: Request) {
     const user = await getAuthUser()
@@ -34,21 +35,10 @@ export async function POST(req: Request) {
         }, { status: 403 })
     }
 
-    // Límite mensual de anuncios por plan
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-    const adsThisMonth = await (prisma as any).adCampaignV2.count({
-        where: { userId: user.id, createdAt: { gte: startOfMonth } }
-    })
-    if (adsThisMonth >= limits.adsPerMonth) {
-        return NextResponse.json({
-            error: `Alcanzaste el límite de ${limits.adsPerMonth} anuncios por mes de tu ${PLAN_NAMES[plan]}. Actualiza tu plan para crear más.`,
-            limitReached: true,
-            plan,
-            adsThisMonth,
-            adsPerMonth: limits.adsPerMonth,
-        }, { status: 403 })
+    // Límite mensual de anuncios por plan (configurable en /admin/planes)
+    const adsUsage = await checkUsage(user.id, 'ads', 1)
+    if (!adsUsage.allowed) {
+        return NextResponse.json({ error: adsUsage.message, limitReached: true, plan, used: adsUsage.used, limit: adsUsage.limit }, { status: 403 })
     }
 
     // Validate brief belongs to user

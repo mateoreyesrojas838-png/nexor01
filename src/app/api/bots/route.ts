@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { generateSecureToken } from '@/lib/crypto'
 import { getPlanLimits, PLAN_NAMES, type UserPlan } from '@/lib/plan-limits'
+import { getLimit } from '@/lib/usage-limits'
 
 function getAuth() {
   const cookieStore = cookies()
@@ -68,14 +69,17 @@ export async function POST(request: NextRequest) {
     `
     const plan = (userRow[0]?.plan ?? 'NONE') as UserPlan
     const extraBots = userRow[0]?.extra_bots ?? 0
-    const limits = getPlanLimits(plan)
+    // Límite base configurable en /admin/planes (0 = ilimitado). + bots extra otorgados por admin.
+    const planActive = plan !== 'NONE'
+    const baseLimit = await getLimit(plan, 'whatsapp')
 
-    if (limits.bots === 0 && extraBots === 0) {
+    if (!planActive && extraBots === 0) {
       return NextResponse.json({ error: 'Necesitas un plan activo para crear bots.', limitReached: true, plan }, { status: 403 })
     }
 
-    if (limits.bots !== Infinity) {
-      const effectiveLimit = limits.bots + extraBots
+    const unlimited = planActive && baseLimit === 0
+    if (!unlimited) {
+      const effectiveLimit = (planActive ? baseLimit : 0) + extraBots
       const botCount = await prisma.bot.count({ where: { userId: auth.userId, NOT: { name: { startsWith: '__crm__' } } } })
       if (botCount >= effectiveLimit) {
         return NextResponse.json({

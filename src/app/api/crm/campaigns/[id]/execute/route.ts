@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { executeBroadcast, startBroadcastScheduler } from '@/lib/broadcast-worker'
+import { checkUsage } from '@/lib/usage-limits'
 
 startBroadcastScheduler()
 
@@ -31,6 +32,12 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
         return NextResponse.json({ error: 'No se puede iniciar esta campaña' }, { status: 400 })
     }
     if (campaign._count.contacts === 0) return NextResponse.json({ error: 'Carga contactos antes de ejecutar' }, { status: 400 })
+
+    // Límite de mensajes/mes del plan (CRM)
+    const usage = await checkUsage(user.id, 'crm', campaign._count.contacts)
+    if (!usage.allowed) {
+        return NextResponse.json({ error: usage.message, limitReached: true, limit: usage.limit, used: usage.used }, { status: 403 })
+    }
 
     // WA Cloud: validar credenciales antes de arrancar
     if (campaign.bot?.type === 'WHATSAPP_CLOUD') {

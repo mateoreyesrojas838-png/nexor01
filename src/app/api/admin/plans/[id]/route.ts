@@ -18,6 +18,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (b.priceMonthly !== undefined) data.priceMonthly = num(b.priceMonthly)
   if (b.priceQuarterly !== undefined) data.priceQuarterly = num(b.priceQuarterly)
   if (b.priceAnnual !== undefined) data.priceAnnual = num(b.priceAnnual)
+  if (b.limits !== undefined && b.limits && typeof b.limits === 'object') {
+    // normalizar a números (0/ausente = ilimitado)
+    const clean: Record<string, number> = {}
+    for (const [k, v] of Object.entries(b.limits)) { const n = Number(v); if (!isNaN(n) && n > 0) clean[k] = n }
+    data.limits = clean
+  }
 
   const plan = await (prisma as any).planConfig.update({ where: { id: params.id }, data })
   return NextResponse.json({

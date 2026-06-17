@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { publishToNetworks } from '@/lib/social/publisher'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createNotification } from '@/lib/notifications'
+import { checkUsage } from '@/lib/usage-limits'
 
 const BUCKET = 'social-media'
 
@@ -100,11 +101,10 @@ export async function POST(req: Request) {
             (prisma as any).socialPost.count({ where: { userId: user.id, createdAt: { gte: startOfMonth } } }),
         ])
 
-        // Monthly limit applies to all posts (scheduled + immediate)
-        if (monthlyCount >= limits.monthlyPosts) {
-            return NextResponse.json({
-                error: `Alcanzaste el límite mensual de ${limits.monthlyPosts} publicaciones para tu plan ${user.plan}. Se renueva con tu próximo ciclo de facturación.`
-            }, { status: 403 })
+        // Límite mensual de publicaciones según el plan (configurable en /admin/planes)
+        const socialUsage = await checkUsage(user.id, 'social', 1)
+        if (!socialUsage.allowed) {
+            return NextResponse.json({ error: socialUsage.message, limitReached: true }, { status: 403 })
         }
 
         // Scheduled slots limit only applies to scheduling

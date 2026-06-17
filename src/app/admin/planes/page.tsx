@@ -9,6 +9,9 @@ const PERIODS = [
   { key: 'priceAnnual', label: 'Anual' },
 ] as const
 
+// Servicios con límite de uso configurable (debe coincidir con lib/usage-limits)
+const LIMITABLE = ['whatsapp', 'crm', 'social', 'ads', 'formularios']
+
 export default function AdminPlansPage() {
   const [plans, setPlans] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
@@ -33,12 +36,20 @@ export default function AdminPlansPage() {
     setField(plan.id, { services: Array.from(set) })
   }
 
+  function setLimit(plan: any, key: string, value: string) {
+    const limits = { ...(plan.limits || {}) }
+    const n = Number(value)
+    if (!value || isNaN(n) || n <= 0) delete limits[key]; else limits[key] = n
+    setField(plan.id, { limits })
+  }
+
   async function save(plan: any, extra?: any) {
     setSavingId(plan.id); setError(null)
     try {
       const body = extra ?? {
         name: plan.name, tagline: plan.tagline, services: plan.services,
         priceMonthly: plan.priceMonthly, priceQuarterly: plan.priceQuarterly, priceAnnual: plan.priceAnnual,
+        limits: plan.limits || {},
       }
       const r = await fetch(`/api/admin/plans/${plan.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const d = await r.json()
@@ -97,6 +108,22 @@ export default function AdminPlansPage() {
                 })}
               </div>
             </div>
+
+            {/* Límites de uso por servicio */}
+            {(plan.services || []).length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Límites de uso <span className="text-white/20 normal-case tracking-normal">(0 o vacío = ilimitado)</span></p>
+                <div className="flex flex-wrap gap-3">
+                  {services.filter(s => (plan.services || []).includes(s.key) && LIMITABLE.includes(s.key)).map(s => (
+                    <div key={s.key}>
+                      <label className="block text-[10px] text-white/40 mb-1">{s.name}</label>
+                      <input type="number" min="0" value={(plan.limits || {})[s.key] ?? ''} onChange={e => setLimit(plan, s.key, e.target.value)} placeholder="∞" className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500/50" />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-white/20 mt-1.5">Mensual: CRM (mensajes), Publisher (posts), Ads (campañas). Total: Agentes AI, Formularios. (Imágenes se limita por créditos AI.)</p>
+              </div>
+            )}
 
             {/* Precios por período */}
             <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap items-end gap-3">

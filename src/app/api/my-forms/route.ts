@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
+import { checkUsage } from '@/lib/usage-limits'
 
 function slugify(text: string): string {
   return (text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -28,6 +29,10 @@ export async function POST(req: NextRequest) {
 
   const { title } = await req.json()
   if (!title?.trim()) return NextResponse.json({ error: 'El título es requerido' }, { status: 400 })
+
+  // Límite de formularios del plan
+  const usage = await checkUsage(user.id, 'formularios', 1)
+  if (!usage.allowed) return NextResponse.json({ error: usage.message, limitReached: true }, { status: 403 })
 
   let slug = slugify(title) + '-' + Math.random().toString(36).slice(2, 6)
   const exists = await (prisma as any).form.findUnique({ where: { slug } })

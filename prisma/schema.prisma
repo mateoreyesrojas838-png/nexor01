@@ -373,6 +373,7 @@ model PlanConfig {
   priceMonthly   Decimal? @map("price_monthly") @db.Decimal(10, 2)
   priceQuarterly Decimal? @map("price_quarterly") @db.Decimal(10, 2)
   priceAnnual    Decimal? @map("price_annual") @db.Decimal(10, 2)
+  limits         Json?    @map("limits") // { serviceKey: number } — 0/ausente = ilimitado
   active         Boolean  @default(true)
   order          Int      @default(0)
   updatedAt      DateTime @updatedAt @map("updated_at")
