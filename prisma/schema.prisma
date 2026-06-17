@@ -1200,6 +1200,8 @@ model Form {
   redirectUrl    String?    @map("redirect_url")
   notifyEmail    Boolean    @default(false) @map("notify_email")
   thankYouMsg    String?    @map("thank_you_msg")
+  clonedFromId     String?  @map("cloned_from_id") @db.Uuid // si fue compartido por otro usuario
+  sharedByUsername String?  @map("shared_by_username")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
