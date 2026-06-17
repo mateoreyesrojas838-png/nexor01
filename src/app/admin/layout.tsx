@@ -23,7 +23,16 @@ import {
   Layers,
   Wallet,
   Wrench,
+  ChevronDown,
 } from 'lucide-react'
+
+const TOOLS_SECTIONS = [
+  { key: 'CATALOGO', label: 'Catálogo' },
+  { key: 'TESTIMONIO', label: 'Testimonios' },
+  { key: 'PROMOCION', label: 'Promociones' },
+  { key: 'BIBLIOTECA', label: 'Biblioteca' },
+  { key: 'GUION', label: 'Guiones' },
+]
 
 const NAV = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard, exact: true },
@@ -47,6 +56,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const [checking, setChecking] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(false)
+
+  useEffect(() => {
+    if (pathname.startsWith('/admin/herramientas')) setToolsOpen(true)
+  }, [pathname])
 
   useEffect(() => {
     fetch('/api/admin/stats')
@@ -92,6 +106,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {NAV.map(({ href, label, icon: Icon, exact }) => {
           const active = isActive(href, exact)
+
+          // Herramientas → colapsable con sus secciones (subir separado y ordenado)
+          if (href === '/admin/herramientas') {
+            return (
+              <div key={href}>
+                <button
+                  onClick={() => setToolsOpen(o => !o)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    active ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25' : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                  }`}
+                >
+                  <Icon size={15} className={active ? 'text-amber-400' : 'text-white/30'} />
+                  {label}
+                  <ChevronDown size={13} className={`ml-auto transition-transform ${toolsOpen ? 'rotate-180' : ''} ${active ? 'text-amber-400/60' : 'text-white/30'}`} />
+                </button>
+                {toolsOpen && (
+                  <div className="ml-4 mt-0.5 mb-1 pl-2 border-l border-white/8 space-y-0.5">
+                    {TOOLS_SECTIONS.map(s => (
+                      <Link key={s.key} href={`/admin/herramientas?s=${s.key}`} onClick={() => setMobileOpen(false)}
+                        className="block px-3 py-2 rounded-lg text-[13px] text-white/40 hover:text-white/80 hover:bg-white/5 transition-all">
+                        {s.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
           return (
             <Link
               key={href}

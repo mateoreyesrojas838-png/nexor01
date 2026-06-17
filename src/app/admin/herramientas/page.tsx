@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Loader2, Plus, Trash2, Save, X, Upload, Eye, EyeOff, Wrench, FileText, Image as ImageIcon, Film, ExternalLink } from 'lucide-react'
 
 const SECTIONS = [
@@ -22,7 +23,8 @@ const FIELDS: Record<string, { category?: boolean; cover?: boolean; file?: boole
 
 const empty = (section: string) => ({ id: '', section, title: '', category: '', description: '', coverUrl: '', fileUrl: '', imageUrl: '', videoUrl: '', buttonLabel: '', buttonUrl: '', active: true })
 
-export default function AdminToolsPage() {
+function AdminToolsContent() {
+  const sp = useSearchParams()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('CATALOGO')
@@ -30,6 +32,12 @@ export default function AdminToolsPage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Abrir en la sección que venga por ?s= (desde el menú colapsable del admin)
+  useEffect(() => {
+    const s = (sp.get('s') || '').toUpperCase()
+    if (SECTIONS.some(x => x.key === s)) setSection(s)
+  }, [sp])
 
   async function load() {
     try { const r = await fetch('/api/admin/herramientas'); const d = await r.json(); setItems(d.items || []) }
@@ -166,6 +174,14 @@ export default function AdminToolsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function AdminToolsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-amber-400" size={28} /></div>}>
+      <AdminToolsContent />
+    </Suspense>
   )
 }
 
