@@ -15,7 +15,7 @@ const SECTIONS = [
 // Qué campos mostrar por sección
 const FIELDS: Record<string, { category?: boolean; cover?: boolean; file?: boolean; image?: boolean; video?: boolean; button?: boolean; buttonHint?: string }> = {
   CATALOGO: { category: true, cover: true, file: true, button: true, buttonHint: 'Ej. "Abrir en Canva"' },
-  TESTIMONIO: { image: true, button: true, buttonHint: 'Botón de acción (opcional)' },
+  TESTIMONIO: { image: true, video: true, button: true, buttonHint: 'Botón de acción (opcional)' },
   PROMOCION: { image: true, video: true, file: true },
   BIBLIOTECA: { cover: true, file: true },
   GUION: { cover: true, file: true },
@@ -145,7 +145,7 @@ function AdminToolsContent() {
 
             {/* Uploads condicionales */}
             <div className="grid grid-cols-2 gap-2">
-              {f.cover && <UploadBox label="Portada (imagen)" icon={ImageIcon} value={editor.coverUrl} busy={uploading === 'coverUrl'} accept="image/*" onPick={(file: File) => uploadTo('coverUrl', file, 'image')} onClear={() => setEditor({ ...editor, coverUrl: '' })} />}
+              {f.cover && <UploadBox label={editor.section === 'CATALOGO' ? 'Imagen de la plantilla' : 'Portada (imagen)'} icon={ImageIcon} value={editor.coverUrl} busy={uploading === 'coverUrl'} accept="image/*" onPick={(file: File) => uploadTo('coverUrl', file, 'image')} onClear={() => setEditor({ ...editor, coverUrl: '' })} />}
               {f.image && <UploadBox label="Imagen" icon={ImageIcon} value={editor.imageUrl} busy={uploading === 'imageUrl'} accept="image/*" onPick={(file: File) => uploadTo('imageUrl', file, 'image')} onClear={() => setEditor({ ...editor, imageUrl: '' })} />}
               {f.video && <UploadBox label="Video" icon={Film} value={editor.videoUrl} busy={uploading === 'videoUrl'} accept="video/*" onPick={(file: File) => uploadTo('videoUrl', file, 'video')} onClear={() => setEditor({ ...editor, videoUrl: '' })} />}
               {f.file && <UploadBox label="Archivo (PDF)" icon={FileText} value={editor.fileUrl} busy={uploading === 'fileUrl'} accept="application/pdf" onPick={(file: File) => uploadTo('fileUrl', file, 'pdf')} onClear={() => setEditor({ ...editor, fileUrl: '' })} />}

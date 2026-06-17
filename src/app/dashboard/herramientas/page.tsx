@@ -95,11 +95,13 @@ function ToolsContent() {
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((it: any) => (
             <div key={it.id} className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
-              {it.imageUrl && (
+              {it.videoUrl ? (
+                <video src={it.videoUrl} controls playsInline controlsList="nodownload noplaybackrate" disablePictureInPicture onContextMenu={e => e.preventDefault()} className="w-full max-h-80 bg-black" />
+              ) : it.imageUrl ? (
                 <div className="bg-black/20 flex items-center justify-center p-2" style={{ maxHeight: 320 }}>
                   <img src={it.imageUrl} alt="" className="max-w-full max-h-80 object-contain" />
                 </div>
-              )}
+              ) : null}
               <div className="p-5">
                 <Quote size={18} className="text-amber-400/60 mb-2" />
                 <p className="font-bold text-white">{it.title}</p>
