@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, GraduationCap, Users, Layers, X, AlertCircle } from 'lucide-react'
+import { Plus, Loader2, GraduationCap, Users, Layers, X, AlertCircle, Trash2 } from 'lucide-react'
 
 interface CourseRow {
   id: string
@@ -23,8 +23,19 @@ export default function AdminCoursesPage() {
   const [showNew, setShowNew] = useState(false)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [form, setForm] = useState({ title: '', subtitle: '', description: '', price: '', freeForPlan: false })
+
+  async function deleteCourse(e: React.MouseEvent, c: CourseRow) {
+    e.preventDefault(); e.stopPropagation()
+    if (!confirm(`¿Eliminar el curso "${c.title}"? Se borran sus módulos, lecciones e inscripciones. Esta acción no se puede deshacer.`)) return
+    setDeletingId(c.id)
+    try {
+      const res = await fetch(`/api/admin/courses/${c.id}`, { method: 'DELETE' })
+      if (res.ok) setCourses(cs => cs.filter(x => x.id !== c.id)); else setError('No se pudo eliminar el curso')
+    } catch { setError('Error al eliminar') } finally { setDeletingId(null) }
+  }
 
   useEffect(() => { fetchCourses() }, [])
 
@@ -95,6 +106,10 @@ export default function AdminCoursesPage() {
               <div className="h-28 bg-white/5 relative">
                 {c.coverUrl ? <img src={c.coverUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><GraduationCap size={28} className="text-white/15" /></div>}
                 <span className={`absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded-lg ${c.active ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'}`}>{c.active ? 'Activo' : 'Oculto'}</span>
+                <button onClick={e => deleteCourse(e, c)} disabled={deletingId === c.id} title="Eliminar curso"
+                  className="absolute top-2 left-2 w-7 h-7 rounded-lg bg-black/50 hover:bg-red-500/80 flex items-center justify-center text-white/80 transition-colors">
+                  {deletingId === c.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                </button>
               </div>
               <div className="p-4">
                 <p className="font-bold text-white truncate">{c.title}</p>
