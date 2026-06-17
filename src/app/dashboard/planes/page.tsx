@@ -62,8 +62,8 @@ export default function PlanesPage() {
   const [period, setPeriod] = useState<Period>('MONTHLY')
   // { BASIC: { MONTHLY: 20, QUARTERLY: 51, ANNUAL: 168 }, ... }
   const [planPrices, setPlanPrices] = useState<Record<string, Record<string, number | null>>>({})
-  // { BASIC: [{key,name}, ...], ... } — servicios reales incluidos en cada pack
-  const [planServices, setPlanServices] = useState<Record<string, { key: string; name: string }[]>>({})
+  // { BASIC: [{key,name,detail}, ...], ... } — servicios reales incluidos en cada pack
+  const [planServices, setPlanServices] = useState<Record<string, { key: string; name: string; detail?: string }[]>>({})
   const [usdToBob, setUsdToBob] = useState<number>(0)
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const countdown = useCountdown(planExpiresAt)
@@ -286,14 +286,17 @@ export default function PlanesPage() {
                     {(planServices[pack.planId] || []).length === 0 ? (
                       <p className="text-[11px] text-white/30">Acceso a la plataforma.</p>
                     ) : (
-                      <ul className="space-y-1.5">
+                      <ul className="space-y-2.5">
                         {(planServices[pack.planId] || []).map(s => (
                           <li key={s.key} className="flex items-start gap-2">
                             <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
                               style={{ background: 'rgba(255,215,0,0.1)' }}>
                               <Check size={8} style={{ color: '#FFD700' }} />
                             </div>
-                            <span className="text-[11px] leading-snug text-white/60">{s.name}</span>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold leading-snug" style={{ color: '#FBBF24' }}>{s.name}</p>
+                              {s.detail && <p className="text-[11px] leading-snug text-white/50">{s.detail}</p>}
+                            </div>
                           </li>
                         ))}
                       </ul>
