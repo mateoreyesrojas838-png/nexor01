@@ -10,6 +10,22 @@ function safeRedirect(r: string | null): string {
   return r && r.startsWith('/') && !r.startsWith('//') && !r.startsWith('/\\') ? r : ''
 }
 
+// Países de Sudamérica con bandera y código (para el selector de teléfono)
+const COUNTRIES = [
+  { name: 'Bolivia', flag: '🇧🇴', dial: '+591' },
+  { name: 'Argentina', flag: '🇦🇷', dial: '+54' },
+  { name: 'Brasil', flag: '🇧🇷', dial: '+55' },
+  { name: 'Chile', flag: '🇨🇱', dial: '+56' },
+  { name: 'Colombia', flag: '🇨🇴', dial: '+57' },
+  { name: 'Ecuador', flag: '🇪🇨', dial: '+593' },
+  { name: 'Paraguay', flag: '🇵🇾', dial: '+595' },
+  { name: 'Perú', flag: '🇵🇪', dial: '+51' },
+  { name: 'Uruguay', flag: '🇺🇾', dial: '+598' },
+  { name: 'Venezuela', flag: '🇻🇪', dial: '+58' },
+  { name: 'Guyana', flag: '🇬🇾', dial: '+592' },
+  { name: 'Surinam', flag: '🇸🇷', dial: '+597' },
+]
+
 export default function RegisterPage() {
   return (
     <Suspense fallback={
@@ -40,6 +56,7 @@ function RegisterForm() {
 
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '', acceptTerms: false,
+    countryName: 'Bolivia', dial: '+591', phone: '',
   })
 
   const update = (field: string, value: string | boolean) => {
@@ -52,6 +69,9 @@ function RegisterForm() {
     if (!form.fullName || !form.email || !form.password || !form.confirmPassword) {
       setError('Completa todos los campos'); return
     }
+    if (!form.phone.trim() || form.phone.replace(/\D/g, '').length < 6) {
+      setError('Ingresá un número de teléfono válido'); return
+    }
     if (form.password !== form.confirmPassword) {
       setError('Las contraseñas no coinciden'); return
     }
@@ -61,10 +81,11 @@ function RegisterForm() {
 
     setLoading(true)
     try {
+      const phone = `${form.dial} ${form.phone.trim()}`
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, turnstileToken }),
+        body: JSON.stringify({ ...form, phone, country: form.countryName, turnstileToken }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -189,6 +210,36 @@ function RegisterForm() {
                 onChange={e => update('fullName', e.target.value)}
                 autoComplete="name"
               />
+            </div>
+
+            {/* Teléfono con país (Sudamérica) */}
+            <div>
+              <label className={labelCls}>Teléfono (WhatsApp)</label>
+              <div className="flex gap-2">
+                <select
+                  value={form.countryName}
+                  onChange={e => {
+                    const c = COUNTRIES.find(x => x.name === e.target.value)
+                    if (c) setForm(f => ({ ...f, countryName: c.name, dial: c.dial }))
+                  }}
+                  className="bg-white/[0.04] border border-white/10 rounded-xl px-2 py-3 text-sm text-white focus:outline-none focus:border-amber-500/40 [&>option]:bg-[#0d0d15] [&>option]:text-white shrink-0"
+                  style={{ maxWidth: 130 }}
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c.name} value={c.name}>{c.flag} {c.dial}</option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  className={`${inputCls} flex-1`}
+                  placeholder="71234567"
+                  value={form.phone}
+                  onChange={e => update('phone', e.target.value.replace(/[^\d\s]/g, ''))}
+                  autoComplete="tel"
+                />
+              </div>
+              <p className="text-[10px] text-white/25 mt-1">{form.countryName} · {form.dial}</p>
             </div>
 
             {/* Email */}

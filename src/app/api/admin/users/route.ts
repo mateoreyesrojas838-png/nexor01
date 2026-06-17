@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       username: string
       full_name: string
       email: string
+      phone: string
       country: string
       plan: string
       is_active: boolean
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
         u.username,
         u.full_name,
         u.email,
+        u.phone,
         u.country,
         u.plan::text,
         u.is_active,
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
         OR u.username ILIKE ${searchPattern}
         OR u.full_name ILIKE ${searchPattern}
         OR u.email    ILIKE ${searchPattern}
+        OR u.phone    ILIKE ${searchPattern}
       )
       ORDER BY u.created_at DESC
       LIMIT ${take} OFFSET ${offset}
@@ -77,6 +80,7 @@ export async function GET(request: NextRequest) {
       username: u.username,
       fullName: u.full_name,
       email: u.email,
+      phone: u.phone,
       country: u.country,
       plan: u.plan,
       isActive: u.is_active,

@@ -120,6 +120,7 @@ model User {
   passwordHash        String?              @map("password_hash")
   googleId            String?              @unique @map("google_id")
   fullName            String               @map("full_name")
+  phone               String?
   country             String?
   city                String?
   identityDocument    String?              @map("identity_document")

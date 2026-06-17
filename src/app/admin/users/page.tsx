@@ -18,6 +18,7 @@ import {
   ExternalLink,
   RefreshCw,
   Eye,
+  Download,
 } from 'lucide-react'
 
 interface UserRow {
@@ -121,6 +122,9 @@ export default function AdminUsersPage() {
           </h1>
           <p className="text-xs text-white/30 mt-0.5">{total} usuarios registrados</p>
         </div>
+        <a href="/api/admin/users/export" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-black shrink-0" style={{ background: 'linear-gradient(135deg,#15803d,#22c55e)' }}>
+          <Download size={15} /> Descargar Excel
+        </a>
       </div>
 
       {/* Search */}

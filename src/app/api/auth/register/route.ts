@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { fullName, email, password, confirmPassword, acceptTerms, turnstileToken } = body
+    const { fullName, email, password, confirmPassword, acceptTerms, turnstileToken, phone, country } = body
 
     // Turnstile anti-bot
     const turnstileOk = await verifyTurnstile(turnstileToken, ip)
@@ -28,6 +28,10 @@ export async function POST(request: NextRequest) {
 
     if (!fullName || !email || !password || !confirmPassword || !acceptTerms) {
       return NextResponse.json({ error: 'Todos los campos son obligatorios' }, { status: 400 })
+    }
+
+    if (!phone || String(phone).replace(/\D/g, '').length < 6) {
+      return NextResponse.json({ error: 'El número de teléfono es obligatorio' }, { status: 400 })
     }
 
     if (password !== confirmPassword) {
@@ -57,6 +61,8 @@ export async function POST(request: NextRequest) {
         email,
         passwordHash,
         fullName,
+        phone: String(phone).trim(),
+        country: country ? String(country).trim() : null,
         referralCode,
       }
     })
