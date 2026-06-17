@@ -42,4 +42,9 @@ export const SERVICE_UI: Record<string, ServiceUI> = {
     icon: 'fa-solid fa-clipboard-list', iconClass: 'fa-solid fa-clipboard-list',
     color: '#60A5FA', glow: 'rgba(96,165,250,0.12)', sub: 'Encuestas y registros',
   },
+  herramientas: {
+    href: '/dashboard/herramientas',
+    icon: 'fa-solid fa-toolbox', iconClass: 'fa-solid fa-toolbox',
+    color: '#FBBF24', glow: 'rgba(251,191,36,0.12)', sub: 'Plantillas, libros y más',
+  },
 }

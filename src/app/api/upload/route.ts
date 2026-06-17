@@ -12,6 +12,7 @@ const ALLOWED_TYPES: Record<string, string> = {
   'video/mp4': 'mp4',
   'video/quicktime': 'mov',
   'video/3gpp': '3gp',
+  'application/pdf': 'pdf',
 }
 
 export async function POST(request: Request) {

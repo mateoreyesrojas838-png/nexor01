@@ -1109,6 +1109,36 @@ model Service {
   @@map("services")
 }
 
+// ─── HERRAMIENTAS (catálogo, testimonios, promociones, biblioteca, guiones) ───
+enum ToolSection {
+  CATALOGO
+  TESTIMONIO
+  PROMOCION
+  BIBLIOTECA
+  GUION
+}
+
+model ToolResource {
+  id          String      @id @default(uuid()) @db.Uuid
+  section     ToolSection
+  category    String? // para el Catálogo
+  title       String
+  description String?     @db.Text
+  coverUrl    String?     @map("cover_url")
+  fileUrl     String?     @map("file_url") // PDF u otro archivo descargable
+  imageUrl    String?     @map("image_url")
+  videoUrl    String?     @map("video_url")
+  buttonLabel String?     @map("button_label") // ej. "Abrir en Canva"
+  buttonUrl   String?     @map("button_url")
+  order       Int         @default(0)
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([section])
+  @@map("tool_resources")
+}
+
 enum ServicePeriod {
   MONTHLY
   QUARTERLY

@@ -15,6 +15,7 @@ const navItems: { href: string; iconClass: string; label: string; serviceKey?: s
   { href: '/dashboard/services/social', iconClass: 'fa-solid fa-satellite-dish', label: 'Publisher', serviceKey: 'social' },
   { href: '/dashboard/services/ads', iconClass: 'fa-solid fa-chart-line', label: 'Ads', serviceKey: 'ads' },
   { href: '/dashboard/services/image-studio', iconClass: 'fa-solid fa-wand-magic-sparkles', label: 'Imágenes', serviceKey: 'image-studio' },
+  { href: '/dashboard/herramientas', iconClass: 'fa-solid fa-toolbox', label: 'Herramientas', serviceKey: 'herramientas' },
 ]
 
 async function logout() {
