@@ -116,7 +116,7 @@ function ToolsContent() {
             <div key={it.id} className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
               {it.videoUrl ? (
                 <video src={it.videoUrl} controls playsInline controlsList="nodownload" onContextMenu={e => e.preventDefault()} className="w-full max-h-72 bg-black" />
-              ) : it.imageUrl ? <img src={it.imageUrl} alt="" className="w-full max-h-72 object-cover" /> : null}
+              ) : it.imageUrl ? <div className="bg-black/20 flex items-center justify-center p-2"><img src={it.imageUrl} alt="" className="max-w-full max-h-80 object-contain" /></div> : null}
               <div className="p-5">
                 <p className="font-bold text-white">{it.title}</p>
                 {it.description && <p className="text-sm text-white/50 mt-1 whitespace-pre-line">{it.description}</p>}
