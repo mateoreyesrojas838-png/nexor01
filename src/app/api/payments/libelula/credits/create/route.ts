@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  const flag = await prisma.appSetting.findUnique({ where: { key: 'CREDITS_ENABLED' } })
+  if (flag?.value === 'false') return NextResponse.json({ error: 'La recarga de créditos no está disponible.' }, { status: 403 })
+
   const body = await req.json()
   const amountUsd = parseFloat(body.amount)
 

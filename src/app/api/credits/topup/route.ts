@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  // Respetar el switch del admin (página de créditos activa/inactiva)
+  const flag = await prisma.appSetting.findUnique({ where: { key: 'CREDITS_ENABLED' } })
+  if (flag?.value === 'false') return NextResponse.json({ error: 'La recarga de créditos no está disponible.' }, { status: 403 })
+
   const body = await req.json().catch(() => ({}))
   const amountUsd = parseFloat(body.amountUsd ?? body.amount)
   if (!amountUsd || amountUsd <= 0 || amountUsd > 500) {

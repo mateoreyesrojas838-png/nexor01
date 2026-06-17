@@ -35,6 +35,7 @@ async function logout() {
 export default function Navbar() {
   const pathname = usePathname()
   const [activeKeys, setActiveKeys] = useState<Set<string> | null>(null)
+  const [creditsEnabled, setCreditsEnabled] = useState(true)
   const [toolsOpen, setToolsOpen] = useState(false)
 
   useEffect(() => {
@@ -45,10 +46,16 @@ export default function Navbar() {
     fetch('/api/services').then(r => r.ok ? r.json() : null).then(d => {
       if (d?.services) setActiveKeys(new Set(d.services.map((s: any) => s.key)))
     }).catch(() => {})
+    fetch('/api/settings').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.settings) setCreditsEnabled(d.settings.CREDITS_ENABLED !== 'false')
+    }).catch(() => {})
   }, [])
 
   // Mientras carga (null) mostramos todo; ya cargado, ocultamos los servicios desactivados
-  const items = navItems.filter(it => !it.serviceKey || !activeKeys || activeKeys.has(it.serviceKey))
+  const items = navItems.filter(it => {
+    if (it.href === '/dashboard/credits' && !creditsEnabled) return false
+    return !it.serviceKey || !activeKeys || activeKeys.has(it.serviceKey)
+  })
 
   return (
     <>

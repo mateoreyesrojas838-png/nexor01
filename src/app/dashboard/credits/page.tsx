@@ -17,6 +17,7 @@ function CreditsContent() {
   const [balance, setBalance] = useState<number | null>(null)
   const [loadingBalance, setLoadingBalance] = useState(true)
 
+  const [enabled, setEnabled] = useState(true)
   const [libelulaAvailable, setLibelulaAvailable] = useState(false)
   const [manualAvailable, setManualAvailable] = useState(true)
   const [cryptoAvailable, setCryptoAvailable] = useState(true)
@@ -51,6 +52,7 @@ function CreditsContent() {
       const hasLib = map['LIBELULA_AVAILABLE'] === 'true'
       const hasManual = map['STORE_PAYMENT_MANUAL'] !== 'false'
       const hasCrypto = map['CRYPTO_ENABLED'] !== 'false'
+      setEnabled(map['CREDITS_ENABLED'] !== 'false')
       setLibelulaAvailable(hasLib); setManualAvailable(hasManual); setCryptoAvailable(hasCrypto)
       setPayMethod(hasLib ? 'libelula' : hasManual ? 'manual' : 'usdt')
     }).catch(() => {})
@@ -108,6 +110,22 @@ function CreditsContent() {
 
   const amountValid = finalAmount() > 0 && finalAmount() <= 500
   const methodsCount = [libelulaAvailable, manualAvailable, cryptoAvailable].filter(Boolean).length
+
+  // Página desactivada por el admin → bloqueo (como los servicios)
+  if (!enabled) {
+    return (
+      <div className="min-h-screen px-4 py-8" style={{ background: '#0B0B12' }}>
+        <div className="max-w-md mx-auto">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 text-xs text-white/30 hover:text-white/60 mb-8"><ArrowLeft size={13} /> Volver</Link>
+          <div className="rounded-2xl p-8 flex flex-col items-center gap-3 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <AlertCircle size={28} className="text-white/20" />
+            <p className="text-sm font-bold text-white/50">Recarga de créditos no disponible</p>
+            <p className="text-xs text-white/25 leading-relaxed">No está habilitada en este momento.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ background: '#0B0B12' }}>
