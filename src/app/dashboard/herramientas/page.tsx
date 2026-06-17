@@ -94,11 +94,18 @@ function ToolsContent() {
         /* Testimonios */
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((it: any) => (
-            <div key={it.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
-              <Quote size={18} className="text-amber-400/60 mb-2" />
-              <p className="font-bold text-white">{it.title}</p>
-              {it.description && <p className="text-sm text-white/50 mt-1 whitespace-pre-line">{it.description}</p>}
-              {it.buttonUrl && <a href={it.buttonUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-bold text-black" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>{it.buttonLabel || 'Ver más'} <ExternalLink size={12} /></a>}
+            <div key={it.id} className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
+              {it.imageUrl && (
+                <div className="bg-black/20 flex items-center justify-center p-2" style={{ maxHeight: 320 }}>
+                  <img src={it.imageUrl} alt="" className="max-w-full max-h-80 object-contain" />
+                </div>
+              )}
+              <div className="p-5">
+                <Quote size={18} className="text-amber-400/60 mb-2" />
+                <p className="font-bold text-white">{it.title}</p>
+                {it.description && <p className="text-sm text-white/50 mt-1 whitespace-pre-line">{it.description}</p>}
+                {it.buttonUrl && <a href={it.buttonUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-bold text-black" style={{ background: 'linear-gradient(135deg,#D97706,#F59E0B)' }}>{it.buttonLabel || 'Ver más'} <ExternalLink size={12} /></a>}
+              </div>
             </div>
           ))}
         </div>

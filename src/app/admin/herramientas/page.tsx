@@ -15,7 +15,7 @@ const SECTIONS = [
 // Qué campos mostrar por sección
 const FIELDS: Record<string, { category?: boolean; cover?: boolean; file?: boolean; image?: boolean; video?: boolean; button?: boolean; buttonHint?: string }> = {
   CATALOGO: { category: true, cover: true, file: true, button: true, buttonHint: 'Ej. "Abrir en Canva"' },
-  TESTIMONIO: { button: true, buttonHint: 'Botón de acción (opcional)' },
+  TESTIMONIO: { image: true, button: true, buttonHint: 'Botón de acción (opcional)' },
   PROMOCION: { image: true, video: true, file: true },
   BIBLIOTECA: { cover: true, file: true },
   GUION: { cover: true, file: true },
