@@ -121,6 +121,7 @@ model User {
   googleId            String?              @unique @map("google_id")
   fullName            String               @map("full_name")
   phone               String?
+  regSource           String?              @map("reg_source") // serviceKey de la landing donde se registró (si aplica)
   country             String?
   city                String?
   identityDocument    String?              @map("identity_document")

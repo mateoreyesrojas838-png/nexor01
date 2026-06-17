@@ -67,8 +67,16 @@ export async function GET(req: NextRequest) {
       })
     : []
 
-  // Unir por email (la suscripción suelta tiene prioridad en la etiqueta "Vía")
+  // 3) Registrados desde la página de ESE servicio (aunque no hayan comprado)
+  const regOnly = await prisma.user.findMany({
+    where: { regSource: serviceKey },
+    select: { fullName: true, username: true, email: true, phone: true, country: true, createdAt: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  // Unir por email. Prioridad de etiqueta: Suscripción > Plan > Solo registrado.
   const byEmail = new Map<string, any>()
+  for (const u of regOnly) byEmail.set(u.email, { ...u, via: 'Solo registrado' })
   for (const u of planUsers) byEmail.set(u.email, { ...u, via: `Plan ${PLAN_NAMES[u.plan] || u.plan}` })
   for (const s of subs) {
     const u = s.user

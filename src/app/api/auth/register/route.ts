@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { fullName, email, password, confirmPassword, acceptTerms, turnstileToken, phone, country } = body
+    const { fullName, email, password, confirmPassword, acceptTerms, turnstileToken, phone, country, regSource } = body
 
     // Turnstile anti-bot
     const turnstileOk = await verifyTurnstile(turnstileToken, ip)
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         fullName,
         phone: String(phone).trim(),
         country: country ? String(country).trim() : null,
+        regSource: regSource ? String(regSource).trim().slice(0, 60) : null,
         referralCode,
       }
     })

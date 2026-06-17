@@ -49,7 +49,7 @@ export function ServiceCheckout({ serviceKey, serviceSlug, serviceName, serviceH
     if (!reg.acceptTerms) { setError('Tenés que aceptar los términos'); return }
     setLoading(true); setError(null)
     try {
-      const r = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...reg, phone: `${reg.dial} ${reg.phone.trim()}`, country: reg.countryName, turnstileToken: '' }) })
+      const r = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...reg, phone: `${reg.dial} ${reg.phone.trim()}`, country: reg.countryName, regSource: serviceKey, turnstileToken: '' }) })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al crear la cuenta'); return }
       setStep('buy')
