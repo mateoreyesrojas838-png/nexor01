@@ -139,7 +139,7 @@ function Spinner({ color }: { color?: string }) {
 
 function CreateBotForm({ onCreated }: { onCreated: (bot: Bot, webhookUrl: string) => void }) {
   const [name, setName] = useState('')
-  const [type, setType] = useState<'YCLOUD' | 'BAILEYS' | 'META' | 'WHATSAPP_CLOUD'>('YCLOUD')
+  const [type, setType] = useState<'YCLOUD' | 'BAILEYS' | 'META' | 'WHATSAPP_CLOUD'>('BAILEYS')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -172,55 +172,16 @@ function CreateBotForm({ onCreated }: { onCreated: (bot: Bot, webhookUrl: string
         Crear nuevo bot
       </h3>
 
-      {/* Tipo de bot */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => setType('YCLOUD')}
-          className={`p-3 rounded-xl border text-left transition-all ${type === 'YCLOUD'
-            ? 'border-indigo-400/50 bg-indigo-400/10 text-white'
-            : 'border-white/10 text-white/35 hover:border-white/20'
-            }`}
-        >
-          <Webhook className="w-4 h-4 mb-1.5" />
-          <div className="text-xs font-bold">YCloud</div>
-          <div className="text-[10px] text-white/25 mt-0.5">WhatsApp API</div>
-        </button>
+      {/* Tipo de bot — solo WhatsApp Web (Baileys) disponible */}
+      <div className="mb-4">
         <button
           type="button"
           onClick={() => setType('BAILEYS')}
-          className={`p-3 rounded-xl border text-left transition-all ${type === 'BAILEYS'
-            ? 'border-amber-400/50 bg-amber-400/10 text-white'
-            : 'border-white/10 text-white/35 hover:border-white/20'
-            }`}
+          className="w-full p-3 rounded-xl border text-left border-amber-400/50 bg-amber-400/10 text-white"
         >
           <Smartphone className="w-4 h-4 mb-1.5" />
-          <div className="text-xs font-bold">WA Web</div>
-          <div className="text-[10px] text-white/25 mt-0.5">Escanear QR</div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setType('META')}
-          className={`p-3 rounded-xl border text-left transition-all ${type === 'META'
-            ? 'border-blue-400/50 bg-blue-400/10 text-white'
-            : 'border-white/10 text-white/35 hover:border-white/20'
-            }`}
-        >
-          <MessageSquare className="w-4 h-4 mb-1.5" />
-          <div className="text-xs font-bold">Messenger</div>
-          <div className="text-[10px] text-white/25 mt-0.5">Facebook/Instagram</div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setType('WHATSAPP_CLOUD')}
-          className={`p-3 rounded-xl border text-left transition-all ${type === 'WHATSAPP_CLOUD'
-            ? 'border-green-400/50 bg-green-400/10 text-white'
-            : 'border-white/10 text-white/35 hover:border-white/20'
-            }`}
-        >
-          <Wifi className="w-4 h-4 mb-1.5" />
-          <div className="text-xs font-bold">WA Cloud</div>
-          <div className="text-[10px] text-white/25 mt-0.5">API Oficial Meta</div>
+          <div className="text-xs font-bold">WhatsApp Web</div>
+          <div className="text-[10px] text-white/40 mt-0.5">Conectá tu WhatsApp escaneando el código QR</div>
         </button>
       </div>
 
