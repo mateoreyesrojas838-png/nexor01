@@ -80,15 +80,16 @@ export default function Navbar() {
             if (item.serviceKey === 'herramientas') {
               return (
                 <div key="herramientas">
-                  <button
-                    onClick={() => setToolsOpen(o => !o)}
+                  <Link
+                    href="/dashboard/herramientas?s=CATALOGO"
+                    onClick={() => setToolsOpen(true)}
                     className={`nav-item ${isActive ? 'nav-item--active' : ''}`}
-                    style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer' }}
+                    style={{ width: '100%' }}
                   >
                     <span className="nav-item__icon"><i className={item.iconClass}></i></span>
                     <span className="nav-item__label">{item.label}</span>
-                    <i className={`fa-solid fa-chevron-${toolsOpen ? 'up' : 'down'}`} style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.5 }}></i>
-                  </button>
+                    <i onClick={(e) => { e.preventDefault(); e.stopPropagation(); setToolsOpen(o => !o) }} className={`fa-solid fa-chevron-${toolsOpen ? 'up' : 'down'}`} style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.5 }}></i>
+                  </Link>
                   {toolsOpen && (
                     <div style={{ marginLeft: 14, borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 6, marginTop: 2, marginBottom: 4 }}>
                       {TOOLS_SECTIONS.map(s => (

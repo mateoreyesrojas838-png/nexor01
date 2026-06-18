@@ -114,14 +114,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             return (
               <div key={href}>
                 <button
-                  onClick={() => setToolsOpen(o => !o)}
+                  onClick={() => { setToolsOpen(true); setMobileOpen(false); router.push('/admin/herramientas?s=CATALOGO') }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     active ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25' : 'text-white/40 hover:text-white/70 hover:bg-white/5'
                   }`}
                 >
                   <Icon size={15} className={active ? 'text-amber-400' : 'text-white/30'} />
                   {label}
-                  <ChevronDown size={13} className={`ml-auto transition-transform ${toolsOpen ? 'rotate-180' : ''} ${active ? 'text-amber-400/60' : 'text-white/30'}`} />
+                  <ChevronDown size={13} onClick={(e) => { e.stopPropagation(); setToolsOpen(o => !o) }} className={`ml-auto transition-transform ${toolsOpen ? 'rotate-180' : ''} ${active ? 'text-amber-400/60' : 'text-white/30'}`} />
                 </button>
                 {toolsOpen && (
                   <div className="ml-4 mt-0.5 mb-1 pl-2 border-l border-white/8 space-y-0.5">
