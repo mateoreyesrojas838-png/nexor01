@@ -80,9 +80,11 @@ export default function HomePage() {
   const statsRef  = useRef<HTMLElement>(null)
   const [statsVisible, setStatsVisible] = useState(false)
   const [landing, setLanding] = useState<{ services: any[]; plans: any[] }>({ services: [], plans: [] })
+  const [packs, setPacks] = useState<any[]>([]) // packs detallados (servicios incluidos + precios)
 
   useEffect(() => {
     fetch('/api/public/services').then(r => r.ok ? r.json() : null).then(d => { if (d) setLanding({ services: d.services || [], plans: d.plans || [] }) }).catch(() => {})
+    fetch('/api/plans').then(r => r.ok ? r.json() : null).then(d => { if (d?.plans) setPacks(d.plans.filter((p: any) => (p.prices?.MONTHLY ?? 0) > 0)) }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -222,6 +224,82 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
+          SERVICIOS INDIVIDUALES (primero, debajo del hero)
+      ═══════════════════════════════════════════════════════════ */}
+      {landing.services.length > 0 && (
+        <section style={{ padding:'60px 20px 30px' }}>
+          <div style={{ maxWidth:1000, margin:'0 auto' }}>
+            <p style={{ textAlign:'center', fontSize:11, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(0,229,255,0.6)', marginBottom:10 }}>Servicios individuales</p>
+            <h2 style={{ textAlign:'center', fontSize:'clamp(24px,4vw,38px)', fontWeight:900, letterSpacing:'-0.02em', marginBottom:40, color:'#fff' }}>Elegí lo que necesitás</h2>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:16 }}>
+              {landing.services.map((s:any)=>(
+                <Link key={s.key} href={`/servicios/${s.slug}`} style={{ textDecoration:'none', display:'flex', flexDirection:'column', borderRadius:20, overflow:'hidden', border:'1px solid rgba(0,229,255,0.12)', background:'linear-gradient(135deg, rgba(0,229,255,0.05), rgba(123,47,255,0.03))' }}>
+                  <div style={{ height:140, background:'rgba(0,0,0,0.25)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                    {s.coverUrl ? <img src={s.coverUrl} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Bot size={34} style={{ color:'rgba(0,229,255,0.3)' }} />}
+                  </div>
+                  <div style={{ padding:'16px 18px', flex:1, display:'flex', flexDirection:'column' }}>
+                    <p style={{ fontWeight:800, color:'#fff', fontSize:15 }}>{s.name}</p>
+                    {s.description && <p style={{ fontSize:12, lineHeight:1.6, color:'rgba(200,220,255,0.45)', marginTop:6, flex:1 }}>{s.description.slice(0,90)}{s.description.length>90?'…':''}</p>}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
+                      <span style={{ fontWeight:900, color:'#00E5FF', fontSize:16 }}>Desde ${s.minPrice}<span style={{ fontSize:10, color:'rgba(200,220,255,0.4)', fontWeight:500 }}> USDT</span></span>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:'#00E5FF' }}>Ver <ArrowRight size={13} /></span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          PACKS (todo en uno) — detallado con servicios y precios del admin
+      ═══════════════════════════════════════════════════════════ */}
+      {packs.length > 0 && (
+        <section style={{ padding:'30px 20px 70px' }}>
+          <div style={{ maxWidth:1050, margin:'0 auto' }}>
+            <p style={{ textAlign:'center', fontSize:11, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(255,215,0,0.6)', marginBottom:10 }}>Todo en uno</p>
+            <h2 style={{ textAlign:'center', fontSize:'clamp(24px,4vw,38px)', fontWeight:900, letterSpacing:'-0.02em', marginBottom:8, color:'#fff' }}>Packs con varios servicios</h2>
+            <p style={{ textAlign:'center', fontSize:13, color:'rgba(200,220,255,0.45)', marginBottom:36 }}>Combiná servicios en un solo pack y ahorrá.</p>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(290px, 1fr))', gap:18, alignItems:'start' }}>
+              {packs.map((p:any, i:number)=>{
+                const featured = i === 1
+                return (
+                  <div key={p.plan} style={{ display:'flex', flexDirection:'column', borderRadius:22, padding:'24px 22px', background: featured ? 'linear-gradient(160deg, rgba(255,215,0,0.08), rgba(11,11,18,0.6))' : 'rgba(255,255,255,0.02)', border: featured ? '1px solid rgba(255,215,0,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
+                    <p style={{ fontSize:12, fontWeight:900, textTransform:'uppercase', letterSpacing:'0.12em', color:'#FFD700' }}>{p.name}</p>
+                    {p.tagline && <p style={{ fontSize:11, color:'rgba(200,220,255,0.4)', marginTop:2 }}>{p.tagline}</p>}
+                    <div style={{ margin:'14px 0 16px' }}>
+                      <span style={{ fontSize:38, fontWeight:900, color:'#fff', lineHeight:1 }}>${p.prices?.MONTHLY}</span>
+                      <span style={{ fontSize:12, color:'rgba(200,220,255,0.4)', marginLeft:4 }}>USDT/mes</span>
+                      {(p.prices?.QUARTERLY || p.prices?.ANNUAL) && (
+                        <p style={{ fontSize:11, color:'rgba(200,220,255,0.4)', marginTop:4 }}>
+                          {p.prices?.QUARTERLY ? `3 meses $${p.prices.QUARTERLY}` : ''}{p.prices?.QUARTERLY && p.prices?.ANNUAL ? ' · ' : ''}{p.prices?.ANNUAL ? `Anual $${p.prices.ANNUAL}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ flex:1, display:'flex', flexDirection:'column', gap:9, marginBottom:20 }}>
+                      {(p.includedServices || []).map((s:any)=>(
+                        <div key={s.key} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+                          <CheckCircle2 size={14} style={{ color:'#FFD700', marginTop:2, flexShrink:0 }} />
+                          <div>
+                            <p style={{ fontSize:12, fontWeight:700, color:'#FBBF24', lineHeight:1.3 }}>{s.name}</p>
+                            {s.detail && <p style={{ fontSize:11, color:'rgba(200,220,255,0.5)', lineHeight:1.4 }}>{s.detail}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Link href="/planes" style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, padding:'13px 20px', borderRadius:14, fontSize:13, fontWeight:800, textDecoration:'none', color: featured ? '#000' : '#FFD700', background: featured ? 'linear-gradient(135deg,#D97706,#FFD700)' : 'rgba(255,215,0,0.1)', border: featured ? 'none' : '1px solid rgba(255,215,0,0.25)' }}>
+                      Adquirir {p.name} <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
           STATS
       ═══════════════════════════════════════════════════════════ */}
       <section ref={statsRef} style={{ borderTop:'1px solid rgba(0,229,255,0.07)', borderBottom:'1px solid rgba(0,229,255,0.07)', padding:'44px 20px' }}>
@@ -250,62 +328,6 @@ export default function HomePage() {
           })}
         </div>
       </section>
-
-      {/* ═══════════════════════════════════════════════════════════
-          SERVICIOS (solo los que tienen precio configurado)
-      ═══════════════════════════════════════════════════════════ */}
-      {landing.services.length > 0 && (
-        <section style={{ padding:'60px 20px' }}>
-          <div style={{ maxWidth:1000, margin:'0 auto' }}>
-            <p style={{ textAlign:'center', fontSize:11, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(0,229,255,0.6)', marginBottom:10 }}>Nuestros servicios</p>
-            <h2 style={{ textAlign:'center', fontSize:'clamp(24px,4vw,38px)', fontWeight:900, letterSpacing:'-0.02em', marginBottom:40, color:'#fff' }}>Elegí lo que necesitás</h2>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:16 }}>
-              {landing.services.map((s:any)=>(
-                <Link key={s.key} href={`/servicios/${s.slug}`} style={{ textDecoration:'none', display:'flex', flexDirection:'column', borderRadius:20, overflow:'hidden', border:'1px solid rgba(0,229,255,0.12)', background:'linear-gradient(135deg, rgba(0,229,255,0.05), rgba(123,47,255,0.03))' }}>
-                  <div style={{ height:140, background:'rgba(0,0,0,0.25)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-                    {s.coverUrl ? <img src={s.coverUrl} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Bot size={34} style={{ color:'rgba(0,229,255,0.3)' }} />}
-                  </div>
-                  <div style={{ padding:'16px 18px', flex:1, display:'flex', flexDirection:'column' }}>
-                    <p style={{ fontWeight:800, color:'#fff', fontSize:15 }}>{s.name}</p>
-                    {s.description && <p style={{ fontSize:12, lineHeight:1.6, color:'rgba(200,220,255,0.45)', marginTop:6, flex:1 }}>{s.description.slice(0,90)}{s.description.length>90?'…':''}</p>}
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
-                      <span style={{ fontWeight:900, color:'#00E5FF', fontSize:16 }}>Desde ${s.minPrice}<span style={{ fontSize:10, color:'rgba(200,220,255,0.4)', fontWeight:500 }}> USDT</span></span>
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:'#00E5FF' }}>Ver <ArrowRight size={13} /></span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          PACKS (todo en uno)
-      ═══════════════════════════════════════════════════════════ */}
-      {landing.plans.length > 0 && (
-        <section style={{ padding:'20px 20px 70px' }}>
-          <div style={{ maxWidth:900, margin:'0 auto' }}>
-            <div style={{ borderRadius:24, padding:'40px 28px', textAlign:'center', border:'1px solid rgba(255,215,0,0.18)', background:'linear-gradient(160deg, rgba(255,215,0,0.06), rgba(11,11,18,0.6))' }}>
-              <p style={{ fontSize:11, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(255,215,0,0.6)', marginBottom:8 }}>Todo en uno</p>
-              <h2 style={{ fontSize:'clamp(22px,3.5vw,32px)', fontWeight:900, color:'#fff', marginBottom:8 }}>Packs con varios servicios</h2>
-              <p style={{ fontSize:13, color:'rgba(200,220,255,0.45)', marginBottom:24 }}>Combiná servicios y ahorrá. Desde:</p>
-              <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'center', gap:14, marginBottom:28 }}>
-                {landing.plans.map((p:any)=>(
-                  <div key={p.plan} style={{ padding:'16px 22px', borderRadius:16, border:'1px solid rgba(255,215,0,0.2)', background:'rgba(255,255,255,0.02)', minWidth:140 }}>
-                    <p style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em', color:'#FFD700' }}>{p.name}</p>
-                    <p style={{ fontSize:24, fontWeight:900, color:'#fff', marginTop:4 }}>${p.monthly}<span style={{ fontSize:11, color:'rgba(200,220,255,0.4)', fontWeight:500 }}>/mes</span></p>
-                    <p style={{ fontSize:11, color:'rgba(200,220,255,0.4)', marginTop:2 }}>{p.services} servicios</p>
-                  </div>
-                ))}
-              </div>
-              <Link href="/planes" className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'14px 34px', borderRadius:14, fontSize:13, fontWeight:700, textDecoration:'none', color:'#000', background:'linear-gradient(135deg,#D97706,#FFD700)' }}>
-                Ver planes <ArrowRight size={15} />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ═══════════════════════════════════════════════════════════
           FOOTER
