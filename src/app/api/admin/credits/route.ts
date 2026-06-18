@@ -64,6 +64,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, newBalance })
   }
 
+  // Quitar créditos (resta, nunca baja de 0)
+  if (body.action === 'remove_credits') {
+    const { userId, amount } = body
+    if (!userId || typeof amount !== 'number' || amount <= 0) {
+      return NextResponse.json({ error: 'userId y amount > 0 requeridos' }, { status: 400 })
+    }
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { aiCreditsUsd: true } })
+    const next = Math.max(0, (u?.aiCreditsUsd ?? 0) - amount)
+    const updated = await prisma.user.update({ where: { id: userId }, data: { aiCreditsUsd: next }, select: { aiCreditsUsd: true } })
+    return NextResponse.json({ ok: true, newBalance: updated.aiCreditsUsd })
+  }
+
   // Establecer créditos exactos
   if (body.action === 'set_credits') {
     const { userId, amount } = body

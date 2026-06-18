@@ -80,7 +80,7 @@ export default function AdminCreditsPage() {
     setLoadingDetail(false)
   }
 
-  async function handleCredits(action: 'add_credits' | 'set_credits') {
+  async function handleCredits(action: 'add_credits' | 'set_credits' | 'remove_credits') {
     if (!selectedUser || !creditAmount) return
     const amount = parseFloat(creditAmount)
     if (isNaN(amount)) return
@@ -255,11 +255,18 @@ export default function AdminCreditsPage() {
                             <Plus className="w-3.5 h-3.5" /> Añadir
                           </button>
                           <button
+                            onClick={() => handleCredits('remove_credits')}
+                            disabled={savingCredits || !creditAmount}
+                            className="flex items-center gap-1 px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            <Minus className="w-3.5 h-3.5" /> Quitar
+                          </button>
+                          <button
                             onClick={() => handleCredits('set_credits')}
                             disabled={savingCredits || !creditAmount}
                             className="flex items-center gap-1 px-3 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
                           >
-                            <Minus className="w-3.5 h-3.5" /> Fijar
+                            Fijar
                           </button>
                         </div>
                         {creditMsg && <p className="text-xs text-amber-400">{creditMsg}</p>}
