@@ -6,6 +6,7 @@ import { Loader2, Plus, Trash2, Save, X, Upload, Eye, EyeOff, Wrench, FileText, 
 
 const SECTIONS = [
   { key: 'CATALOGO', label: 'Catálogo' },
+  { key: 'PLANTILLA', label: 'Plantillas' },
   { key: 'TESTIMONIO', label: 'Testimonios' },
   { key: 'PROMOCION', label: 'Promociones' },
   { key: 'BIBLIOTECA', label: 'Biblioteca' },
@@ -15,6 +16,7 @@ const SECTIONS = [
 // Qué campos mostrar por sección
 const FIELDS: Record<string, { category?: boolean; cover?: boolean; file?: boolean; image?: boolean; video?: boolean; button?: boolean; buttonHint?: string }> = {
   CATALOGO: { category: true, cover: true, file: true, button: true, buttonHint: 'Ej. "Abrir en Canva"' },
+  PLANTILLA: { image: true, button: true, buttonHint: 'Texto del botón (ej. "Editar en Canva")' },
   TESTIMONIO: { image: true, video: true, button: true, buttonHint: 'Botón de acción (opcional)' },
   PROMOCION: { image: true, video: true, file: true },
   BIBLIOTECA: { cover: true, file: true },

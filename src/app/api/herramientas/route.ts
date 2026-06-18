@@ -13,7 +13,7 @@ export async function GET() {
     orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
   })
 
-  const grouped: Record<string, any[]> = { CATALOGO: [], TESTIMONIO: [], PROMOCION: [], BIBLIOTECA: [], GUION: [] }
+  const grouped: Record<string, any[]> = { CATALOGO: [], PLANTILLA: [], TESTIMONIO: [], PROMOCION: [], BIBLIOTECA: [], GUION: [] }
   for (const it of items) (grouped[it.section] ||= []).push(it)
 
   return NextResponse.json({ sections: grouped })

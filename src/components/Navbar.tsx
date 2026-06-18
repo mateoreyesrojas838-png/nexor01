@@ -21,6 +21,7 @@ const navItems: { href: string; iconClass: string; label: string; serviceKey?: s
 // Secciones del servicio Herramientas (menú colapsable)
 const TOOLS_SECTIONS = [
   { key: 'CATALOGO', label: 'Catálogo', icon: 'fa-solid fa-table-cells-large' },
+  { key: 'PLANTILLA', label: 'Plantillas', icon: 'fa-solid fa-image' },
   { key: 'TESTIMONIO', label: 'Testimonios', icon: 'fa-solid fa-quote-right' },
   { key: 'PROMOCION', label: 'Promociones', icon: 'fa-solid fa-bullhorn' },
   { key: 'BIBLIOTECA', label: 'Biblioteca', icon: 'fa-solid fa-book' },

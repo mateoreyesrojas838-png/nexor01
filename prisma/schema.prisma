@@ -1135,6 +1135,7 @@ model Service {
 // ─── HERRAMIENTAS (catálogo, testimonios, promociones, biblioteca, guiones) ───
 enum ToolSection {
   CATALOGO
+  PLANTILLA
   TESTIMONIO
   PROMOCION
   BIBLIOTECA

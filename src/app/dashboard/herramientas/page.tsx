@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Loader2, Wrench, Search, FileText, Download, Eye, ExternalLink, Quote } from 'lucide-react'
 
-const VALID_SECTIONS = ['CATALOGO', 'TESTIMONIO', 'PROMOCION', 'BIBLIOTECA', 'GUION']
+const VALID_SECTIONS = ['CATALOGO', 'PLANTILLA', 'TESTIMONIO', 'PROMOCION', 'BIBLIOTECA', 'GUION']
 
 const SECTIONS = [
   { key: 'CATALOGO', label: 'Catálogo' },
+  { key: 'PLANTILLA', label: 'Plantillas' },
   { key: 'TESTIMONIO', label: 'Testimonios' },
   { key: 'PROMOCION', label: 'Promociones' },
   { key: 'BIBLIOTECA', label: 'Biblioteca' },
@@ -137,7 +138,7 @@ function ToolsContent() {
           {filtered.map((it: any) => (
             <div key={it.id} className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden flex flex-col">
               <div className="bg-black/20 flex items-center justify-center p-2" style={{ height: 200 }}>
-                {it.coverUrl ? <img src={it.coverUrl} alt="" className="max-w-full max-h-full object-contain" /> : <FileText size={32} className="text-white/15" />}
+                {(it.coverUrl || it.imageUrl) ? <img src={it.coverUrl || it.imageUrl} alt="" className="max-w-full max-h-full object-contain" /> : <FileText size={32} className="text-white/15" />}
               </div>
               <div className="p-4 flex flex-col flex-1">
                 {it.category && <p className="text-[10px] uppercase tracking-widest text-amber-400/70 mb-1">{it.category}</p>}

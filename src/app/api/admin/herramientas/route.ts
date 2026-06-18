@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminUser, unauthorizedAdmin } from '@/lib/admin-auth'
 
-const SECTIONS = ['CATALOGO', 'TESTIMONIO', 'PROMOCION', 'BIBLIOTECA', 'GUION']
+const SECTIONS = ['CATALOGO', 'PLANTILLA', 'TESTIMONIO', 'PROMOCION', 'BIBLIOTECA', 'GUION']
 
 /** GET — todos los recursos (admin), ordenados por sección y orden. */
 export async function GET() {

@@ -29,6 +29,7 @@ import {
 
 const TOOLS_SECTIONS = [
   { key: 'CATALOGO', label: 'Catálogo' },
+  { key: 'PLANTILLA', label: 'Plantillas' },
   { key: 'TESTIMONIO', label: 'Testimonios' },
   { key: 'PROMOCION', label: 'Promociones' },
   { key: 'BIBLIOTECA', label: 'Biblioteca' },
