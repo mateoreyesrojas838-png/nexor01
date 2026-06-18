@@ -148,6 +148,12 @@ export async function POST(req: NextRequest) {
   // Store identificadorDeuda (our UUID) — this is what Libélula sends back as transaction_id in the callback
   const notes = `LIBELULA:${identificadorDeuda}${isRenewal ? ':RENEWAL' : ''}`
 
+  // Expirar QR de Libélula anteriores no pagados de este usuario (para que no se acumulen)
+  await (prisma.packPurchaseRequest as any).updateMany({
+    where: { userId: user.id, status: 'PENDING_VERIFICATION', notes: { startsWith: 'LIBELULA' } },
+    data: { status: 'REJECTED' },
+  }).catch(() => {})
+
   // Use PENDING_VERIFICATION for Libélula — won't block user if they don't pay
   await (prisma.packPurchaseRequest as any).create({
     data: {

@@ -79,9 +79,11 @@ export async function POST(request: NextRequest) {
     // ¿Es renovación? (compra del mismo plan que ya tiene)
     const isRenewal = user.plan === plan
 
-    // No puede haber otra solicitud pendiente (manual o esperando verificación on-chain)
+    // No puede haber otra solicitud pendiente (manual o esperando verificación on-chain).
+    // Se excluyen los QR de Libélula no pagados: se confirman solos por callback y no deben
+    // bloquear otras formas de pago (antes dejaban al usuario trabado sin que el admin los viera).
     const existing = await prisma.packPurchaseRequest.findFirst({
-      where: { userId: user.id, status: { in: ['PENDING', 'PENDING_VERIFICATION'] } },
+      where: { userId: user.id, status: { in: ['PENDING', 'PENDING_VERIFICATION'] }, NOT: { notes: { startsWith: 'LIBELULA' } } },
     })
     if (existing) {
       return NextResponse.json(
