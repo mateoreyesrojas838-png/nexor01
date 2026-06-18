@@ -114,7 +114,7 @@ export default function AdminPlansPage() {
               <div className="mt-4 pt-4 border-t border-white/5">
                 <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Límites de uso <span className="text-white/20 normal-case tracking-normal">(0 o vacío = ilimitado)</span></p>
                 <div className="flex flex-wrap gap-3">
-                  {services.filter(s => (plan.services || []).includes(s.key) && LIMITABLE.includes(s.key)).map(s => (
+                  {services.filter(s => LIMITABLE.includes(s.key)).map(s => (
                     <div key={s.key}>
                       <label className="block text-[10px] text-white/40 mb-1">{s.name}</label>
                       <input type="number" min="0" value={(plan.limits || {})[s.key] ?? ''} onChange={e => setLimit(plan, s.key, e.target.value)} placeholder="∞" className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500/50" />
