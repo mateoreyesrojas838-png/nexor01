@@ -171,7 +171,7 @@ export default function HomePage() {
       {/* ═══════════════════════════════════════════════════════════
           HERO
       ═══════════════════════════════════════════════════════════ */}
-      <section ref={heroRef} style={{ position:'relative', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 20px 60px', textAlign:'center', overflow:'hidden' }}>
+      <section ref={heroRef} style={{ position:'relative', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'clamp(70px,12vh,120px) 20px clamp(40px,6vh,64px)', textAlign:'center', overflow:'hidden' }}>
 
         {/* Orbs */}
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:0 }}>
@@ -220,7 +220,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:140, background:'linear-gradient(transparent, #040615)', pointerEvents:'none', zIndex:1 }} />
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:60, background:'linear-gradient(transparent, #040615)', pointerEvents:'none', zIndex:1 }} />
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
