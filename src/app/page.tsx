@@ -79,6 +79,11 @@ export default function HomePage() {
   const heroRef   = useRef<HTMLElement>(null)
   const statsRef  = useRef<HTMLElement>(null)
   const [statsVisible, setStatsVisible] = useState(false)
+  const [landing, setLanding] = useState<{ services: any[]; plans: any[] }>({ services: [], plans: [] })
+
+  useEffect(() => {
+    fetch('/api/public/services').then(r => r.ok ? r.json() : null).then(d => { if (d) setLanding({ services: d.services || [], plans: d.plans || [] }) }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const hero = heroRef.current; if (!hero) return
@@ -185,19 +190,6 @@ export default function HomePage() {
         {/* Content */}
         <div style={{ position:'relative', zIndex:2, maxWidth:700, display:'flex', flexDirection:'column', alignItems:'center', animation:'slide-up .8s cubic-bezier(.22,1,.36,1) both' }}>
 
-          {/* Badge */}
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'6px 18px', borderRadius:9999, background:'rgba(0,229,255,0.06)', border:'1px solid rgba(0,229,255,0.2)', marginBottom:'clamp(20px,4vw,44px)', backdropFilter:'blur(10px)' }}>
-            <span style={{ width:6, height:6, borderRadius:'50%', background:'#00E5FF', boxShadow:'0 0 8px #00E5FF', display:'block', animation:'pulse-ring 2s ease-out infinite' }} />
-            <span style={{ fontSize:10, letterSpacing:'0.28em', textTransform:'uppercase', fontWeight:500, color:'rgba(0,229,255,0.85)' }}>
-              Plataforma activa · LATAM 2026
-            </span>
-          </div>
-
-          {/* Logo */}
-          <div style={{ width:100, height:100, borderRadius:24, overflow:'hidden', marginBottom:'clamp(20px,4vw,44px)', border:'1px solid rgba(0,229,255,0.2)', boxShadow:'0 0 50px rgba(0,229,255,0.15), 0 0 100px rgba(123,47,255,0.1)', background:'rgba(0,229,255,0.04)', display:'flex', alignItems:'center', justifyContent:'center', animation:'float-b 5.5s ease-in-out infinite' }}>
-            <img src="/logo.png" alt="Nexor" style={{ width:'80%', height:'80%', objectFit:'contain' }} />
-          </div>
-
           {/* Headline */}
           <h1 style={{ fontSize:'clamp(32px, 7vw, 66px)', fontWeight:900, lineHeight:1.05, letterSpacing:'-0.03em', marginBottom:22 }}>
             <span style={{ display:'block', color:'rgba(255,255,255,0.92)' }}>El ecosistema digital</span>
@@ -258,6 +250,62 @@ export default function HomePage() {
           })}
         </div>
       </section>
+
+      {/* ═══════════════════════════════════════════════════════════
+          SERVICIOS (solo los que tienen precio configurado)
+      ═══════════════════════════════════════════════════════════ */}
+      {landing.services.length > 0 && (
+        <section style={{ padding:'60px 20px' }}>
+          <div style={{ maxWidth:1000, margin:'0 auto' }}>
+            <p style={{ textAlign:'center', fontSize:11, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(0,229,255,0.6)', marginBottom:10 }}>Nuestros servicios</p>
+            <h2 style={{ textAlign:'center', fontSize:'clamp(24px,4vw,38px)', fontWeight:900, letterSpacing:'-0.02em', marginBottom:40, color:'#fff' }}>Elegí lo que necesitás</h2>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:16 }}>
+              {landing.services.map((s:any)=>(
+                <Link key={s.key} href={`/servicios/${s.slug}`} style={{ textDecoration:'none', display:'flex', flexDirection:'column', borderRadius:20, overflow:'hidden', border:'1px solid rgba(0,229,255,0.12)', background:'linear-gradient(135deg, rgba(0,229,255,0.05), rgba(123,47,255,0.03))' }}>
+                  <div style={{ height:140, background:'rgba(0,0,0,0.25)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                    {s.coverUrl ? <img src={s.coverUrl} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Bot size={34} style={{ color:'rgba(0,229,255,0.3)' }} />}
+                  </div>
+                  <div style={{ padding:'16px 18px', flex:1, display:'flex', flexDirection:'column' }}>
+                    <p style={{ fontWeight:800, color:'#fff', fontSize:15 }}>{s.name}</p>
+                    {s.description && <p style={{ fontSize:12, lineHeight:1.6, color:'rgba(200,220,255,0.45)', marginTop:6, flex:1 }}>{s.description.slice(0,90)}{s.description.length>90?'…':''}</p>}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
+                      <span style={{ fontWeight:900, color:'#00E5FF', fontSize:16 }}>Desde ${s.minPrice}<span style={{ fontSize:10, color:'rgba(200,220,255,0.4)', fontWeight:500 }}> USDT</span></span>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:'#00E5FF' }}>Ver <ArrowRight size={13} /></span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          PACKS (todo en uno)
+      ═══════════════════════════════════════════════════════════ */}
+      {landing.plans.length > 0 && (
+        <section style={{ padding:'20px 20px 70px' }}>
+          <div style={{ maxWidth:900, margin:'0 auto' }}>
+            <div style={{ borderRadius:24, padding:'40px 28px', textAlign:'center', border:'1px solid rgba(255,215,0,0.18)', background:'linear-gradient(160deg, rgba(255,215,0,0.06), rgba(11,11,18,0.6))' }}>
+              <p style={{ fontSize:11, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(255,215,0,0.6)', marginBottom:8 }}>Todo en uno</p>
+              <h2 style={{ fontSize:'clamp(22px,3.5vw,32px)', fontWeight:900, color:'#fff', marginBottom:8 }}>Packs con varios servicios</h2>
+              <p style={{ fontSize:13, color:'rgba(200,220,255,0.45)', marginBottom:24 }}>Combiná servicios y ahorrá. Desde:</p>
+              <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'center', gap:14, marginBottom:28 }}>
+                {landing.plans.map((p:any)=>(
+                  <div key={p.plan} style={{ padding:'16px 22px', borderRadius:16, border:'1px solid rgba(255,215,0,0.2)', background:'rgba(255,255,255,0.02)', minWidth:140 }}>
+                    <p style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.1em', color:'#FFD700' }}>{p.name}</p>
+                    <p style={{ fontSize:24, fontWeight:900, color:'#fff', marginTop:4 }}>${p.monthly}<span style={{ fontSize:11, color:'rgba(200,220,255,0.4)', fontWeight:500 }}>/mes</span></p>
+                    <p style={{ fontSize:11, color:'rgba(200,220,255,0.4)', marginTop:2 }}>{p.services} servicios</p>
+                  </div>
+                ))}
+              </div>
+              <Link href="/planes" className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'14px 34px', borderRadius:14, fontSize:13, fontWeight:700, textDecoration:'none', color:'#000', background:'linear-gradient(135deg,#D97706,#FFD700)' }}>
+                Ver planes <ArrowRight size={15} />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════
           FOOTER
